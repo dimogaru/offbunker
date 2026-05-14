@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Trash2, FolderOpen, FileText, Paperclip, ExternalLink, Download } from "lucide-react";
+import { Trash2, FolderOpen, FileText, Paperclip, ExternalLink, Download, WifiOff, CheckCircle2, Loader2, CloudDownload } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -43,7 +43,15 @@ const schema = z.object({
 });
 type FormValues = z.infer<typeof schema>;
 
-function fmtDate(iso: string) { return new Date(iso).toLocaleDateString("es-ES", { month: "short", day: "numeric", year: "numeric" }); }
+function fmtDate(iso: string) {
+  return new Date(iso).toLocaleDateString("es-ES", { month: "short", day: "numeric", year: "numeric" });
+}
+
+function isServerUrl(url: string | null | undefined): boolean {
+  return !!url && url.startsWith("/uploads/");
+}
+
+const OFFLINE_CACHE = "travelhub-uploads-v1";
 
 interface Props { tripId: number }
 
@@ -54,30 +62,99 @@ export default function DocumentsModule({ tripId }: Props) {
   const [deleting, setDeleting] = useState<Document | null>(null);
   const [filterModule, setFilterModule] = useState<string>("all");
   const [selectedFileName, setSelectedFileName] = useState<string>("");
+  const [uploading, setUploading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncProgress, setSyncProgress] = useState({ done: 0, total: 0 });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: docs, isLoading } = useListDocuments(tripId, { query: { queryKey: getListDocumentsQueryKey(tripId) } });
   const invalidate = () => queryClient.invalidateQueries({ queryKey: getListDocumentsQueryKey(tripId) });
 
-  const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { module: "vault", name: "", fileType: "PDF", fileUrl: "", notes: "" } });
+  const form = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { module: "vault", name: "", fileType: "PDF", fileUrl: "", notes: "" },
+  });
 
-  const createDocument = useCreateDocument({ mutation: { onSuccess: () => { invalidate(); setOpen(false); form.reset(); setSelectedFileName(""); toast({ title: "Documento añadido" }); } } });
-  const deleteDocument = useDeleteDocument({ mutation: { onSuccess: () => { invalidate(); setDeleting(null); toast({ title: "Documento eliminado" }); } } });
+  const createDocument = useCreateDocument({
+    mutation: {
+      onSuccess: () => {
+        invalidate();
+        setOpen(false);
+        form.reset();
+        setSelectedFileName("");
+        toast({ title: "Documento añadido" });
+      },
+    },
+  });
+  const deleteDocument = useDeleteDocument({
+    mutation: {
+      onSuccess: () => {
+        invalidate();
+        setDeleting(null);
+        toast({ title: "Documento eliminado" });
+      },
+    },
+  });
 
-  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+
     setSelectedFileName(file.name);
     form.setValue("name", file.name);
     if (file.type.includes("pdf")) form.setValue("fileType", "PDF");
     else if (file.type.includes("image")) form.setValue("fileType", "Imagen");
     else form.setValue("fileType", "Otro");
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      form.setValue("fileUrl", event.target?.result as string);
-    };
-    reader.readAsDataURL(file);
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/uploads", { method: "POST", body: formData });
+      if (!res.ok) throw new Error("Upload failed");
+      const { url } = await res.json() as { url: string };
+      form.setValue("fileUrl", url);
+    } catch {
+      toast({ title: "Error al subir el archivo", description: "Comprueba tu conexión e inténtalo de nuevo.", variant: "destructive" });
+      setSelectedFileName("");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handlePrepareOffline() {
+    if (!docs) return;
+    const serverDocs = docs.filter((d) => isServerUrl(d.fileUrl));
+
+    if (serverDocs.length === 0) {
+      toast({ title: "No hay documentos en el servidor", description: "Sube documentos primero para poder guardarlos offline." });
+      return;
+    }
+    if (!("caches" in window)) {
+      toast({ title: "Tu navegador no soporta esta función", variant: "destructive" });
+      return;
+    }
+
+    setSyncing(true);
+    setSyncProgress({ done: 0, total: serverDocs.length });
+
+    try {
+      const cache = await caches.open(OFFLINE_CACHE);
+      for (const doc of serverDocs) {
+        await cache.add(doc.fileUrl!);
+        setSyncProgress((p) => ({ ...p, done: p.done + 1 }));
+      }
+      toast({
+        title: "Viaje preparado para modo offline",
+        description: `${serverDocs.length} documento${serverDocs.length !== 1 ? "s" : ""} guardado${serverDocs.length !== 1 ? "s" : ""} en el dispositivo.`,
+      });
+    } catch {
+      toast({ title: "Error al descargar documentos", description: "Comprueba tu conexión a internet.", variant: "destructive" });
+    } finally {
+      setSyncing(false);
+      setSyncProgress({ done: 0, total: 0 });
+    }
   }
 
   function onOpenDialog() {
@@ -90,7 +167,7 @@ export default function DocumentsModule({ tripId }: Props) {
     createDocument.mutate({ tripId, data: { ...values, fileUrl: values.fileUrl || undefined, notes: values.notes || undefined } });
   }
 
-  const filteredDocs = docs ? (filterModule === "all" ? docs : docs.filter(d => d.module === filterModule)) : [];
+  const filteredDocs = docs ? (filterModule === "all" ? docs : docs.filter((d) => d.module === filterModule)) : [];
 
   const grouped = filteredDocs.reduce((acc, d) => {
     if (!acc[d.module]) acc[d.module] = [];
@@ -98,9 +175,11 @@ export default function DocumentsModule({ tripId }: Props) {
     return acc;
   }, {} as Record<string, Document[]>);
 
+  const serverDocCount = docs ? docs.filter((d) => isServerUrl(d.fileUrl)).length : 0;
+
   return (
     <div>
-      <div className="flex items-start justify-between mb-5">
+      <div className="flex items-start justify-between mb-4">
         <div>
           <h2 className="text-lg font-bold">Bóveda de Documentos</h2>
           <p className="text-muted-foreground text-sm mt-0.5">Guarda tarjetas de embarque, seguros, visados y más</p>
@@ -111,6 +190,39 @@ export default function DocumentsModule({ tripId }: Props) {
         </Button>
       </div>
 
+      {/* Offline sync banner */}
+      {serverDocCount > 0 && (
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3">
+          <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
+            {syncing ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin text-primary flex-shrink-0" />
+                <span>Descargando {syncProgress.done} de {syncProgress.total} documentos…</span>
+              </>
+            ) : (
+              <>
+                <WifiOff className="w-4 h-4 flex-shrink-0" />
+                <span><span className="font-medium text-foreground">{serverDocCount}</span> documento{serverDocCount !== 1 ? "s" : ""} disponible{serverDocCount !== 1 ? "s" : ""} para guardar offline</span>
+              </>
+            )}
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 flex-shrink-0 text-xs h-8"
+            onClick={handlePrepareOffline}
+            disabled={syncing}
+          >
+            {syncing ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <CloudDownload className="w-3.5 h-3.5" />
+            )}
+            Preparar modo offline
+          </Button>
+        </div>
+      )}
+
       {/* Filter */}
       <div className="flex gap-2 flex-wrap mb-4">
         <button
@@ -119,7 +231,7 @@ export default function DocumentsModule({ tripId }: Props) {
         >
           Todos
         </button>
-        {MODULES.map(m => (
+        {MODULES.map((m) => (
           <button
             key={m.value}
             onClick={() => setFilterModule(m.value)}
@@ -131,16 +243,16 @@ export default function DocumentsModule({ tripId }: Props) {
       </div>
 
       {isLoading ? (
-        <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-14 w-full rounded-lg" />)}</div>
+        <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-14 w-full rounded-lg" />)}</div>
       ) : filteredDocs.length > 0 ? (
         <div className="space-y-5">
           {Object.entries(grouped).map(([mod, modDocs]) => (
             <div key={mod}>
               <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                {MODULES.find(m => m.value === mod)?.label || mod}
+                {MODULES.find((m) => m.value === mod)?.label || mod}
               </h3>
               <div className="space-y-2">
-                {modDocs.map(doc => (
+                {modDocs.map((doc) => (
                   <div key={doc.id} className="border border-border rounded-lg bg-card p-3 flex items-center gap-3" data-testid={`card-doc-${doc.id}`}>
                     <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
                       <FileText className="w-4 h-4 text-muted-foreground" />
@@ -152,8 +264,14 @@ export default function DocumentsModule({ tripId }: Props) {
                         <span className="text-xs text-muted-foreground">·</span>
                         <span className="text-xs text-muted-foreground">{fmtDate(doc.uploadedAt)}</span>
                         <span className={`text-xs px-1.5 py-0.5 rounded-full ${MODULE_COLORS[doc.module]}`}>
-                          {MODULES.find(m => m.value === doc.module)?.label}
+                          {MODULES.find((m) => m.value === doc.module)?.label}
                         </span>
+                        {isServerUrl(doc.fileUrl) && (
+                          <span className="flex items-center gap-0.5 text-xs text-emerald-600">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Servidor
+                          </span>
+                        )}
                       </div>
                     </div>
                     {doc.fileUrl && (
@@ -170,14 +288,21 @@ export default function DocumentsModule({ tripId }: Props) {
                         <a
                           href={doc.fileUrl}
                           download={doc.name}
-                          title="Descargar para uso offline"
+                          title="Descargar"
                           className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
                         >
                           <Download className="w-3.5 h-3.5" />
                         </a>
                       </div>
                     )}
-                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive flex-shrink-0" onClick={() => setDeleting(doc)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 text-destructive hover:text-destructive flex-shrink-0"
+                      onClick={() => setDeleting(doc)}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
                   </div>
                 ))}
               </div>
@@ -197,16 +322,19 @@ export default function DocumentsModule({ tripId }: Props) {
           <DialogHeader><DialogTitle>Subir Documento</DialogTitle></DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
-              {/* File picker */}
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Archivo</label>
                 <div
-                  className="flex items-center gap-3 border border-border rounded-md px-3 py-2 bg-background cursor-pointer hover:bg-muted/40 transition-colors"
-                  onClick={() => fileInputRef.current?.click()}
+                  className={`flex items-center gap-3 border border-border rounded-md px-3 py-2 bg-background transition-colors ${uploading ? "opacity-60" : "cursor-pointer hover:bg-muted/40"}`}
+                  onClick={() => !uploading && fileInputRef.current?.click()}
                 >
-                  <Paperclip className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  {uploading ? (
+                    <Loader2 className="w-4 h-4 text-primary animate-spin flex-shrink-0" />
+                  ) : (
+                    <Paperclip className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  )}
                   <span className={`text-sm truncate flex-1 ${selectedFileName ? "text-foreground" : "text-muted-foreground"}`}>
-                    {selectedFileName || "Seleccionar archivo (PDF o imagen)…"}
+                    {uploading ? "Subiendo al servidor…" : selectedFileName || "Seleccionar archivo (PDF o imagen)…"}
                   </span>
                 </div>
                 <input
@@ -216,9 +344,17 @@ export default function DocumentsModule({ tripId }: Props) {
                   className="hidden"
                   onChange={handleFileChange}
                 />
+                {selectedFileName && !uploading && (
+                  <p className="text-xs text-emerald-600 flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" />
+                    Archivo subido al servidor — disponible desde cualquier dispositivo
+                  </p>
+                )}
               </div>
 
-              <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nombre del documento</FormLabel><FormControl><Input placeholder="Tarjeta de embarque JL408" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="name" render={({ field }) => (
+                <FormItem><FormLabel>Nombre del documento</FormLabel><FormControl><Input placeholder="Tarjeta de embarque JL408" {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
 
               <div className="grid grid-cols-2 gap-3">
                 <FormField control={form.control} name="module" render={({ field }) => (
@@ -227,7 +363,7 @@ export default function DocumentsModule({ tripId }: Props) {
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                       <SelectContent>
-                        {MODULES.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                        {MODULES.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -250,9 +386,13 @@ export default function DocumentsModule({ tripId }: Props) {
                 )} />
               </div>
 
-              <FormField control={form.control} name="notes" render={({ field }) => (<FormItem><FormLabel>Notas (opcional)</FormLabel><FormControl><Textarea rows={2} {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="notes" render={({ field }) => (
+                <FormItem><FormLabel>Notas (opcional)</FormLabel><FormControl><Textarea rows={2} {...field} /></FormControl><FormMessage /></FormItem>
+              )} />
               <DialogFooter>
-                <Button type="submit" disabled={createDocument.isPending}>{createDocument.isPending ? "Subiendo..." : "Guardar Documento"}</Button>
+                <Button type="submit" disabled={createDocument.isPending || uploading}>
+                  {createDocument.isPending ? "Guardando..." : "Guardar Documento"}
+                </Button>
               </DialogFooter>
             </form>
           </Form>
@@ -261,10 +401,18 @@ export default function DocumentsModule({ tripId }: Props) {
 
       <AlertDialog open={!!deleting} onOpenChange={() => setDeleting(null)}>
         <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>¿Eliminar documento?</AlertDialogTitle><AlertDialogDescription>Se eliminará permanentemente "{deleting?.name}".</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar documento?</AlertDialogTitle>
+            <AlertDialogDescription>Se eliminará permanentemente "{deleting?.name}".</AlertDialogDescription>
+          </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deleting && deleteDocument.mutate({ tripId, documentId: deleting.id })} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => deleting && deleteDocument.mutate({ tripId, documentId: deleting.id })}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              Eliminar
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

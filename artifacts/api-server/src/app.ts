@@ -1,5 +1,6 @@
 import express, { type Express } from "express";
 import cors from "cors";
+import path from "path";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
@@ -26,7 +27,11 @@ app.use(
   }),
 );
 app.use(cors());
-app.use(express.json());
+
+const uploadsDir = path.join(process.cwd(), "uploads");
+app.use("/uploads", express.static(uploadsDir));
+
+app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);

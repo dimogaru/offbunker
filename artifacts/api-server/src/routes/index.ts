@@ -8,6 +8,7 @@ import accommodationsRouter from "./accommodations";
 import itineraryRouter from "./itinerary";
 import documentsRouter from "./documents";
 import shareRouter from "./share";
+import uploadsRouter from "./uploads";
 
 const router: IRouter = Router();
 
@@ -20,5 +21,6 @@ router.use(accommodationsRouter);
 router.use(itineraryRouter);
 router.use(documentsRouter);
 router.use(shareRouter);
+router.use(uploadsRouter);
 
 export default router;

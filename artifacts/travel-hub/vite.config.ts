@@ -66,6 +66,20 @@ export default defineConfig({
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
         runtimeCaching: [
           {
+            urlPattern: ({ url }) => url.pathname.startsWith("/uploads/"),
+            handler: "CacheFirst",
+            options: {
+              cacheName: "travelhub-uploads-v1",
+              expiration: {
+                maxEntries: 300,
+                maxAgeSeconds: 30 * 24 * 60 * 60,
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+          {
             urlPattern: ({ url }) => url.pathname.startsWith("/api/"),
             handler: "NetworkFirst",
             options: {

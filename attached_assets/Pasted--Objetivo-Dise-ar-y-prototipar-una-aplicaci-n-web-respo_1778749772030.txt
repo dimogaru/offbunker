@@ -1,0 +1,39 @@
+ Objetivo: Diseñar y prototipar una aplicación web responsiva para la gestión integral de viajes, centrada en la centralización de logística y documentación.
+
+1. Arquitectura de Navegación
+Vista de Dashboard (Principal): Una cuadrícula de tarjetas (cards) que represente cada viaje. Cada tarjeta debe mostrar: nombre del destino, fechas, una imagen representativa y un indicador de "próximo" o "finalizado".
+
+Vista Detallada del Viaje: Un panel de control centralizado para un viaje específico, organizado mediante pestañas (tabs) o un menú lateral.
+
+2. Estructura de Módulos (Campos de Datos)
+Por cada viaje, el sistema debe permitir la gestión de los siguientes nodos de información, permitiendo adjuntar archivos (PDF/Imágenes) en cada uno:
+
+✈️ Logística Aérea: Gestión de números de vuelo, aerolíneas, terminales, horarios y carga de tarjetas de embarque o visas.
+
+🅿️ Parking Aeroportuario: Localización del parking, código de reserva, fechas de entrada/salida y comprobante de pago.
+
+🚗 Movilidad (Alquiler de Vehículos): Empresa de alquiler, política de combustible, lugar de recogida y carga del contrato o carnet de conducir internacional.
+
+🏨 Alojamiento: Listado cronológico de hoteles/Airbnbs. Incluir dirección, check-in/out, número de confirmación y bonos de reserva.
+
+📅 Itinerario Dinámico (Day-by-Day): Un calendario interactivo donde se desglosen actividades diarias, horarios de tours y entradas a monumentos.
+
+📁 Bóveda de Documentación General: Apartado crítico para documentos no vinculados a servicios específicos (Seguro de viaje, certificados de salud, copias de pasaporte, contactos de emergencia).
+
+3. Requisitos Funcionales y UX
+Gestión de Documentos: Cada sección debe tener un botón de "Subir Documento" con previsualización rápida.
+
+Cronología Inteligente: El itinerario diario debe ordenarse automáticamente según las fechas del viaje.
+
+Estado de Preparación: Incluir una barra de progreso que indique qué porcentaje de documentos se han subido por cada viaje.
+
+Modo Offline: La interfaz debe estar diseñada bajo el concepto de Mobile First, optimizada para consultas rápidas en aeropuertos con poca conexión.
+
+4. Stack Tecnológico Sugerido (Opcional para el output)
+Utiliza React o Next.js para el frontend.
+
+Tailwind CSS para un diseño limpio, moderno y minimalista.
+
+Estructura de datos en JSON para simular la persistencia de la información.
+
+Instrucción Final: asegura que la navegación entre los 6 apartados sea fluida y profesional.

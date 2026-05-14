@@ -1,12 +1,13 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { PlusCircle, MapPin, Calendar, Plane, Trash2 } from "lucide-react";
+import { PlusCircle, MapPin, Calendar, Plane, Trash2, Pencil } from "lucide-react";
 import { useListTrips, useDeleteTrip, getListTripsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import TripProgressBar from "@/components/trip-progress-bar";
+import EditTripDialog from "@/components/edit-trip-dialog";
 import { useToast } from "@/hooks/use-toast";
 
 interface Trip {
@@ -17,6 +18,7 @@ interface Trip {
   endDate: string;
   status: string;
   coverImage?: string | null;
+  notes?: string | null;
 }
 
 function statusLabel(status: string) {
@@ -37,6 +39,7 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [deletingTrip, setDeletingTrip] = useState<Trip | null>(null);
+  const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
 
   const deleteTrip = useDeleteTrip({
     mutation: {
@@ -93,20 +96,30 @@ export default function Dashboard() {
             {trips.map((trip) => {
               const { label, className } = statusLabel(trip.status);
               return (
-                <div key={trip.id} className="rounded-xl border border-border bg-card overflow-hidden hover:shadow-md transition-shadow group relative" data-testid={`card-trip-${trip.id}`}>
-                  {/* Delete button — top-left, visible on hover */}
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setDeletingTrip(trip as Trip);
-                    }}
-                    className="absolute top-3 left-3 z-10 w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive"
-                    data-testid={`button-delete-trip-${trip.id}`}
-                    title="Delete trip"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                <div
+                  key={trip.id}
+                  className="rounded-xl border border-border bg-card overflow-hidden hover:shadow-md transition-shadow group relative"
+                  data-testid={`card-trip-${trip.id}`}
+                >
+                  {/* Card action buttons — visible on hover */}
+                  <div className="absolute top-3 left-3 z-10 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingTrip(trip as Trip); }}
+                      className="w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-primary transition-colors"
+                      data-testid={`button-edit-trip-${trip.id}`}
+                      title="Edit trip"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeletingTrip(trip as Trip); }}
+                      className="w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-destructive transition-colors"
+                      data-testid={`button-delete-trip-${trip.id}`}
+                      title="Delete trip"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
 
                   <Link href={`/trips/${trip.id}`}>
                     <div className="cursor-pointer">
@@ -143,8 +156,6 @@ export default function Dashboard() {
                           <Calendar className="w-3.5 h-3.5 flex-shrink-0" />
                           <span className="text-sm">{formatDateRange(trip.startDate, trip.endDate)}</span>
                         </div>
-
-                        {/* Progress bar */}
                         <div className="mt-3">
                           <TripProgressBar tripId={trip.id} compact />
                         </div>
@@ -171,6 +182,13 @@ export default function Dashboard() {
           </div>
         )}
       </main>
+
+      {/* Edit dialog */}
+      <EditTripDialog
+        trip={editingTrip}
+        open={!!editingTrip}
+        onOpenChange={(open) => { if (!open) setEditingTrip(null); }}
+      />
 
       {/* Delete confirmation */}
       <AlertDialog open={!!deletingTrip} onOpenChange={(open) => { if (!open) setDeletingTrip(null); }}>

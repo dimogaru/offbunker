@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useRoute, Link } from "wouter";
-import { ArrowLeft, Plane, ParkingCircle, Car, Building2, CalendarDays, FolderOpen } from "lucide-react";
+import { ArrowLeft, Plane, ParkingCircle, Car, Building2, CalendarDays, FolderOpen, Pencil } from "lucide-react";
 import { useGetTrip, getGetTripQueryKey } from "@workspace/api-client-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import TripProgressBar from "@/components/trip-progress-bar";
+import EditTripDialog from "@/components/edit-trip-dialog";
 import FlightsModule from "@/components/modules/flights-module";
 import ParkingModule from "@/components/modules/parking-module";
 import RentalsModule from "@/components/modules/rentals-module";
@@ -26,6 +27,7 @@ export default function TripDetail() {
   const [, params] = useRoute("/trips/:tripId");
   const tripId = parseInt(params?.tripId ?? "0", 10);
   const [activeModule, setActiveModule] = useState<ModuleId>("flights");
+  const [editOpen, setEditOpen] = useState(false);
 
   const { data: trip, isLoading } = useGetTrip(tripId, {
     query: { enabled: !!tripId, queryKey: getGetTripQueryKey(tripId) },
@@ -73,6 +75,15 @@ export default function TripDetail() {
             <h1 className="font-bold text-base truncate" data-testid="text-trip-name">{trip.name}</h1>
             <p className="text-xs text-sidebar-foreground/60 truncate">{trip.destination}</p>
           </div>
+          {/* Edit button in header */}
+          <button
+            onClick={() => setEditOpen(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors flex-shrink-0"
+            data-testid="button-edit-trip"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            Edit
+          </button>
         </div>
       </header>
 
@@ -114,6 +125,13 @@ export default function TripDetail() {
           </div>
         </main>
       </div>
+
+      {/* Edit dialog */}
+      <EditTripDialog
+        trip={trip}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+      />
     </div>
   );
 }

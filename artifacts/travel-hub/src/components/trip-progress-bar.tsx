@@ -1,4 +1,8 @@
+import { useState } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { useGetTripProgress, getGetTripProgressQueryKey } from "@workspace/api-client-react";
+
+const COLLAPSED_KEY = "travelhub-progress-collapsed";
 
 interface Props {
   tripId: number;
@@ -9,6 +13,16 @@ export default function TripProgressBar({ tripId, compact }: Props) {
   const { data: progress, isLoading } = useGetTripProgress(tripId, {
     query: { queryKey: getGetTripProgressQueryKey(tripId) },
   });
+
+  const [collapsed, setCollapsed] = useState(
+    () => localStorage.getItem(COLLAPSED_KEY) === "true",
+  );
+
+  function toggleCollapsed() {
+    const next = !collapsed;
+    setCollapsed(next);
+    localStorage.setItem(COLLAPSED_KEY, String(next));
+  }
 
   if (isLoading || !progress) {
     return (
@@ -40,29 +54,46 @@ export default function TripProgressBar({ tripId, compact }: Props) {
   }
 
   return (
-    <div className="bg-card border border-border rounded-lg p-4">
-      <div className="flex justify-between items-center mb-2">
+    <div className="bg-card border border-border rounded-lg px-4 pt-3 pb-3">
+      {/* Header — always visible */}
+      <button
+        onClick={toggleCollapsed}
+        className="w-full flex justify-between items-center group"
+        aria-expanded={!collapsed}
+      >
         <span className="text-sm font-medium">Progreso de preparación</span>
-        <span className="text-sm font-bold text-primary">{progress.percentComplete}%</span>
-      </div>
-      <div className="h-2 bg-muted rounded-full overflow-hidden mb-3">
-        <div
-          className="h-full bg-primary rounded-full transition-all duration-500"
-          style={{ width: `${progress.percentComplete}%` }}
-        />
-      </div>
-      <div className="grid grid-cols-3 gap-2">
-        {progress.moduleBreakdown.map((m) => (
-          <div key={m.module} className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold text-primary">{progress.percentComplete}%</span>
+          {collapsed
+            ? <ChevronDown className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+            : <ChevronUp className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+          }
+        </div>
+      </button>
+
+      {/* Collapsible body */}
+      {!collapsed && (
+        <div className="mt-2">
+          <div className="h-2 bg-muted rounded-full overflow-hidden mb-3">
             <div
-              className={`w-2 h-2 rounded-full flex-shrink-0 ${m.hasDocuments ? "bg-primary" : "bg-muted-foreground/30"}`}
+              className="h-full bg-primary rounded-full transition-all duration-500"
+              style={{ width: `${progress.percentComplete}%` }}
             />
-            <span className={`text-xs truncate ${m.hasDocuments ? "text-foreground" : "text-muted-foreground"}`}>
-              {m.label}
-            </span>
           </div>
-        ))}
-      </div>
+          <div className="grid grid-cols-3 gap-2">
+            {progress.moduleBreakdown.map((m) => (
+              <div key={m.module} className="flex items-center gap-1.5">
+                <div
+                  className={`w-2 h-2 rounded-full flex-shrink-0 ${m.hasDocuments ? "bg-primary" : "bg-muted-foreground/30"}`}
+                />
+                <span className={`text-xs truncate ${m.hasDocuments ? "text-foreground" : "text-muted-foreground"}`}>
+                  {m.label}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

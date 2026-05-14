@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useRoute, Link } from "wouter";
+import { useState, useEffect } from "react";
+import { useParams, useLocation, Link } from "wouter";
 import {
   ArrowLeft, Plane, ParkingCircle, Car, Building2, CalendarDays,
   FolderOpen, Pencil, Share2, Check,
@@ -26,6 +26,7 @@ const MODULES = [
 ] as const;
 
 type ModuleId = typeof MODULES[number]["id"];
+const VALID_IDS = MODULES.map((m) => m.id) as string[];
 
 function ShareButton({ tripId }: { tripId: number }) {
   const { toast } = useToast();
@@ -64,10 +65,35 @@ function ShareButton({ tripId }: { tripId: number }) {
 }
 
 export default function TripDetail() {
-  const [, params] = useRoute("/trips/:tripId");
-  const tripId = parseInt(params?.tripId ?? "0", 10);
-  const [activeModule, setActiveModule] = useState<ModuleId>("flights");
+  // Both /trips/:tripId and /trips/:tripId/:module render this component.
+  // useParams returns whichever params are present in the matched route.
+  const { tripId: tripIdStr, module: moduleParam } = useParams<{
+    tripId: string;
+    module?: string;
+  }>();
+  const tripId = parseInt(tripIdStr ?? "0", 10);
+  const [, navigate] = useLocation();
   const [editOpen, setEditOpen] = useState(false);
+
+  // Derive active module purely from URL — no state needed.
+  // This means browser back/forward and page refresh all work correctly.
+  const activeModule: ModuleId = VALID_IDS.includes(moduleParam ?? "")
+    ? (moduleParam as ModuleId)
+    : "flights";
+
+  // If the URL has no module segment, redirect to /trips/:id/flights so the
+  // URL always reflects the current section.
+  useEffect(() => {
+    if (tripId && !moduleParam) {
+      navigate(`/trips/${tripId}/flights`, { replace: true });
+    }
+  }, [tripId, moduleParam, navigate]);
+
+  function handleModuleChange(mod: ModuleId) {
+    navigate(`/trips/${tripId}/${mod}`);
+    // Scroll the main content area to the top when switching sections.
+    document.getElementById("module-main")?.scrollTo({ top: 0, behavior: "instant" });
+  }
 
   const { data: trip, isLoading } = useGetTrip(tripId, {
     query: { enabled: !!tripId, queryKey: getGetTripQueryKey(tripId) },
@@ -133,7 +159,7 @@ export default function TripDetail() {
             <p className="text-xs text-sidebar-foreground/60 truncate leading-tight">{trip.destination}</p>
           </div>
 
-          {/* Action buttons — icons only on mobile, icon + label on sm+ */}
+          {/* Action buttons */}
           <ShareButton tripId={tripId} />
 
           <button
@@ -158,7 +184,7 @@ export default function TripDetail() {
           {MODULES.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
-              onClick={() => setActiveModule(id)}
+              onClick={() => handleModuleChange(id)}
               data-testid={`nav-module-${id}`}
               className={`flex items-center gap-2.5 px-3 py-2 rounded-md text-sm font-medium transition-colors text-left w-full ${
                 activeModule === id
@@ -173,7 +199,7 @@ export default function TripDetail() {
         </nav>
 
         {/* Main content */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 pb-24 md:pb-6">
+        <main id="module-main" className="flex-1 overflow-y-auto p-4 sm:p-6 pb-24 md:pb-6">
           {/* Progress bar */}
           <div className="mb-5">
             <TripProgressBar tripId={tripId} />
@@ -199,7 +225,7 @@ export default function TripDetail() {
         {MODULES.map(({ id, shortLabel, icon: Icon }) => (
           <button
             key={id}
-            onClick={() => setActiveModule(id)}
+            onClick={() => handleModuleChange(id)}
             data-testid={`nav-module-${id}`}
             className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 transition-colors ${
               activeModule === id

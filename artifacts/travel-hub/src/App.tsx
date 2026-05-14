@@ -113,6 +113,7 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/trips/new" component={NewTrip} />
       <Route path="/trips/:tripId/export" component={TripExport} />
+      <Route path="/trips/:tripId/:module" component={TripDetail} />
       <Route path="/trips/:tripId" component={TripDetail} />
       <Route path="/share/:token" component={SharedTrip} />
       <Route component={NotFound} />

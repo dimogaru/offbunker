@@ -123,12 +123,12 @@ router.get("/trips/:tripId/progress", async (req, res): Promise<void> => {
   ]);
 
   const modules = [
-    { module: "flights", label: "Air Logistics", count: flights.length, docCount: documents.filter(d => d.module === "flights").length },
-    { module: "parking", label: "Airport Parking", count: parkings.length, docCount: documents.filter(d => d.module === "parking").length },
-    { module: "rental", label: "Vehicle Rental", count: rentals.length, docCount: documents.filter(d => d.module === "rental").length },
-    { module: "accommodation", label: "Accommodation", count: accommodations.length, docCount: documents.filter(d => d.module === "accommodation").length },
-    { module: "itinerary", label: "Itinerary", count: itinerary.length, docCount: documents.filter(d => d.module === "itinerary").length },
-    { module: "vault", label: "Document Vault", count: documents.filter(d => d.module === "vault").length, docCount: documents.filter(d => d.module === "vault").length },
+    { module: "flights", label: "Logística Aérea", count: flights.length, docCount: documents.filter(d => d.module === "flights").length },
+    { module: "parking", label: "Estacionamiento", count: parkings.length, docCount: documents.filter(d => d.module === "parking").length },
+    { module: "rental", label: "Alquiler de Vehículo", count: rentals.length, docCount: documents.filter(d => d.module === "rental").length },
+    { module: "accommodation", label: "Alojamiento", count: accommodations.length, docCount: documents.filter(d => d.module === "accommodation").length },
+    { module: "itinerary", label: "Itinerario", count: itinerary.length, docCount: documents.filter(d => d.module === "itinerary").length },
+    { module: "vault", label: "Bóveda de Docs", count: documents.filter(d => d.module === "vault").length, docCount: documents.filter(d => d.module === "vault").length },
   ];
 
   const moduleBreakdown = modules.map(m => ({

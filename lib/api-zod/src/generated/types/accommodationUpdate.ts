@@ -10,6 +10,7 @@ import type { AccommodationUpdateType } from "./accommodationUpdateType";
 export interface AccommodationUpdate {
   name?: string;
   type?: AccommodationUpdateType;
+  bookingPlatform?: string;
   address?: string;
   checkIn?: Date;
   checkOut?: Date;

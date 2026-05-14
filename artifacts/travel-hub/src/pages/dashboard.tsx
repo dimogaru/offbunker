@@ -22,16 +22,16 @@ interface Trip {
 }
 
 function statusLabel(status: string) {
-  if (status === "upcoming") return { label: "Upcoming", className: "bg-sky-100 text-sky-700 border-sky-200" };
-  if (status === "ongoing") return { label: "Ongoing", className: "bg-emerald-100 text-emerald-700 border-emerald-200" };
-  return { label: "Completed", className: "bg-slate-100 text-slate-500 border-slate-200" };
+  if (status === "upcoming") return { label: "Próximo", className: "bg-sky-100 text-sky-700 border-sky-200" };
+  if (status === "ongoing") return { label: "En curso", className: "bg-emerald-100 text-emerald-700 border-emerald-200" };
+  return { label: "Completado", className: "bg-slate-100 text-slate-500 border-slate-200" };
 }
 
 function formatDateRange(start: string, end: string) {
   const s = new Date(start);
   const e = new Date(end);
   const opts: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" };
-  return `${s.toLocaleDateString("en-US", opts)} – ${e.toLocaleDateString("en-US", { ...opts, year: "numeric" })}`;
+  return `${s.toLocaleDateString("es-ES", opts)} – ${e.toLocaleDateString("es-ES", { ...opts, year: "numeric" })}`;
 }
 
 export default function Dashboard() {
@@ -45,18 +45,17 @@ export default function Dashboard() {
     mutation: {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListTripsQueryKey() });
-        toast({ title: "Trip deleted", description: `${deletingTrip?.name} has been removed.` });
+        toast({ title: "Viaje eliminado", description: `${deletingTrip?.name} ha sido eliminado.` });
         setDeletingTrip(null);
       },
       onError: () => {
-        toast({ title: "Error", description: "Could not delete trip.", variant: "destructive" });
+        toast({ title: "Error", description: "No se pudo eliminar el viaje.", variant: "destructive" });
       },
     },
   });
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="border-b border-border bg-card sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -66,7 +65,7 @@ export default function Dashboard() {
           <Link href="/trips/new">
             <Button data-testid="button-new-trip" className="gap-2">
               <PlusCircle className="w-4 h-4" />
-              New Trip
+              Nuevo Viaje
             </Button>
           </Link>
         </div>
@@ -74,8 +73,8 @@ export default function Dashboard() {
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold">My Trips</h1>
-          <p className="text-muted-foreground mt-1 text-sm">All your travel plans in one place</p>
+          <h1 className="text-2xl font-bold">Mis Viajes</h1>
+          <p className="text-muted-foreground mt-1 text-sm">Todos tus planes de viaje en un lugar</p>
         </div>
 
         {isLoading ? (
@@ -101,13 +100,12 @@ export default function Dashboard() {
                   className="rounded-xl border border-border bg-card overflow-hidden hover:shadow-md transition-shadow group relative"
                   data-testid={`card-trip-${trip.id}`}
                 >
-                  {/* Card action buttons — visible on hover */}
                   <div className="absolute top-3 left-3 z-10 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingTrip(trip as Trip); }}
                       className="w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-primary transition-colors"
                       data-testid={`button-edit-trip-${trip.id}`}
-                      title="Edit trip"
+                      title="Editar viaje"
                     >
                       <Pencil className="w-3.5 h-3.5" />
                     </button>
@@ -115,7 +113,7 @@ export default function Dashboard() {
                       onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeletingTrip(trip as Trip); }}
                       className="w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-destructive transition-colors"
                       data-testid={`button-delete-trip-${trip.id}`}
-                      title="Delete trip"
+                      title="Eliminar viaje"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -123,7 +121,6 @@ export default function Dashboard() {
 
                   <Link href={`/trips/${trip.id}`}>
                     <div className="cursor-pointer">
-                      {/* Cover Image */}
                       <div className="relative h-44 bg-muted overflow-hidden">
                         {trip.coverImage ? (
                           <img
@@ -143,7 +140,6 @@ export default function Dashboard() {
                         </div>
                       </div>
 
-                      {/* Info */}
                       <div className="p-4">
                         <h2 className="font-semibold text-base leading-tight truncate" data-testid={`text-trip-name-${trip.id}`}>
                           {trip.name}
@@ -171,42 +167,40 @@ export default function Dashboard() {
             <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
               <Plane className="w-8 h-8 text-muted-foreground" />
             </div>
-            <h2 className="text-lg font-semibold">No trips yet</h2>
-            <p className="text-muted-foreground text-sm mt-1 mb-6">Start planning your first adventure</p>
+            <h2 className="text-lg font-semibold">Sin viajes todavía</h2>
+            <p className="text-muted-foreground text-sm mt-1 mb-6">Empieza a planificar tu primera aventura</p>
             <Link href="/trips/new">
               <Button className="gap-2">
                 <PlusCircle className="w-4 h-4" />
-                Create your first trip
+                Crear tu primer viaje
               </Button>
             </Link>
           </div>
         )}
       </main>
 
-      {/* Edit dialog */}
       <EditTripDialog
         trip={editingTrip}
         open={!!editingTrip}
         onOpenChange={(open) => { if (!open) setEditingTrip(null); }}
       />
 
-      {/* Delete confirmation */}
       <AlertDialog open={!!deletingTrip} onOpenChange={(open) => { if (!open) setDeletingTrip(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete "{deletingTrip?.name}"?</AlertDialogTitle>
+            <AlertDialogTitle>¿Eliminar "{deletingTrip?.name}"?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the trip and all its data — flights, parking, rentals, accommodation, itinerary, and documents. This cannot be undone.
+              Se eliminará permanentemente el viaje y todos sus datos — vuelos, estacionamiento, alquileres, alojamiento, itinerario y documentos. Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive hover:bg-destructive/90"
               onClick={() => deletingTrip && deleteTrip.mutate({ tripId: deletingTrip.id })}
               disabled={deleteTrip.isPending}
             >
-              {deleteTrip.isPending ? "Deleting..." : "Delete trip"}
+              {deleteTrip.isPending ? "Eliminando..." : "Eliminar viaje"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

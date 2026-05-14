@@ -221,6 +221,8 @@ export interface Accommodation {
   tripId: number;
   name: string;
   type?: AccommodationType;
+  /** @nullable */
+  bookingPlatform?: string | null;
   address: string;
   checkIn: string;
   checkOut: string;
@@ -246,6 +248,7 @@ export interface AccommodationInput {
   /** @minLength 1 */
   name: string;
   type?: AccommodationInputType;
+  bookingPlatform?: string;
   /** @minLength 1 */
   address: string;
   checkIn: string;
@@ -268,6 +271,7 @@ export const AccommodationUpdateType = {
 export interface AccommodationUpdate {
   name?: string;
   type?: AccommodationUpdateType;
+  bookingPlatform?: string;
   address?: string;
   checkIn?: string;
   checkOut?: string;

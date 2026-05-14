@@ -12,6 +12,8 @@ export interface Accommodation {
   tripId: number;
   name: string;
   type?: AccommodationType;
+  /** @nullable */
+  bookingPlatform?: string | null;
   address: string;
   checkIn: Date;
   checkOut: Date;

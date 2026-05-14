@@ -18,6 +18,16 @@ import { useToast } from "@/hooks/use-toast";
 import ModuleHeader from "@/components/modules/module-header";
 
 const CATEGORIES = ["transport", "sightseeing", "dining", "activity", "accommodation", "other"] as const;
+
+const CATEGORY_LABELS: Record<string, string> = {
+  transport: "Transporte",
+  sightseeing: "Turismo",
+  dining: "Gastronomía",
+  activity: "Actividad",
+  accommodation: "Alojamiento",
+  other: "Otro",
+};
+
 const CATEGORY_COLORS: Record<string, string> = {
   transport: "bg-sky-100 text-sky-700",
   sightseeing: "bg-violet-100 text-violet-700",
@@ -28,9 +38,9 @@ const CATEGORY_COLORS: Record<string, string> = {
 };
 
 const schema = z.object({
-  date: z.string().min(1, "Date is required"),
+  date: z.string().min(1, "La fecha es obligatoria"),
   time: z.string().optional(),
-  title: z.string().min(1, "Title is required"),
+  title: z.string().min(1, "El título es obligatorio"),
   description: z.string().optional(),
   location: z.string().optional(),
   category: z.enum(CATEGORIES),
@@ -38,7 +48,9 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 function formatDate(dateStr: string) {
-  return new Date(dateStr + "T00:00:00").toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+  if (!dateStr) return "";
+  const d = dateStr.includes("T") ? new Date(dateStr) : new Date(dateStr + "T12:00:00Z");
+  return d.toLocaleDateString("es-ES", { weekday: "long", month: "long", day: "numeric" });
 }
 
 interface Props { tripId: number }
@@ -55,9 +67,9 @@ export default function ItineraryModule({ tripId }: Props) {
 
   const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { date: "", time: "", title: "", description: "", location: "", category: "other" } });
 
-  const createItem = useCreateItineraryItem({ mutation: { onSuccess: () => { invalidate(); setOpen(false); form.reset(); toast({ title: "Activity added" }); } } });
-  const updateItem = useUpdateItineraryItem({ mutation: { onSuccess: () => { invalidate(); setOpen(false); setEditing(null); form.reset(); toast({ title: "Activity updated" }); } } });
-  const deleteItem = useDeleteItineraryItem({ mutation: { onSuccess: () => { invalidate(); setDeleting(null); toast({ title: "Activity deleted" }); } } });
+  const createItem = useCreateItineraryItem({ mutation: { onSuccess: () => { invalidate(); setOpen(false); form.reset(); toast({ title: "Actividad añadida" }); } } });
+  const updateItem = useUpdateItineraryItem({ mutation: { onSuccess: () => { invalidate(); setOpen(false); setEditing(null); form.reset(); toast({ title: "Actividad actualizada" }); } } });
+  const deleteItem = useDeleteItineraryItem({ mutation: { onSuccess: () => { invalidate(); setDeleting(null); toast({ title: "Actividad eliminada" }); } } });
 
   function openNew() { form.reset({ date: "", time: "", title: "", description: "", location: "", category: "other" }); setEditing(null); setOpen(true); }
   function openEdit(i: ItineraryItem) { form.reset({ date: i.date, time: i.time ?? "", title: i.title, description: i.description ?? "", location: i.location ?? "", category: (i.category || "other") as FormValues["category"] }); setEditing(i); setOpen(true); }
@@ -68,7 +80,6 @@ export default function ItineraryModule({ tripId }: Props) {
     else createItem.mutate({ tripId, data: payload });
   }
 
-  // Group by date
   const grouped = items?.reduce((acc, item) => {
     if (!acc[item.date]) acc[item.date] = [];
     acc[item.date].push(item);
@@ -79,7 +90,7 @@ export default function ItineraryModule({ tripId }: Props) {
 
   return (
     <div>
-      <ModuleHeader title="Itinerary" description="Day-by-day schedule of activities" onAdd={openNew} />
+      <ModuleHeader title="Itinerario" description="Programa de actividades día a día" onAdd={openNew} />
 
       {isLoading ? (
         <div className="space-y-4">{[1, 2].map(i => <Skeleton key={i} className="h-40 w-full rounded-xl" />)}</div>
@@ -89,7 +100,7 @@ export default function ItineraryModule({ tripId }: Props) {
             <div key={date}>
               <div className="flex items-center gap-2 mb-3">
                 <CalendarDays className="w-4 h-4 text-primary" />
-                <h3 className="font-semibold text-sm">{formatDate(date)}</h3>
+                <h3 className="font-semibold text-sm capitalize">{formatDate(date)}</h3>
               </div>
               <div className="space-y-2 pl-4 border-l-2 border-primary/20">
                 {grouped[date].sort((a, b) => (a.time || "").localeCompare(b.time || "")).map(item => (
@@ -103,7 +114,7 @@ export default function ItineraryModule({ tripId }: Props) {
                             </span>
                           )}
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${CATEGORY_COLORS[item.category || "other"]}`}>
-                            {item.category}
+                            {CATEGORY_LABELS[item.category || "other"]}
                           </span>
                         </div>
                         <p className="font-medium text-sm mt-1">{item.title}</p>
@@ -128,36 +139,36 @@ export default function ItineraryModule({ tripId }: Props) {
       ) : (
         <div className="text-center py-12 text-muted-foreground border border-dashed border-border rounded-xl">
           <CalendarDays className="w-8 h-8 mx-auto mb-2 opacity-40" />
-          <p className="text-sm">No itinerary items added</p>
+          <p className="text-sm">No hay actividades en el itinerario</p>
         </div>
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>{editing ? "Edit Activity" : "Add Activity"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editing ? "Editar Actividad" : "Añadir Actividad"}</DialogTitle></DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <FormField control={form.control} name="date" render={({ field }) => (<FormItem><FormLabel>Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="time" render={({ field }) => (<FormItem><FormLabel>Time (optional)</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="date" render={({ field }) => (<FormItem><FormLabel>Fecha</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="time" render={({ field }) => (<FormItem><FormLabel>Hora (opcional)</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem>)} />
               </div>
-              <FormField control={form.control} name="title" render={({ field }) => (<FormItem><FormLabel>Activity title</FormLabel><FormControl><Input placeholder="Visit Sensoji Temple" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="title" render={({ field }) => (<FormItem><FormLabel>Título de la actividad</FormLabel><FormControl><Input placeholder="Visitar el Templo Sensoji" {...field} /></FormControl><FormMessage /></FormItem>)} />
               <FormField control={form.control} name="category" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Category</FormLabel>
+                  <FormLabel>Categoría</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                     <SelectContent>
-                      {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</SelectItem>)}
+                      {CATEGORIES.map(c => <SelectItem key={c} value={c}>{CATEGORY_LABELS[c]}</SelectItem>)}
                     </SelectContent>
                   </Select>
                   <FormMessage />
                 </FormItem>
               )} />
-              <FormField control={form.control} name="location" render={({ field }) => (<FormItem><FormLabel>Location (optional)</FormLabel><FormControl><Input placeholder="Asakusa, Tokyo" {...field} /></FormControl><FormMessage /></FormItem>)} />
-              <FormField control={form.control} name="description" render={({ field }) => (<FormItem><FormLabel>Description (optional)</FormLabel><FormControl><Textarea rows={2} {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="location" render={({ field }) => (<FormItem><FormLabel>Lugar (opcional)</FormLabel><FormControl><Input placeholder="Asakusa, Tokio" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="description" render={({ field }) => (<FormItem><FormLabel>Descripción (opcional)</FormLabel><FormControl><Textarea rows={2} {...field} /></FormControl><FormMessage /></FormItem>)} />
               <DialogFooter>
-                <Button type="submit" disabled={createItem.isPending || updateItem.isPending}>{editing ? "Save changes" : "Add activity"}</Button>
+                <Button type="submit" disabled={createItem.isPending || updateItem.isPending}>{editing ? "Guardar cambios" : "Añadir actividad"}</Button>
               </DialogFooter>
             </form>
           </Form>
@@ -166,10 +177,10 @@ export default function ItineraryModule({ tripId }: Props) {
 
       <AlertDialog open={!!deleting} onOpenChange={() => setDeleting(null)}>
         <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Delete activity?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogHeader><AlertDialogTitle>¿Eliminar actividad?</AlertDialogTitle><AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deleting && deleteItem.mutate({ tripId, itemId: deleting.id })} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleting && deleteItem.mutate({ tripId, itemId: deleting.id })} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

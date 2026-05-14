@@ -25,7 +25,7 @@ export default function TripProgressBar({ tripId, compact }: Props) {
       <div className="space-y-1">
         <div className="flex justify-between items-center">
           <span className="text-xs text-muted-foreground">
-            {progress.completedModules}/{progress.totalModules} modules ready
+            {progress.completedModules}/{progress.totalModules} módulos listos
           </span>
           <span className="text-xs font-medium text-primary">{progress.percentComplete}%</span>
         </div>
@@ -42,7 +42,7 @@ export default function TripProgressBar({ tripId, compact }: Props) {
   return (
     <div className="bg-card border border-border rounded-lg p-4">
       <div className="flex justify-between items-center mb-2">
-        <span className="text-sm font-medium">Preparation Progress</span>
+        <span className="text-sm font-medium">Progreso de preparación</span>
         <span className="text-sm font-bold text-primary">{progress.percentComplete}%</span>
       </div>
       <div className="h-2 bg-muted rounded-full overflow-hidden mb-3">

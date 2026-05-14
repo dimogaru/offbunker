@@ -18,12 +18,12 @@ import { useToast } from "@/hooks/use-toast";
 import ModuleHeader from "@/components/modules/module-header";
 
 const schema = z.object({
-  company: z.string().min(1, "Company is required"),
-  pickupLocation: z.string().min(1, "Required"),
+  company: z.string().min(1, "La empresa es obligatoria"),
+  pickupLocation: z.string().min(1, "Obligatorio"),
   returnLocation: z.string().optional(),
-  pickupDate: z.string().min(1, "Required"),
-  returnDate: z.string().min(1, "Required"),
-  fuelPolicy: z.string().min(1, "Required"),
+  pickupDate: z.string().min(1, "Obligatorio"),
+  returnDate: z.string().min(1, "Obligatorio"),
+  fuelPolicy: z.string().min(1, "Obligatorio"),
   vehicleType: z.string().optional(),
   confirmationCode: z.string().optional(),
   notes: z.string().optional(),
@@ -31,7 +31,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 function toLocal(iso: string) { return iso ? iso.substring(0, 16) : ""; }
-function fmt(iso: string) { return new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }); }
+function fmt(iso: string) { return new Date(iso).toLocaleString("es-ES", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }); }
 
 interface Props { tripId: number }
 
@@ -47,9 +47,9 @@ export default function RentalsModule({ tripId }: Props) {
 
   const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { company: "", pickupLocation: "", returnLocation: "", pickupDate: "", returnDate: "", fuelPolicy: "", vehicleType: "", confirmationCode: "", notes: "" } });
 
-  const createRental = useCreateRental({ mutation: { onSuccess: () => { invalidate(); setOpen(false); form.reset(); toast({ title: "Rental added" }); } } });
-  const updateRental = useUpdateRental({ mutation: { onSuccess: () => { invalidate(); setOpen(false); setEditing(null); form.reset(); toast({ title: "Rental updated" }); } } });
-  const deleteRental = useDeleteRental({ mutation: { onSuccess: () => { invalidate(); setDeleting(null); toast({ title: "Rental deleted" }); } } });
+  const createRental = useCreateRental({ mutation: { onSuccess: () => { invalidate(); setOpen(false); form.reset(); toast({ title: "Alquiler añadido" }); } } });
+  const updateRental = useUpdateRental({ mutation: { onSuccess: () => { invalidate(); setOpen(false); setEditing(null); form.reset(); toast({ title: "Alquiler actualizado" }); } } });
+  const deleteRental = useDeleteRental({ mutation: { onSuccess: () => { invalidate(); setDeleting(null); toast({ title: "Alquiler eliminado" }); } } });
 
   function openNew() { form.reset({ company: "", pickupLocation: "", returnLocation: "", pickupDate: "", returnDate: "", fuelPolicy: "", vehicleType: "", confirmationCode: "", notes: "" }); setEditing(null); setOpen(true); }
   function openEdit(r: Rental) { form.reset({ company: r.company, pickupLocation: r.pickupLocation, returnLocation: r.returnLocation ?? "", pickupDate: toLocal(r.pickupDate), returnDate: toLocal(r.returnDate), fuelPolicy: r.fuelPolicy, vehicleType: r.vehicleType ?? "", confirmationCode: r.confirmationCode ?? "", notes: r.notes ?? "" }); setEditing(r); setOpen(true); }
@@ -62,7 +62,7 @@ export default function RentalsModule({ tripId }: Props) {
 
   return (
     <div>
-      <ModuleHeader title="Vehicle Rental" description="Manage car hire bookings and driving documents" onAdd={openNew} />
+      <ModuleHeader title="Alquiler de Vehículo" description="Gestiona tus reservas de alquiler de vehículos" onAdd={openNew} />
 
       {isLoading ? (
         <Skeleton className="h-28 w-full rounded-xl" />
@@ -78,10 +78,10 @@ export default function RentalsModule({ tripId }: Props) {
                     {r.confirmationCode && <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-mono">{r.confirmationCode}</span>}
                   </div>
                   <div className="grid grid-cols-2 gap-2 mt-2 text-sm">
-                    <div><span className="text-xs text-muted-foreground">Pickup</span><br /><span className="text-sm">{r.pickupLocation}</span><br /><span className="text-xs text-muted-foreground">{fmt(r.pickupDate)}</span></div>
-                    <div><span className="text-xs text-muted-foreground">Return</span><br /><span className="text-sm">{r.returnLocation || r.pickupLocation}</span><br /><span className="text-xs text-muted-foreground">{fmt(r.returnDate)}</span></div>
+                    <div><span className="text-xs text-muted-foreground">Recogida</span><br /><span className="text-sm">{r.pickupLocation}</span><br /><span className="text-xs text-muted-foreground">{fmt(r.pickupDate)}</span></div>
+                    <div><span className="text-xs text-muted-foreground">Devolución</span><br /><span className="text-sm">{r.returnLocation || r.pickupLocation}</span><br /><span className="text-xs text-muted-foreground">{fmt(r.returnDate)}</span></div>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">Fuel: {r.fuelPolicy}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Combustible: {r.fuelPolicy}</p>
                 </div>
                 <div className="flex gap-1">
                   <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(r)}><Pencil className="w-3.5 h-3.5" /></Button>
@@ -94,43 +94,43 @@ export default function RentalsModule({ tripId }: Props) {
       ) : (
         <div className="text-center py-12 text-muted-foreground border border-dashed border-border rounded-xl">
           <Car className="w-8 h-8 mx-auto mb-2 opacity-40" />
-          <p className="text-sm">No vehicle rentals added</p>
+          <p className="text-sm">No hay alquileres de vehículos</p>
         </div>
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{editing ? "Edit Rental" : "Add Vehicle Rental"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editing ? "Editar Alquiler" : "Añadir Alquiler de Vehículo"}</DialogTitle></DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <FormField control={form.control} name="company" render={({ field }) => (<FormItem><FormLabel>Company</FormLabel><FormControl><Input placeholder="Hertz" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="vehicleType" render={({ field }) => (<FormItem><FormLabel>Vehicle type</FormLabel><FormControl><Input placeholder="Toyota Corolla" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="company" render={({ field }) => (<FormItem><FormLabel>Empresa</FormLabel><FormControl><Input placeholder="Hertz" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="vehicleType" render={({ field }) => (<FormItem><FormLabel>Tipo de vehículo</FormLabel><FormControl><Input placeholder="Toyota Corolla" {...field} /></FormControl><FormMessage /></FormItem>)} />
               </div>
-              <FormField control={form.control} name="pickupLocation" render={({ field }) => (<FormItem><FormLabel>Pickup location</FormLabel><FormControl><Input placeholder="Airport Terminal 2" {...field} /></FormControl><FormMessage /></FormItem>)} />
-              <FormField control={form.control} name="returnLocation" render={({ field }) => (<FormItem><FormLabel>Return location (if different)</FormLabel><FormControl><Input placeholder="City center branch" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="pickupLocation" render={({ field }) => (<FormItem><FormLabel>Lugar de recogida</FormLabel><FormControl><Input placeholder="Terminal 2 Aeropuerto" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="returnLocation" render={({ field }) => (<FormItem><FormLabel>Lugar de devolución (si es diferente)</FormLabel><FormControl><Input placeholder="Oficina centro ciudad" {...field} /></FormControl><FormMessage /></FormItem>)} />
               <div className="grid grid-cols-2 gap-3">
-                <FormField control={form.control} name="pickupDate" render={({ field }) => (<FormItem><FormLabel>Pickup date</FormLabel><FormControl><Input type="datetime-local" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="returnDate" render={({ field }) => (<FormItem><FormLabel>Return date</FormLabel><FormControl><Input type="datetime-local" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="pickupDate" render={({ field }) => (<FormItem><FormLabel>Fecha de recogida</FormLabel><FormControl><Input type="datetime-local" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="returnDate" render={({ field }) => (<FormItem><FormLabel>Fecha de devolución</FormLabel><FormControl><Input type="datetime-local" {...field} /></FormControl><FormMessage /></FormItem>)} />
               </div>
               <FormField control={form.control} name="fuelPolicy" render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Fuel policy</FormLabel>
+                  <FormLabel>Política de combustible</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl><SelectTrigger><SelectValue placeholder="Select policy" /></SelectTrigger></FormControl>
+                    <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar política" /></SelectTrigger></FormControl>
                     <SelectContent>
-                      <SelectItem value="Full-to-full">Full-to-full</SelectItem>
-                      <SelectItem value="Full-to-empty">Full-to-empty</SelectItem>
-                      <SelectItem value="Pre-purchased">Pre-purchased</SelectItem>
+                      <SelectItem value="Full-to-full">Lleno a lleno</SelectItem>
+                      <SelectItem value="Full-to-empty">Lleno a vacío</SelectItem>
+                      <SelectItem value="Pre-purchased">Prepagado</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
                 </FormItem>
               )} />
-              <FormField control={form.control} name="confirmationCode" render={({ field }) => (<FormItem><FormLabel>Confirmation code</FormLabel><FormControl><Input placeholder="HZ-2026-12345" {...field} /></FormControl><FormMessage /></FormItem>)} />
-              <FormField control={form.control} name="notes" render={({ field }) => (<FormItem><FormLabel>Notes</FormLabel><FormControl><Textarea rows={2} {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="confirmationCode" render={({ field }) => (<FormItem><FormLabel>Código de confirmación</FormLabel><FormControl><Input placeholder="HZ-2026-12345" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="notes" render={({ field }) => (<FormItem><FormLabel>Notas</FormLabel><FormControl><Textarea rows={2} {...field} /></FormControl><FormMessage /></FormItem>)} />
               <DialogFooter>
-                <Button type="submit" disabled={createRental.isPending || updateRental.isPending}>{editing ? "Save changes" : "Add rental"}</Button>
+                <Button type="submit" disabled={createRental.isPending || updateRental.isPending}>{editing ? "Guardar cambios" : "Añadir alquiler"}</Button>
               </DialogFooter>
             </form>
           </Form>
@@ -139,10 +139,10 @@ export default function RentalsModule({ tripId }: Props) {
 
       <AlertDialog open={!!deleting} onOpenChange={() => setDeleting(null)}>
         <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Delete rental?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogHeader><AlertDialogTitle>¿Eliminar alquiler?</AlertDialogTitle><AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deleting && deleteRental.mutate({ tripId, rentalId: deleting.id })} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleting && deleteRental.mutate({ tripId, rentalId: deleting.id })} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

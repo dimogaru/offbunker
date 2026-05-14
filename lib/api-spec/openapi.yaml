@@ -1074,6 +1074,8 @@ components:
         type:
           type: string
           enum: [hotel, airbnb, hostel, other]
+        bookingPlatform:
+          type: ["string", "null"]
         address:
           type: string
         checkIn:
@@ -1102,6 +1104,8 @@ components:
         type:
           type: string
           enum: [hotel, airbnb, hostel, other]
+        bookingPlatform:
+          type: string
         address:
           type: string
           minLength: 1
@@ -1126,6 +1130,8 @@ components:
         type:
           type: string
           enum: [hotel, airbnb, hostel, other]
+        bookingPlatform:
+          type: string
         address:
           type: string
         checkIn:

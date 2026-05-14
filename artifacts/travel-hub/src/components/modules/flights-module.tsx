@@ -1,13 +1,10 @@
 import { useState } from "react";
-import { PlusCircle, Pencil, Trash2, Plane, Clock } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, Plane } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  useListFlights, useCreateFlight, useUpdateFlight, useDeleteFlight,
-  getListFlightsQueryKey,
-} from "@workspace/api-client-react";
+import { useListFlights, useCreateFlight, useUpdateFlight, useDeleteFlight, getListFlightsQueryKey } from "@workspace/api-client-react";
 import type { Flight } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,12 +17,12 @@ import { useToast } from "@/hooks/use-toast";
 import ModuleHeader from "@/components/modules/module-header";
 
 const schema = z.object({
-  airline: z.string().min(1, "Airline is required"),
-  flightNumber: z.string().min(1, "Flight number is required"),
-  departureAirport: z.string().min(1, "Required"),
-  arrivalAirport: z.string().min(1, "Required"),
-  departureTime: z.string().min(1, "Required"),
-  arrivalTime: z.string().min(1, "Required"),
+  airline: z.string().min(1, "La aerolínea es obligatoria"),
+  flightNumber: z.string().min(1, "El número de vuelo es obligatorio"),
+  departureAirport: z.string().min(1, "Obligatorio"),
+  arrivalAirport: z.string().min(1, "Obligatorio"),
+  departureTime: z.string().min(1, "Obligatorio"),
+  arrivalTime: z.string().min(1, "Obligatorio"),
   terminal: z.string().optional(),
   gate: z.string().optional(),
   seat: z.string().optional(),
@@ -33,13 +30,9 @@ const schema = z.object({
 });
 type FormValues = z.infer<typeof schema>;
 
-function toLocalDatetime(iso: string) {
-  if (!iso) return "";
-  return iso.substring(0, 16);
-}
-
+function toLocalDatetime(iso: string) { return iso ? iso.substring(0, 16) : ""; }
 function formatDatetime(iso: string) {
-  return new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  return new Date(iso).toLocaleString("es-ES", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
 interface Props { tripId: number }
@@ -51,10 +44,7 @@ export default function FlightsModule({ tripId }: Props) {
   const [editing, setEditing] = useState<Flight | null>(null);
   const [deleting, setDeleting] = useState<Flight | null>(null);
 
-  const { data: flights, isLoading } = useListFlights(tripId, {
-    query: { queryKey: getListFlightsQueryKey(tripId) },
-  });
-
+  const { data: flights, isLoading } = useListFlights(tripId, { query: { queryKey: getListFlightsQueryKey(tripId) } });
   const invalidate = () => queryClient.invalidateQueries({ queryKey: getListFlightsQueryKey(tripId) });
 
   const form = useForm<FormValues>({
@@ -62,28 +52,25 @@ export default function FlightsModule({ tripId }: Props) {
     defaultValues: { airline: "", flightNumber: "", departureAirport: "", arrivalAirport: "", departureTime: "", arrivalTime: "", terminal: "", gate: "", seat: "", notes: "" },
   });
 
-  const createFlight = useCreateFlight({ mutation: { onSuccess: () => { invalidate(); setOpen(false); form.reset(); toast({ title: "Flight added" }); } } });
-  const updateFlight = useUpdateFlight({ mutation: { onSuccess: () => { invalidate(); setOpen(false); setEditing(null); form.reset(); toast({ title: "Flight updated" }); } } });
-  const deleteFlight = useDeleteFlight({ mutation: { onSuccess: () => { invalidate(); setDeleting(null); toast({ title: "Flight deleted" }); } } });
+  const createFlight = useCreateFlight({ mutation: { onSuccess: () => { invalidate(); setOpen(false); form.reset(); toast({ title: "Vuelo añadido" }); } } });
+  const updateFlight = useUpdateFlight({ mutation: { onSuccess: () => { invalidate(); setOpen(false); setEditing(null); form.reset(); toast({ title: "Vuelo actualizado" }); } } });
+  const deleteFlight = useDeleteFlight({ mutation: { onSuccess: () => { invalidate(); setDeleting(null); toast({ title: "Vuelo eliminado" }); } } });
 
   function openNew() { form.reset({ airline: "", flightNumber: "", departureAirport: "", arrivalAirport: "", departureTime: "", arrivalTime: "", terminal: "", gate: "", seat: "", notes: "" }); setEditing(null); setOpen(true); }
   function openEdit(f: Flight) { form.reset({ airline: f.airline, flightNumber: f.flightNumber, departureAirport: f.departureAirport, arrivalAirport: f.arrivalAirport, departureTime: toLocalDatetime(f.departureTime), arrivalTime: toLocalDatetime(f.arrivalTime), terminal: f.terminal ?? "", gate: f.gate ?? "", seat: f.seat ?? "", notes: f.notes ?? "" }); setEditing(f); setOpen(true); }
 
   function onSubmit(values: FormValues) {
     const payload = { ...values, departureTime: new Date(values.departureTime).toISOString(), arrivalTime: new Date(values.arrivalTime).toISOString() };
-    if (editing) {
-      updateFlight.mutate({ tripId, flightId: editing.id, data: payload });
-    } else {
-      createFlight.mutate({ tripId, data: payload });
-    }
+    if (editing) updateFlight.mutate({ tripId, flightId: editing.id, data: payload });
+    else createFlight.mutate({ tripId, data: payload });
   }
 
   return (
     <div>
-      <ModuleHeader title="Air Logistics" description="Manage your flights, boarding passes, and visas" onAdd={openNew} />
+      <ModuleHeader title="Logística Aérea" description="Gestiona tus vuelos, tarjetas de embarque y visados" onAdd={openNew} />
 
       {isLoading ? (
-        <div className="space-y-3">{[1,2].map(i => <Skeleton key={i} className="h-28 w-full rounded-xl" />)}</div>
+        <div className="space-y-3">{[1, 2].map(i => <Skeleton key={i} className="h-28 w-full rounded-xl" />)}</div>
       ) : flights && flights.length > 0 ? (
         <div className="space-y-3">
           {flights.map(f => (
@@ -93,7 +80,7 @@ export default function FlightsModule({ tripId }: Props) {
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-semibold">{f.airline}</span>
                     <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-mono">{f.flightNumber}</span>
-                    {f.seat && <span className="text-xs text-muted-foreground">Seat {f.seat}</span>}
+                    {f.seat && <span className="text-xs text-muted-foreground">Asiento {f.seat}</span>}
                   </div>
                   <div className="flex items-center gap-2 mt-2 text-sm">
                     <div className="text-center">
@@ -112,7 +99,7 @@ export default function FlightsModule({ tripId }: Props) {
                   </div>
                   {(f.terminal || f.gate) && (
                     <p className="text-xs text-muted-foreground mt-1">
-                      {f.terminal && `Terminal ${f.terminal}`}{f.terminal && f.gate && " · "}{f.gate && `Gate ${f.gate}`}
+                      {f.terminal && `Terminal ${f.terminal}`}{f.terminal && f.gate && " · "}{f.gate && `Puerta ${f.gate}`}
                     </p>
                   )}
                 </div>
@@ -127,35 +114,35 @@ export default function FlightsModule({ tripId }: Props) {
       ) : (
         <div className="text-center py-12 text-muted-foreground border border-dashed border-border rounded-xl">
           <Plane className="w-8 h-8 mx-auto mb-2 opacity-40" />
-          <p className="text-sm">No flights added yet</p>
+          <p className="text-sm">No hay vuelos añadidos</p>
         </div>
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{editing ? "Edit Flight" : "Add Flight"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editing ? "Editar Vuelo" : "Añadir Vuelo"}</DialogTitle></DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <FormField control={form.control} name="airline" render={({ field }) => (<FormItem><FormLabel>Airline</FormLabel><FormControl><Input placeholder="Japan Airlines" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="flightNumber" render={({ field }) => (<FormItem><FormLabel>Flight No.</FormLabel><FormControl><Input placeholder="JL408" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="airline" render={({ field }) => (<FormItem><FormLabel>Aerolínea</FormLabel><FormControl><Input placeholder="Japan Airlines" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="flightNumber" render={({ field }) => (<FormItem><FormLabel>Nº de vuelo</FormLabel><FormControl><Input placeholder="JL408" {...field} /></FormControl><FormMessage /></FormItem>)} />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <FormField control={form.control} name="departureAirport" render={({ field }) => (<FormItem><FormLabel>From (IATA)</FormLabel><FormControl><Input placeholder="MAD" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="arrivalAirport" render={({ field }) => (<FormItem><FormLabel>To (IATA)</FormLabel><FormControl><Input placeholder="NRT" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="departureAirport" render={({ field }) => (<FormItem><FormLabel>Origen (IATA)</FormLabel><FormControl><Input placeholder="MAD" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="arrivalAirport" render={({ field }) => (<FormItem><FormLabel>Destino (IATA)</FormLabel><FormControl><Input placeholder="NRT" {...field} /></FormControl><FormMessage /></FormItem>)} />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <FormField control={form.control} name="departureTime" render={({ field }) => (<FormItem><FormLabel>Departure</FormLabel><FormControl><Input type="datetime-local" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="arrivalTime" render={({ field }) => (<FormItem><FormLabel>Arrival</FormLabel><FormControl><Input type="datetime-local" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="departureTime" render={({ field }) => (<FormItem><FormLabel>Salida</FormLabel><FormControl><Input type="datetime-local" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="arrivalTime" render={({ field }) => (<FormItem><FormLabel>Llegada</FormLabel><FormControl><Input type="datetime-local" {...field} /></FormControl><FormMessage /></FormItem>)} />
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <FormField control={form.control} name="terminal" render={({ field }) => (<FormItem><FormLabel>Terminal</FormLabel><FormControl><Input placeholder="T4" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="gate" render={({ field }) => (<FormItem><FormLabel>Gate</FormLabel><FormControl><Input placeholder="G22" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="seat" render={({ field }) => (<FormItem><FormLabel>Seat</FormLabel><FormControl><Input placeholder="24A" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="gate" render={({ field }) => (<FormItem><FormLabel>Puerta</FormLabel><FormControl><Input placeholder="G22" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="seat" render={({ field }) => (<FormItem><FormLabel>Asiento</FormLabel><FormControl><Input placeholder="24A" {...field} /></FormControl><FormMessage /></FormItem>)} />
               </div>
-              <FormField control={form.control} name="notes" render={({ field }) => (<FormItem><FormLabel>Notes</FormLabel><FormControl><Textarea rows={2} {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="notes" render={({ field }) => (<FormItem><FormLabel>Notas</FormLabel><FormControl><Textarea rows={2} {...field} /></FormControl><FormMessage /></FormItem>)} />
               <DialogFooter>
-                <Button type="submit" disabled={createFlight.isPending || updateFlight.isPending}>{editing ? "Save changes" : "Add flight"}</Button>
+                <Button type="submit" disabled={createFlight.isPending || updateFlight.isPending}>{editing ? "Guardar cambios" : "Añadir vuelo"}</Button>
               </DialogFooter>
             </form>
           </Form>
@@ -165,12 +152,12 @@ export default function FlightsModule({ tripId }: Props) {
       <AlertDialog open={!!deleting} onOpenChange={() => setDeleting(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete flight?</AlertDialogTitle>
-            <AlertDialogDescription>This will permanently remove {deleting?.flightNumber}. This cannot be undone.</AlertDialogDescription>
+            <AlertDialogTitle>¿Eliminar vuelo?</AlertDialogTitle>
+            <AlertDialogDescription>Se eliminará {deleting?.flightNumber}. Esta acción no se puede deshacer.</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deleting && deleteFlight.mutate({ tripId, flightId: deleting.id })} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleting && deleteFlight.mutate({ tripId, flightId: deleting.id })} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

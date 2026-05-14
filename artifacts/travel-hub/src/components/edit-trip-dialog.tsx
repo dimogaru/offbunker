@@ -13,10 +13,10 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 
 const schema = z.object({
-  name: z.string().min(1, "Trip name is required"),
-  destination: z.string().min(1, "Destination is required"),
-  startDate: z.string().min(1, "Start date is required"),
-  endDate: z.string().min(1, "End date is required"),
+  name: z.string().min(1, "El nombre del viaje es obligatorio"),
+  destination: z.string().min(1, "El destino es obligatorio"),
+  startDate: z.string().min(1, "La fecha de inicio es obligatoria"),
+  endDate: z.string().min(1, "La fecha de fin es obligatoria"),
   status: z.enum(["upcoming", "ongoing", "completed"]),
   coverImage: z.string().optional(),
   notes: z.string().optional(),
@@ -47,15 +47,7 @@ export default function EditTripDialog({ trip, open, onOpenChange }: Props) {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      name: "",
-      destination: "",
-      startDate: "",
-      endDate: "",
-      status: "upcoming",
-      coverImage: "",
-      notes: "",
-    },
+    defaultValues: { name: "", destination: "", startDate: "", endDate: "", status: "upcoming", coverImage: "", notes: "" },
   });
 
   useEffect(() => {
@@ -77,11 +69,11 @@ export default function EditTripDialog({ trip, open, onOpenChange }: Props) {
       onSuccess: (updated) => {
         queryClient.invalidateQueries({ queryKey: getListTripsQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetTripQueryKey(updated.id) });
-        toast({ title: "Trip updated", description: `${updated.name} has been saved.` });
+        toast({ title: "Viaje actualizado", description: `${updated.name} ha sido guardado.` });
         onOpenChange(false);
       },
       onError: () => {
-        toast({ title: "Error", description: "Could not update trip.", variant: "destructive" });
+        toast({ title: "Error", description: "No se pudo actualizar el viaje.", variant: "destructive" });
       },
     },
   });
@@ -106,128 +98,78 @@ export default function EditTripDialog({ trip, open, onOpenChange }: Props) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Trip</DialogTitle>
+          <DialogTitle>Editar Viaje</DialogTitle>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Trip name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Tokyo Adventure" {...field} data-testid="input-edit-trip-name" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormField control={form.control} name="name" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Nombre del viaje</FormLabel>
+                <FormControl><Input placeholder="Aventura en Tokio" {...field} data-testid="input-edit-trip-name" /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
 
-            <FormField
-              control={form.control}
-              name="destination"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Destination</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Tokyo, Japan" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormField control={form.control} name="destination" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Destino</FormLabel>
+                <FormControl><Input placeholder="Tokio, Japón" {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
 
             <div className="grid grid-cols-2 gap-3">
-              <FormField
-                control={form.control}
-                name="startDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Start date</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="endDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>End date</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              <FormField control={form.control} name="startDate" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Fecha de inicio</FormLabel>
+                  <FormControl><Input type="date" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
+              <FormField control={form.control} name="endDate" render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Fecha de fin</FormLabel>
+                  <FormControl><Input type="date" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
+              )} />
             </div>
 
-            <FormField
-              control={form.control}
-              name="status"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Status</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="upcoming">Upcoming</SelectItem>
-                      <SelectItem value="ongoing">Ongoing</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormField control={form.control} name="status" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Estado</FormLabel>
+                <Select onValueChange={field.onChange} value={field.value}>
+                  <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                  <SelectContent>
+                    <SelectItem value="upcoming">Próximo</SelectItem>
+                    <SelectItem value="ongoing">En curso</SelectItem>
+                    <SelectItem value="completed">Completado</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )} />
 
-            <FormField
-              control={form.control}
-              name="coverImage"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Cover image URL (optional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="https://..." {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormField control={form.control} name="coverImage" render={({ field }) => (
+              <FormItem>
+                <FormLabel>URL de imagen de portada (opcional)</FormLabel>
+                <FormControl><Input placeholder="https://..." {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
 
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notes (optional)</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Any additional details..." rows={3} {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <FormField control={form.control} name="notes" render={({ field }) => (
+              <FormItem>
+                <FormLabel>Notas (opcional)</FormLabel>
+                <FormControl><Textarea placeholder="Cualquier detalle adicional..." rows={3} {...field} /></FormControl>
+                <FormMessage />
+              </FormItem>
+            )} />
 
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-              >
-                Cancel
-              </Button>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
               <Button type="submit" disabled={updateTrip.isPending} data-testid="button-save-trip">
-                {updateTrip.isPending ? "Saving..." : "Save changes"}
+                {updateTrip.isPending ? "Guardando..." : "Guardar cambios"}
               </Button>
             </DialogFooter>
           </form>

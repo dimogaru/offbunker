@@ -8,6 +8,7 @@ export const accommodationsTable = pgTable("accommodations", {
   tripId: integer("trip_id").notNull().references(() => tripsTable.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   type: text("type").notNull().default("hotel"),
+  bookingPlatform: text("booking_platform"),
   address: text("address").notNull(),
   checkIn: timestamp("check_in", { withTimezone: true }).notNull(),
   checkOut: timestamp("check_out", { withTimezone: true }).notNull(),

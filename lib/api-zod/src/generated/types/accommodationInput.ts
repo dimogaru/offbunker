@@ -11,6 +11,7 @@ export interface AccommodationInput {
   /** @minLength 1 */
   name: string;
   type?: AccommodationInputType;
+  bookingPlatform?: string;
   /** @minLength 1 */
   address: string;
   checkIn: Date;

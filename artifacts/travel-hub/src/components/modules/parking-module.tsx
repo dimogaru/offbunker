@@ -17,17 +17,17 @@ import { useToast } from "@/hooks/use-toast";
 import ModuleHeader from "@/components/modules/module-header";
 
 const schema = z.object({
-  location: z.string().min(1, "Location is required"),
-  reservationCode: z.string().min(1, "Reservation code is required"),
-  entryDate: z.string().min(1, "Required"),
-  exitDate: z.string().min(1, "Required"),
+  location: z.string().min(1, "La ubicación es obligatoria"),
+  reservationCode: z.string().min(1, "El código de reserva es obligatorio"),
+  entryDate: z.string().min(1, "Obligatorio"),
+  exitDate: z.string().min(1, "Obligatorio"),
   priceTotal: z.string().optional(),
   notes: z.string().optional(),
 });
 type FormValues = z.infer<typeof schema>;
 
 function toLocalDatetime(iso: string) { return iso ? iso.substring(0, 16) : ""; }
-function fmt(iso: string) { return new Date(iso).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }); }
+function fmt(iso: string) { return new Date(iso).toLocaleString("es-ES", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }); }
 
 interface Props { tripId: number }
 
@@ -43,9 +43,9 @@ export default function ParkingModule({ tripId }: Props) {
 
   const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { location: "", reservationCode: "", entryDate: "", exitDate: "", priceTotal: "", notes: "" } });
 
-  const createParking = useCreateParking({ mutation: { onSuccess: () => { invalidate(); setOpen(false); form.reset(); toast({ title: "Parking added" }); } } });
-  const updateParking = useUpdateParking({ mutation: { onSuccess: () => { invalidate(); setOpen(false); setEditing(null); form.reset(); toast({ title: "Parking updated" }); } } });
-  const deleteParking = useDeleteParking({ mutation: { onSuccess: () => { invalidate(); setDeleting(null); toast({ title: "Parking deleted" }); } } });
+  const createParking = useCreateParking({ mutation: { onSuccess: () => { invalidate(); setOpen(false); form.reset(); toast({ title: "Estacionamiento añadido" }); } } });
+  const updateParking = useUpdateParking({ mutation: { onSuccess: () => { invalidate(); setOpen(false); setEditing(null); form.reset(); toast({ title: "Estacionamiento actualizado" }); } } });
+  const deleteParking = useDeleteParking({ mutation: { onSuccess: () => { invalidate(); setDeleting(null); toast({ title: "Estacionamiento eliminado" }); } } });
 
   function openNew() { form.reset({ location: "", reservationCode: "", entryDate: "", exitDate: "", priceTotal: "", notes: "" }); setEditing(null); setOpen(true); }
   function openEdit(p: Parking) { form.reset({ location: p.location, reservationCode: p.reservationCode, entryDate: toLocalDatetime(p.entryDate), exitDate: toLocalDatetime(p.exitDate), priceTotal: p.priceTotal?.toString() ?? "", notes: p.notes ?? "" }); setEditing(p); setOpen(true); }
@@ -58,7 +58,7 @@ export default function ParkingModule({ tripId }: Props) {
 
   return (
     <div>
-      <ModuleHeader title="Airport Parking" description="Track your airport parking reservations" onAdd={openNew} />
+      <ModuleHeader title="Estacionamiento" description="Registra tus reservas de estacionamiento en el aeropuerto" onAdd={openNew} />
 
       {isLoading ? (
         <div className="space-y-3">{[1].map(i => <Skeleton key={i} className="h-24 w-full rounded-xl" />)}</div>
@@ -68,13 +68,13 @@ export default function ParkingModule({ tripId }: Props) {
             <div key={p.id} className="border border-border rounded-xl bg-card p-4" data-testid={`card-parking-${p.id}`}>
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-semibold">{p.location}</p>
                     <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-mono">{p.reservationCode}</span>
                   </div>
                   <div className="grid grid-cols-2 gap-2 mt-2 text-sm text-muted-foreground">
-                    <div><span className="text-xs uppercase font-medium text-foreground">Entry</span><br />{fmt(p.entryDate)}</div>
-                    <div><span className="text-xs uppercase font-medium text-foreground">Exit</span><br />{fmt(p.exitDate)}</div>
+                    <div><span className="text-xs uppercase font-medium text-foreground">Entrada</span><br />{fmt(p.entryDate)}</div>
+                    <div><span className="text-xs uppercase font-medium text-foreground">Salida</span><br />{fmt(p.exitDate)}</div>
                   </div>
                   {p.priceTotal && <p className="text-sm mt-1 font-medium">${Number(p.priceTotal).toFixed(2)}</p>}
                 </div>
@@ -89,25 +89,25 @@ export default function ParkingModule({ tripId }: Props) {
       ) : (
         <div className="text-center py-12 text-muted-foreground border border-dashed border-border rounded-xl">
           <ParkingCircle className="w-8 h-8 mx-auto mb-2 opacity-40" />
-          <p className="text-sm">No parking reservations added</p>
+          <p className="text-sm">No hay reservas de estacionamiento</p>
         </div>
       )}
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>{editing ? "Edit Parking" : "Add Parking"}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editing ? "Editar Estacionamiento" : "Añadir Estacionamiento"}</DialogTitle></DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
-              <FormField control={form.control} name="location" render={({ field }) => (<FormItem><FormLabel>Location</FormLabel><FormControl><Input placeholder="Parking T4 Barajas" {...field} /></FormControl><FormMessage /></FormItem>)} />
-              <FormField control={form.control} name="reservationCode" render={({ field }) => (<FormItem><FormLabel>Reservation code</FormLabel><FormControl><Input placeholder="MAD-78234" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="location" render={({ field }) => (<FormItem><FormLabel>Ubicación</FormLabel><FormControl><Input placeholder="Parking T4 Barajas" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="reservationCode" render={({ field }) => (<FormItem><FormLabel>Código de reserva</FormLabel><FormControl><Input placeholder="MAD-78234" {...field} /></FormControl><FormMessage /></FormItem>)} />
               <div className="grid grid-cols-2 gap-3">
-                <FormField control={form.control} name="entryDate" render={({ field }) => (<FormItem><FormLabel>Entry date</FormLabel><FormControl><Input type="datetime-local" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="exitDate" render={({ field }) => (<FormItem><FormLabel>Exit date</FormLabel><FormControl><Input type="datetime-local" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="entryDate" render={({ field }) => (<FormItem><FormLabel>Fecha de entrada</FormLabel><FormControl><Input type="datetime-local" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="exitDate" render={({ field }) => (<FormItem><FormLabel>Fecha de salida</FormLabel><FormControl><Input type="datetime-local" {...field} /></FormControl><FormMessage /></FormItem>)} />
               </div>
-              <FormField control={form.control} name="priceTotal" render={({ field }) => (<FormItem><FormLabel>Total price (optional)</FormLabel><FormControl><Input type="number" placeholder="145.50" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
-              <FormField control={form.control} name="notes" render={({ field }) => (<FormItem><FormLabel>Notes</FormLabel><FormControl><Textarea rows={2} {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="priceTotal" render={({ field }) => (<FormItem><FormLabel>Precio total (opcional)</FormLabel><FormControl><Input type="number" placeholder="145.50" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="notes" render={({ field }) => (<FormItem><FormLabel>Notas</FormLabel><FormControl><Textarea rows={2} {...field} /></FormControl><FormMessage /></FormItem>)} />
               <DialogFooter>
-                <Button type="submit" disabled={createParking.isPending || updateParking.isPending}>{editing ? "Save changes" : "Add parking"}</Button>
+                <Button type="submit" disabled={createParking.isPending || updateParking.isPending}>{editing ? "Guardar cambios" : "Añadir estacionamiento"}</Button>
               </DialogFooter>
             </form>
           </Form>
@@ -116,10 +116,10 @@ export default function ParkingModule({ tripId }: Props) {
 
       <AlertDialog open={!!deleting} onOpenChange={() => setDeleting(null)}>
         <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>Delete parking?</AlertDialogTitle><AlertDialogDescription>This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogHeader><AlertDialogTitle>¿Eliminar estacionamiento?</AlertDialogTitle><AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deleting && deleteParking.mutate({ tripId, parkingId: deleting.id })} className="bg-destructive hover:bg-destructive/90">Delete</AlertDialogAction>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => deleting && deleteParking.mutate({ tripId, parkingId: deleting.id })} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

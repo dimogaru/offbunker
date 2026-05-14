@@ -17,12 +17,12 @@ import DocumentsModule from "@/components/modules/documents-module";
 import { useToast } from "@/hooks/use-toast";
 
 const MODULES = [
-  { id: "flights",       label: "Flights",    shortLabel: "Flights",  icon: Plane },
-  { id: "parking",       label: "Parking",    shortLabel: "Parking",  icon: ParkingCircle },
-  { id: "rental",        label: "Vehicle Rental", shortLabel: "Rental", icon: Car },
-  { id: "accommodation", label: "Accommodation", shortLabel: "Stay",   icon: Building2 },
-  { id: "itinerary",     label: "Itinerary",  shortLabel: "Plan",     icon: CalendarDays },
-  { id: "vault",         label: "Documents",  shortLabel: "Docs",     icon: FolderOpen },
+  { id: "flights",       label: "Logística Aérea",     shortLabel: "Vuelos",    icon: Plane },
+  { id: "parking",       label: "Estacionamiento",     shortLabel: "Parking",   icon: ParkingCircle },
+  { id: "rental",        label: "Alquiler de Vehículo", shortLabel: "Alquiler", icon: Car },
+  { id: "accommodation", label: "Alojamiento",          shortLabel: "Estancia", icon: Building2 },
+  { id: "itinerary",     label: "Itinerario",           shortLabel: "Plan",     icon: CalendarDays },
+  { id: "vault",         label: "Documentos",           shortLabel: "Docs",     icon: FolderOpen },
 ] as const;
 
 type ModuleId = typeof MODULES[number]["id"];
@@ -38,11 +38,11 @@ function ShareButton({ tripId }: { tripId: number }) {
         navigator.clipboard.writeText(url).then(() => {
           setCopied(true);
           setTimeout(() => setCopied(false), 2500);
-          toast({ title: "Link copied!", description: "Share this link for a read-only view." });
+          toast({ title: "¡Enlace copiado!", description: "Comparte este enlace para una vista de solo lectura." });
         });
       },
       onError: () => {
-        toast({ title: "Error", description: "Could not generate share link.", variant: "destructive" });
+        toast({ title: "Error", description: "No se pudo generar el enlace.", variant: "destructive" });
       },
     },
   });
@@ -58,7 +58,7 @@ function ShareButton({ tripId }: { tripId: number }) {
       {copied
         ? <Check className="w-4 h-4 text-emerald-400" />
         : <Share2 className="w-4 h-4" />}
-      <span className="hidden sm:inline text-xs font-medium">{copied ? "Copied!" : "Share"}</span>
+      <span className="hidden sm:inline text-xs font-medium">{copied ? "¡Copiado!" : "Compartir"}</span>
     </button>
   );
 }
@@ -143,7 +143,7 @@ export default function TripDetail() {
             title="Download for offline"
           >
             <Download className="w-4 h-4" />
-            <span className="hidden sm:inline text-xs font-medium">Offline</span>
+            <span className="hidden sm:inline text-xs font-medium">Sin conexión</span>
           </a>
 
           <ShareButton tripId={tripId} />
@@ -152,10 +152,10 @@ export default function TripDetail() {
             onClick={() => setEditOpen(true)}
             className="p-2 rounded-md text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors flex-shrink-0 flex items-center gap-1.5"
             data-testid="button-edit-trip"
-            title="Edit trip"
+            title="Editar viaje"
           >
             <Pencil className="w-4 h-4" />
-            <span className="hidden sm:inline text-xs font-medium">Edit</span>
+            <span className="hidden sm:inline text-xs font-medium">Editar</span>
           </button>
         </div>
       </header>

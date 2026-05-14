@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useRoute, Link } from "wouter";
 import {
   ArrowLeft, Plane, ParkingCircle, Car, Building2, CalendarDays,
-  FolderOpen, Pencil, Share2, Check, Download,
+  FolderOpen, Pencil, Share2, Check,
 } from "lucide-react";
 import { useGetTrip, getGetTripQueryKey, useGenerateShareLink } from "@workspace/api-client-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -134,18 +134,6 @@ export default function TripDetail() {
           </div>
 
           {/* Action buttons — icons only on mobile, icon + label on sm+ */}
-          <a
-            href={`${import.meta.env.BASE_URL}trips/${tripId}/export`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="p-2 rounded-md text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors flex-shrink-0 flex items-center gap-1.5"
-            data-testid="button-offline-download"
-            title="Download for offline"
-          >
-            <Download className="w-4 h-4" />
-            <span className="hidden sm:inline text-xs font-medium">Sin conexión</span>
-          </a>
-
           <ShareButton tripId={tripId} />
 
           <button

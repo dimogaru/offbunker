@@ -33,6 +33,8 @@ export * from "./parkingUpdate";
 export * from "./rental";
 export * from "./rentalInput";
 export * from "./rentalUpdate";
+export * from "./sharedTrip";
+export * from "./shareLink";
 export * from "./trip";
 export * from "./tripInput";
 export * from "./tripProgress";

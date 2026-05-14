@@ -26,6 +26,7 @@ export const ListTripsResponseItem = zod.object({
   status: zod.enum(["upcoming", "ongoing", "completed"]),
   coverImage: zod.string().nullable(),
   notes: zod.string().nullish(),
+  shareToken: zod.string().nullish(),
   createdAt: zod.coerce.date(),
 });
 export const ListTripsResponse = zod.array(ListTripsResponseItem);
@@ -59,6 +60,7 @@ export const GetTripResponse = zod.object({
   status: zod.enum(["upcoming", "ongoing", "completed"]),
   coverImage: zod.string().nullable(),
   notes: zod.string().nullish(),
+  shareToken: zod.string().nullish(),
   createdAt: zod.coerce.date(),
 });
 
@@ -88,6 +90,7 @@ export const UpdateTripResponse = zod.object({
   status: zod.enum(["upcoming", "ongoing", "completed"]),
   coverImage: zod.string().nullable(),
   notes: zod.string().nullish(),
+  shareToken: zod.string().nullish(),
   createdAt: zod.coerce.date(),
 });
 
@@ -96,6 +99,141 @@ export const UpdateTripResponse = zod.object({
  */
 export const DeleteTripParams = zod.object({
   tripId: zod.coerce.number(),
+});
+
+/**
+ * @summary Generate or retrieve a shareable read-only link token for a trip
+ */
+export const GenerateShareLinkParams = zod.object({
+  tripId: zod.coerce.number(),
+});
+
+export const GenerateShareLinkResponse = zod.object({
+  shareToken: zod.string(),
+});
+
+/**
+ * @summary Get full read-only trip snapshot by share token
+ */
+export const GetSharedTripParams = zod.object({
+  token: zod.coerce.string(),
+});
+
+export const GetSharedTripResponse = zod.object({
+  trip: zod.object({
+    id: zod.number(),
+    name: zod.string(),
+    destination: zod.string(),
+    startDate: zod.coerce.date(),
+    endDate: zod.coerce.date(),
+    status: zod.enum(["upcoming", "ongoing", "completed"]),
+    coverImage: zod.string().nullable(),
+    notes: zod.string().nullish(),
+    shareToken: zod.string().nullish(),
+    createdAt: zod.coerce.date(),
+  }),
+  flights: zod.array(
+    zod.object({
+      id: zod.number(),
+      tripId: zod.number(),
+      airline: zod.string(),
+      flightNumber: zod.string(),
+      departureAirport: zod.string(),
+      arrivalAirport: zod.string(),
+      departureTime: zod.coerce.date(),
+      arrivalTime: zod.coerce.date(),
+      terminal: zod.string().nullable(),
+      gate: zod.string().nullish(),
+      seat: zod.string().nullish(),
+      notes: zod.string().nullish(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+  parkings: zod.array(
+    zod.object({
+      id: zod.number(),
+      tripId: zod.number(),
+      location: zod.string(),
+      reservationCode: zod.string(),
+      entryDate: zod.coerce.date(),
+      exitDate: zod.coerce.date(),
+      priceTotal: zod.number().nullish(),
+      notes: zod.string().nullish(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+  rentals: zod.array(
+    zod.object({
+      id: zod.number(),
+      tripId: zod.number(),
+      company: zod.string(),
+      pickupLocation: zod.string(),
+      returnLocation: zod.string().nullish(),
+      pickupDate: zod.coerce.date(),
+      returnDate: zod.coerce.date(),
+      fuelPolicy: zod.string(),
+      vehicleType: zod.string().nullish(),
+      confirmationCode: zod.string().nullish(),
+      notes: zod.string().nullish(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+  accommodations: zod.array(
+    zod.object({
+      id: zod.number(),
+      tripId: zod.number(),
+      name: zod.string(),
+      type: zod.enum(["hotel", "airbnb", "hostel", "other"]).optional(),
+      address: zod.string(),
+      checkIn: zod.coerce.date(),
+      checkOut: zod.coerce.date(),
+      confirmationCode: zod.string(),
+      contactPhone: zod.string().nullish(),
+      notes: zod.string().nullish(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+  itinerary: zod.array(
+    zod.object({
+      id: zod.number(),
+      tripId: zod.number(),
+      date: zod.coerce.date(),
+      time: zod.string().nullable(),
+      title: zod.string(),
+      description: zod.string().nullish(),
+      location: zod.string().nullish(),
+      category: zod
+        .enum([
+          "transport",
+          "sightseeing",
+          "dining",
+          "activity",
+          "accommodation",
+          "other",
+        ])
+        .optional(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+  documents: zod.array(
+    zod.object({
+      id: zod.number(),
+      tripId: zod.number(),
+      module: zod.enum([
+        "flights",
+        "parking",
+        "rental",
+        "accommodation",
+        "itinerary",
+        "vault",
+      ]),
+      name: zod.string(),
+      fileType: zod.string(),
+      fileUrl: zod.string().nullish(),
+      notes: zod.string().nullish(),
+      uploadedAt: zod.coerce.date(),
+    }),
+  ),
 });
 
 /**

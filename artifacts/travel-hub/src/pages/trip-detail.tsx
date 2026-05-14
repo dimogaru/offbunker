@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useRoute, Link } from "wouter";
-import { ArrowLeft, Plane, ParkingCircle, Car, Building2, CalendarDays, FolderOpen, Pencil } from "lucide-react";
-import { useGetTrip, getGetTripQueryKey } from "@workspace/api-client-react";
+import { ArrowLeft, Plane, ParkingCircle, Car, Building2, CalendarDays, FolderOpen, Pencil, Share2, Check } from "lucide-react";
+import { useGetTrip, getGetTripQueryKey, useGenerateShareLink } from "@workspace/api-client-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import TripProgressBar from "@/components/trip-progress-bar";
 import EditTripDialog from "@/components/edit-trip-dialog";
@@ -11,6 +11,7 @@ import RentalsModule from "@/components/modules/rentals-module";
 import AccommodationsModule from "@/components/modules/accommodations-module";
 import ItineraryModule from "@/components/modules/itinerary-module";
 import DocumentsModule from "@/components/modules/documents-module";
+import { useToast } from "@/hooks/use-toast";
 
 const MODULES = [
   { id: "flights", label: "Flights", icon: Plane },
@@ -22,6 +23,39 @@ const MODULES = [
 ] as const;
 
 type ModuleId = typeof MODULES[number]["id"];
+
+function ShareButton({ tripId }: { tripId: number }) {
+  const { toast } = useToast();
+  const [copied, setCopied] = useState(false);
+
+  const generateLink = useGenerateShareLink({
+    mutation: {
+      onSuccess: (data) => {
+        const url = `${window.location.origin}${import.meta.env.BASE_URL}share/${data.shareToken}`;
+        navigator.clipboard.writeText(url).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2500);
+          toast({ title: "Link copied!", description: "Share this link for a read-only view." });
+        });
+      },
+      onError: () => {
+        toast({ title: "Error", description: "Could not generate share link.", variant: "destructive" });
+      },
+    },
+  });
+
+  return (
+    <button
+      onClick={() => generateLink.mutate({ tripId })}
+      disabled={generateLink.isPending}
+      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors flex-shrink-0"
+      data-testid="button-share-trip"
+    >
+      {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Share2 className="w-3.5 h-3.5" />}
+      {copied ? "Copied!" : "Share"}
+    </button>
+  );
+}
 
 export default function TripDetail() {
   const [, params] = useRoute("/trips/:tripId");
@@ -75,7 +109,9 @@ export default function TripDetail() {
             <h1 className="font-bold text-base truncate" data-testid="text-trip-name">{trip.name}</h1>
             <p className="text-xs text-sidebar-foreground/60 truncate">{trip.destination}</p>
           </div>
-          {/* Edit button in header */}
+          {/* Share button */}
+          <ShareButton tripId={tripId} />
+          {/* Edit button */}
           <button
             onClick={() => setEditOpen(true)}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors flex-shrink-0"

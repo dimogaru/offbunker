@@ -18,5 +18,7 @@ export interface Trip {
   coverImage: string | null;
   /** @nullable */
   notes?: string | null;
+  /** @nullable */
+  shareToken?: string | null;
   createdAt: Date;
 }

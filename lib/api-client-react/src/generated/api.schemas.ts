@@ -28,6 +28,8 @@ export interface Trip {
   coverImage: string | null;
   /** @nullable */
   notes?: string | null;
+  /** @nullable */
+  shareToken?: string | null;
   createdAt: string;
 }
 
@@ -388,4 +390,18 @@ export interface DocumentInput {
   fileType: string;
   fileUrl?: string;
   notes?: string;
+}
+
+export interface ShareLink {
+  shareToken: string;
+}
+
+export interface SharedTrip {
+  trip: Trip;
+  flights: Flight[];
+  parkings: Parking[];
+  rentals: Rental[];
+  accommodations: Accommodation[];
+  itinerary: ItineraryItem[];
+  documents: Document[];
 }

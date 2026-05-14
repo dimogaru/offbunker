@@ -35,6 +35,8 @@ import type {
   Rental,
   RentalInput,
   RentalUpdate,
+  ShareLink,
+  SharedTrip,
   Trip,
   TripInput,
   TripProgress,
@@ -523,6 +525,177 @@ export const useDeleteTrip = <
 > => {
   return useMutation(getDeleteTripMutationOptions(options));
 };
+
+/**
+ * @summary Generate or retrieve a shareable read-only link token for a trip
+ */
+export const getGenerateShareLinkUrl = (tripId: number) => {
+  return `/api/trips/${tripId}/share`;
+};
+
+export const generateShareLink = async (
+  tripId: number,
+  options?: RequestInit,
+): Promise<ShareLink> => {
+  return customFetch<ShareLink>(getGenerateShareLinkUrl(tripId), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getGenerateShareLinkMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateShareLink>>,
+    TError,
+    { tripId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof generateShareLink>>,
+  TError,
+  { tripId: number },
+  TContext
+> => {
+  const mutationKey = ["generateShareLink"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof generateShareLink>>,
+    { tripId: number }
+  > = (props) => {
+    const { tripId } = props ?? {};
+
+    return generateShareLink(tripId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GenerateShareLinkMutationResult = NonNullable<
+  Awaited<ReturnType<typeof generateShareLink>>
+>;
+
+export type GenerateShareLinkMutationError = ErrorType<void>;
+
+/**
+ * @summary Generate or retrieve a shareable read-only link token for a trip
+ */
+export const useGenerateShareLink = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateShareLink>>,
+    TError,
+    { tripId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof generateShareLink>>,
+  TError,
+  { tripId: number },
+  TContext
+> => {
+  return useMutation(getGenerateShareLinkMutationOptions(options));
+};
+
+/**
+ * @summary Get full read-only trip snapshot by share token
+ */
+export const getGetSharedTripUrl = (token: string) => {
+  return `/api/shared/${token}`;
+};
+
+export const getSharedTrip = async (
+  token: string,
+  options?: RequestInit,
+): Promise<SharedTrip> => {
+  return customFetch<SharedTrip>(getGetSharedTripUrl(token), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetSharedTripQueryKey = (token: string) => {
+  return [`/api/shared/${token}`] as const;
+};
+
+export const getGetSharedTripQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSharedTrip>>,
+  TError = ErrorType<void>,
+>(
+  token: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getSharedTrip>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetSharedTripQueryKey(token);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getSharedTrip>>> = ({
+    signal,
+  }) => getSharedTrip(token, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!token,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSharedTrip>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetSharedTripQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSharedTrip>>
+>;
+export type GetSharedTripQueryError = ErrorType<void>;
+
+/**
+ * @summary Get full read-only trip snapshot by share token
+ */
+
+export function useGetSharedTrip<
+  TData = Awaited<ReturnType<typeof getSharedTrip>>,
+  TError = ErrorType<void>,
+>(
+  token: string,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getSharedTrip>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetSharedTripQueryOptions(token, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
 
 /**
  * @summary Get document upload progress for a trip

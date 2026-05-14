@@ -127,6 +127,48 @@ paths:
         "204":
           description: Deleted
 
+  /trips/{tripId}/share:
+    post:
+      operationId: generateShareLink
+      tags: [trips]
+      summary: Generate or retrieve a shareable read-only link token for a trip
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Share link token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShareLink"
+        "404":
+          description: Trip not found
+
+  /shared/{token}:
+    get:
+      operationId: getSharedTrip
+      tags: [trips]
+      summary: Get full read-only trip snapshot by share token
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Shared trip snapshot
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SharedTrip"
+        "404":
+          description: Not found
+
   /trips/{tripId}/progress:
     get:
       operationId: getTripProgress
@@ -703,6 +745,8 @@ components:
           type: ["string", "null"]
         notes:
           type: ["string", "null"]
+        shareToken:
+          type: ["string", "null"]
         createdAt:
           type: string
           format: date-time
@@ -1200,3 +1244,41 @@ components:
           type: string
         notes:
           type: string
+
+    ShareLink:
+      type: object
+      required: [shareToken]
+      properties:
+        shareToken:
+          type: string
+
+    SharedTrip:
+      type: object
+      required: [trip, flights, parkings, rentals, accommodations, itinerary, documents]
+      properties:
+        trip:
+          $ref: "#/components/schemas/Trip"
+        flights:
+          type: array
+          items:
+            $ref: "#/components/schemas/Flight"
+        parkings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Parking"
+        rentals:
+          type: array
+          items:
+            $ref: "#/components/schemas/Rental"
+        accommodations:
+          type: array
+          items:
+            $ref: "#/components/schemas/Accommodation"
+        itinerary:
+          type: array
+          items:
+            $ref: "#/components/schemas/ItineraryItem"
+        documents:
+          type: array
+          items:
+            $ref: "#/components/schemas/Document"

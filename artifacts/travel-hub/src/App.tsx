@@ -6,6 +6,7 @@ import NotFound from "@/pages/not-found";
 import Dashboard from "@/pages/dashboard";
 import NewTrip from "@/pages/new-trip";
 import TripDetail from "@/pages/trip-detail";
+import SharedTrip from "@/pages/shared-trip";
 
 const queryClient = new QueryClient();
 
@@ -15,6 +16,7 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/trips/new" component={NewTrip} />
       <Route path="/trips/:tripId" component={TripDetail} />
+      <Route path="/share/:token" component={SharedTrip} />
       <Route component={NotFound} />
     </Switch>
   );

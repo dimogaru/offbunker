@@ -11,6 +11,7 @@ export const tripsTable = pgTable("trips", {
   status: text("status").notNull().default("upcoming"),
   coverImage: text("cover_image"),
   notes: text("notes"),
+  shareToken: text("share_token").unique(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

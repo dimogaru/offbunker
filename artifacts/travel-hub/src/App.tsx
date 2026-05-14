@@ -10,6 +10,7 @@ import TripDetail from "@/pages/trip-detail";
 import SharedTrip from "@/pages/shared-trip";
 import TripExport from "@/pages/trip-export";
 import OfflineIndicator from "@/components/offline-indicator";
+import PullToRefresh from "@/components/pull-to-refresh";
 
 const CACHE_KEY = "travelhub-cache-v1";
 const CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
@@ -18,7 +19,13 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       gcTime: CACHE_MAX_AGE,
-      staleTime: 1000 * 60 * 2,
+      // staleTime: 0 → "stale-while-revalidate":
+      // localStorage data is shown instantly, but a background fetch ALWAYS
+      // fires on mount and on window/tab focus to get the latest server data.
+      staleTime: 0,
+      refetchOnWindowFocus: true,
+      refetchOnReconnect: true,
+      refetchOnMount: true,
       retry: (failureCount) => {
         if (!navigator.onLine) return false;
         return failureCount < 2;
@@ -84,6 +91,22 @@ function QueryCachePersister() {
   return null;
 }
 
+// Ensures data is re-fetched when the mobile user switches back to the tab.
+// TanStack Query already listens to `focus`, but the `visibilitychange` API
+// is more reliable on iOS/Android when the user returns from another app.
+function VisibilitySync() {
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === "visible") {
+        queryClient.invalidateQueries();
+      }
+    }
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, []);
+  return null;
+}
+
 function Router() {
   return (
     <Switch>
@@ -101,12 +124,14 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <QueryCachePersister />
+      <VisibilitySync />
       <TooltipProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
           <Router />
         </WouterRouter>
         <Toaster />
         <OfflineIndicator />
+        <PullToRefresh />
       </TooltipProvider>
     </QueryClientProvider>
   );

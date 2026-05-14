@@ -28,11 +28,20 @@ app.use(
 );
 app.use(cors());
 
+// Serve uploaded files statically
 const uploadsDir = path.join(process.cwd(), "uploads");
 app.use("/uploads", express.static(uploadsDir));
 
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true }));
+
+// Prevent browser/mobile HTTP caching of API responses so clients always
+// get the latest data from the server (not a stale 304 / ETag hit).
+app.use("/api", (_req, res, next) => {
+  res.setHeader("Cache-Control", "no-store, must-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  next();
+});
 
 app.use("/api", router);
 

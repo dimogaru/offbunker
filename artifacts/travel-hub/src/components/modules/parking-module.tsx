@@ -15,6 +15,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import ModuleHeader from "@/components/modules/module-header";
+import ModuleDocsWidget from "@/components/modules/module-docs-widget";
 
 const schema = z.object({
   location: z.string().min(1, "La ubicación es obligatoria"),
@@ -123,6 +124,8 @@ export default function ParkingModule({ tripId }: Props) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ModuleDocsWidget tripId={tripId} module="parking" moduleLabel="Estacionamiento" />
     </div>
   );
 }

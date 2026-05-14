@@ -16,6 +16,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import ModuleHeader from "@/components/modules/module-header";
+import ModuleDocsWidget from "@/components/modules/module-docs-widget";
 
 const CATEGORIES = ["transport", "sightseeing", "dining", "activity", "accommodation", "other"] as const;
 
@@ -184,6 +185,8 @@ export default function ItineraryModule({ tripId }: Props) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ModuleDocsWidget tripId={tripId} module="itinerary" moduleLabel="Itinerario" />
     </div>
   );
 }

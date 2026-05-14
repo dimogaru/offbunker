@@ -16,6 +16,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import ModuleHeader from "@/components/modules/module-header";
+import ModuleDocsWidget from "@/components/modules/module-docs-widget";
 
 type AccommodationExt = Accommodation & { bookingPlatform?: string | null };
 
@@ -212,6 +213,8 @@ export default function AccommodationsModule({ tripId }: Props) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ModuleDocsWidget tripId={tripId} module="accommodation" moduleLabel="Alojamiento" />
     </div>
   );
 }

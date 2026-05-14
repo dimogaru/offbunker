@@ -15,6 +15,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import ModuleHeader from "@/components/modules/module-header";
+import ModuleDocsWidget from "@/components/modules/module-docs-widget";
 
 const schema = z.object({
   airline: z.string().min(1, "La aerolínea es obligatoria"),
@@ -161,6 +162,8 @@ export default function FlightsModule({ tripId }: Props) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ModuleDocsWidget tripId={tripId} module="flights" moduleLabel="Logística Aérea" />
     </div>
   );
 }

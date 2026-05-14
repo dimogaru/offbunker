@@ -65,11 +65,14 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api\//],
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
         runtimeCaching: [
+          // IMPORTANT: /api/uploads/ must be listed BEFORE /api/ so that
+          // uploaded files use CacheFirst (offline-friendly) while all other
+          // API endpoints use NetworkFirst (always-fresh).
           {
-            urlPattern: ({ url }) => url.pathname.startsWith("/uploads/"),
+            urlPattern: ({ url }) => url.pathname.startsWith("/api/uploads/"),
             handler: "CacheFirst",
             options: {
-              cacheName: "travelhub-uploads-v1",
+              cacheName: "travelhub-uploads-v2",
               expiration: {
                 maxEntries: 300,
                 maxAgeSeconds: 30 * 24 * 60 * 60,

@@ -28,15 +28,16 @@ app.use(
 );
 app.use(cors());
 
-// Serve uploaded files statically
-const uploadsDir = path.join(process.cwd(), "uploads");
-app.use("/uploads", express.static(uploadsDir));
-
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true }));
 
-// Prevent browser/mobile HTTP caching of API responses so clients always
-// get the latest data from the server (not a stale 304 / ETag hit).
+// Serve uploaded files under /api/uploads/ so they flow through the shared
+// proxy (which routes /api/* → this server).  Static middleware only handles
+// GET/HEAD, so POST /api/uploads (multer) still falls through to the router.
+const uploadsDir = path.join(process.cwd(), "uploads");
+app.use("/api/uploads", express.static(uploadsDir));
+
+// Prevent browser/mobile HTTP caching of API responses.
 app.use("/api", (_req, res, next) => {
   res.setHeader("Cache-Control", "no-store, must-revalidate");
   res.setHeader("Pragma", "no-cache");

@@ -1,10 +1,15 @@
 import { useState, useRef } from "react";
-import { Trash2, FolderOpen, FileText, Paperclip, ExternalLink, Download, WifiOff, CheckCircle2, Loader2, CloudDownload } from "lucide-react";
+import {
+  Trash2, FolderOpen, FileText, Paperclip, ExternalLink, Download,
+  WifiOff, CheckCircle2, Loader2, CloudDownload, RefreshCw,
+} from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useQueryClient } from "@tanstack/react-query";
-import { useListDocuments, useCreateDocument, useDeleteDocument, getListDocumentsQueryKey } from "@workspace/api-client-react";
+import {
+  useListDocuments, useCreateDocument, useDeleteDocument, getListDocumentsQueryKey,
+} from "@workspace/api-client-react";
 import type { Document } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,11 +52,36 @@ function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString("es-ES", { month: "short", day: "numeric", year: "numeric" });
 }
 
+// Matches both new /api/uploads/ URLs and legacy /uploads/ URLs.
 function isServerUrl(url: string | null | undefined): boolean {
-  return !!url && url.startsWith("/uploads/");
+  return !!url && (url.startsWith("/api/uploads/") || url.startsWith("/uploads/"));
 }
 
-const OFFLINE_CACHE = "travelhub-uploads-v1";
+// Cache name must match the Workbox runtimeCaching config in vite.config.ts.
+const OFFLINE_CACHE = "travelhub-uploads-v2";
+
+// Per-trip localStorage key that stores the set of file URLs already synced.
+function syncedUrlsKey(tripId: number) {
+  return `travelhub-synced-urls-${tripId}`;
+}
+
+function loadSyncedUrls(tripId: number): Set<string> {
+  try {
+    const raw = localStorage.getItem(syncedUrlsKey(tripId));
+    if (!raw) return new Set();
+    return new Set(JSON.parse(raw) as string[]);
+  } catch {
+    return new Set();
+  }
+}
+
+function saveSyncedUrls(tripId: number, urls: Set<string>) {
+  try {
+    localStorage.setItem(syncedUrlsKey(tripId), JSON.stringify([...urls]));
+  } catch {
+    // quota exceeded — ignore
+  }
+}
 
 interface Props { tripId: number }
 
@@ -65,9 +95,15 @@ export default function DocumentsModule({ tripId }: Props) {
   const [uploading, setUploading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState({ done: 0, total: 0 });
+
+  // Persisted set of file URLs that have been successfully cached offline.
+  const [syncedUrls, setSyncedUrls] = useState<Set<string>>(() => loadSyncedUrls(tripId));
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { data: docs, isLoading } = useListDocuments(tripId, { query: { queryKey: getListDocumentsQueryKey(tripId) } });
+  const { data: docs, isLoading } = useListDocuments(tripId, {
+    query: { queryKey: getListDocumentsQueryKey(tripId) },
+  });
   const invalidate = () => queryClient.invalidateQueries({ queryKey: getListDocumentsQueryKey(tripId) });
 
   const form = useForm<FormValues>({
@@ -115,7 +151,11 @@ export default function DocumentsModule({ tripId }: Props) {
       const { url } = await res.json() as { url: string };
       form.setValue("fileUrl", url);
     } catch {
-      toast({ title: "Error al subir el archivo", description: "Comprueba tu conexión e inténtalo de nuevo.", variant: "destructive" });
+      toast({
+        title: "Error al subir el archivo",
+        description: "Comprueba tu conexión e inténtalo de nuevo.",
+        variant: "destructive",
+      });
       setSelectedFileName("");
       if (fileInputRef.current) fileInputRef.current.value = "";
     } finally {
@@ -128,7 +168,10 @@ export default function DocumentsModule({ tripId }: Props) {
     const serverDocs = docs.filter((d) => isServerUrl(d.fileUrl));
 
     if (serverDocs.length === 0) {
-      toast({ title: "No hay documentos en el servidor", description: "Sube documentos primero para poder guardarlos offline." });
+      toast({
+        title: "No hay documentos en el servidor",
+        description: "Sube documentos primero para poder guardarlos offline.",
+      });
       return;
     }
     if (!("caches" in window)) {
@@ -139,18 +182,56 @@ export default function DocumentsModule({ tripId }: Props) {
     setSyncing(true);
     setSyncProgress({ done: 0, total: serverDocs.length });
 
+    const failed: string[] = [];
+    const succeededUrls: string[] = [];
+
     try {
       const cache = await caches.open(OFFLINE_CACHE);
+
       for (const doc of serverDocs) {
-        await cache.add(doc.fileUrl!);
+        try {
+          // Integrity check: fetch the file and verify it returns 200 OK
+          // before storing it in Cache Storage.
+          const response = await fetch(doc.fileUrl!, { cache: "no-store" });
+          if (!response.ok) {
+            failed.push(doc.name);
+          } else {
+            await cache.put(doc.fileUrl!, response);
+            succeededUrls.push(doc.fileUrl!);
+          }
+        } catch {
+          failed.push(doc.name);
+        }
         setSyncProgress((p) => ({ ...p, done: p.done + 1 }));
       }
-      toast({
-        title: "Viaje preparado para modo offline",
-        description: `${serverDocs.length} documento${serverDocs.length !== 1 ? "s" : ""} guardado${serverDocs.length !== 1 ? "s" : ""} en el dispositivo.`,
-      });
+
+      // Persist synced URLs so the button state survives page reloads.
+      if (succeededUrls.length > 0) {
+        const next = new Set([...syncedUrls, ...succeededUrls]);
+        setSyncedUrls(next);
+        saveSyncedUrls(tripId, next);
+      }
+
+      if (failed.length === 0) {
+        toast({
+          title: "Documentos sincronizados para uso offline",
+          description: `${succeededUrls.length} archivo${succeededUrls.length !== 1 ? "s" : ""} guardado${succeededUrls.length !== 1 ? "s" : ""} en este dispositivo.`,
+        });
+      } else {
+        toast({
+          title: `${failed.length} archivo${failed.length !== 1 ? "s" : ""} no pudo${failed.length !== 1 ? "ron" : ""} descargarse`,
+          description: failed.length < serverDocs.length
+            ? `Descargados correctamente: ${succeededUrls.length}. Verifica tu conexión.`
+            : "Verifica tu conexión a internet e inténtalo de nuevo.",
+          variant: "destructive",
+        });
+      }
     } catch {
-      toast({ title: "Error al descargar documentos", description: "Comprueba tu conexión a internet.", variant: "destructive" });
+      toast({
+        title: "Error al preparar modo offline",
+        description: "Comprueba tu conexión a internet.",
+        variant: "destructive",
+      });
     } finally {
       setSyncing(false);
       setSyncProgress({ done: 0, total: 0 });
@@ -164,18 +245,26 @@ export default function DocumentsModule({ tripId }: Props) {
   }
 
   function onSubmit(values: FormValues) {
-    createDocument.mutate({ tripId, data: { ...values, fileUrl: values.fileUrl || undefined, notes: values.notes || undefined } });
+    createDocument.mutate({
+      tripId,
+      data: { ...values, fileUrl: values.fileUrl || undefined, notes: values.notes || undefined },
+    });
   }
 
-  const filteredDocs = docs ? (filterModule === "all" ? docs : docs.filter((d) => d.module === filterModule)) : [];
+  // Derived sync state
+  const serverDocs = docs ? docs.filter((d) => isServerUrl(d.fileUrl)) : [];
+  const pendingDocs = serverDocs.filter((d) => !syncedUrls.has(d.fileUrl!));
+  const allSynced = serverDocs.length > 0 && pendingDocs.length === 0;
+
+  const filteredDocs = docs
+    ? filterModule === "all" ? docs : docs.filter((d) => d.module === filterModule)
+    : [];
 
   const grouped = filteredDocs.reduce((acc, d) => {
     if (!acc[d.module]) acc[d.module] = [];
     acc[d.module].push(d);
     return acc;
   }, {} as Record<string, Document[]>);
-
-  const serverDocCount = docs ? docs.filter((d) => isServerUrl(d.fileUrl)).length : 0;
 
   return (
     <div>
@@ -190,44 +279,68 @@ export default function DocumentsModule({ tripId }: Props) {
         </Button>
       </div>
 
-      {/* Offline sync banner */}
-      {serverDocCount > 0 && (
-        <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3">
-          <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
-            {syncing ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin text-primary flex-shrink-0" />
-                <span>Descargando {syncProgress.done} de {syncProgress.total} documentos…</span>
-              </>
-            ) : (
-              <>
+      {/* ── Offline sync banner ── */}
+      {serverDocs.length > 0 && (
+        <>
+          {syncing ? (
+            <div className="mb-4 flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
+              <Loader2 className="w-4 h-4 animate-spin text-primary flex-shrink-0" />
+              <span className="text-sm text-muted-foreground flex-1">
+                Verificando y descargando {syncProgress.done} de {syncProgress.total} documentos…
+              </span>
+            </div>
+          ) : allSynced ? (
+            /* All current docs are cached — show success state */
+            <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30 px-4 py-3">
+              <div className="flex items-center gap-2.5 text-sm text-emerald-700 dark:text-emerald-400">
+                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                <span>
+                  <span className="font-medium">{serverDocs.length}</span>{" "}
+                  documento{serverDocs.length !== 1 ? "s" : ""} sincronizado{serverDocs.length !== 1 ? "s" : ""} para uso offline
+                </span>
+              </div>
+              <button
+                onClick={handlePrepareOffline}
+                className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-200 transition-colors flex-shrink-0"
+                title="Volver a sincronizar"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                Actualizar
+              </button>
+            </div>
+          ) : (
+            /* One or more docs not yet cached */
+            <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3">
+              <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
                 <WifiOff className="w-4 h-4 flex-shrink-0" />
-                <span><span className="font-medium text-foreground">{serverDocCount}</span> documento{serverDocCount !== 1 ? "s" : ""} disponible{serverDocCount !== 1 ? "s" : ""} para guardar offline</span>
-              </>
-            )}
-          </div>
-          <Button
-            size="sm"
-            variant="outline"
-            className="gap-1.5 flex-shrink-0 text-xs h-8"
-            onClick={handlePrepareOffline}
-            disabled={syncing}
-          >
-            {syncing ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            ) : (
-              <CloudDownload className="w-3.5 h-3.5" />
-            )}
-            Preparar modo offline
-          </Button>
-        </div>
+                <span>
+                  <span className="font-medium text-foreground">{pendingDocs.length}</span>{" "}
+                  documento{pendingDocs.length !== 1 ? "s" : ""} pendiente{pendingDocs.length !== 1 ? "s" : ""} de sincronizar
+                </span>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 flex-shrink-0 text-xs h-8"
+                onClick={handlePrepareOffline}
+              >
+                <CloudDownload className="w-3.5 h-3.5" />
+                Preparar modo offline
+              </Button>
+            </div>
+          )}
+        </>
       )}
 
-      {/* Filter */}
+      {/* Filter tabs */}
       <div className="flex gap-2 flex-wrap mb-4">
         <button
           onClick={() => setFilterModule("all")}
-          className={`text-xs px-3 py-1 rounded-full border transition-colors ${filterModule === "all" ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-primary"}`}
+          className={`text-xs px-3 py-1 rounded-full border transition-colors ${
+            filterModule === "all"
+              ? "bg-primary text-primary-foreground border-primary"
+              : "border-border text-muted-foreground hover:border-primary"
+          }`}
         >
           Todos
         </button>
@@ -235,15 +348,22 @@ export default function DocumentsModule({ tripId }: Props) {
           <button
             key={m.value}
             onClick={() => setFilterModule(m.value)}
-            className={`text-xs px-3 py-1 rounded-full border transition-colors ${filterModule === m.value ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:border-primary"}`}
+            className={`text-xs px-3 py-1 rounded-full border transition-colors ${
+              filterModule === m.value
+                ? "bg-primary text-primary-foreground border-primary"
+                : "border-border text-muted-foreground hover:border-primary"
+            }`}
           >
             {m.label}
           </button>
         ))}
       </div>
 
+      {/* Document list */}
       {isLoading ? (
-        <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} className="h-14 w-full rounded-lg" />)}</div>
+        <div className="space-y-2">
+          {[1, 2, 3].map((i) => <Skeleton key={i} className="h-14 w-full rounded-lg" />)}
+        </div>
       ) : filteredDocs.length > 0 ? (
         <div className="space-y-5">
           {Object.entries(grouped).map(([mod, modDocs]) => (
@@ -252,59 +372,72 @@ export default function DocumentsModule({ tripId }: Props) {
                 {MODULES.find((m) => m.value === mod)?.label || mod}
               </h3>
               <div className="space-y-2">
-                {modDocs.map((doc) => (
-                  <div key={doc.id} className="border border-border rounded-lg bg-card p-3 flex items-center gap-3" data-testid={`card-doc-${doc.id}`}>
-                    <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
-                      <FileText className="w-4 h-4 text-muted-foreground" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-sm truncate">{doc.name}</p>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-xs text-muted-foreground">{doc.fileType}</span>
-                        <span className="text-xs text-muted-foreground">·</span>
-                        <span className="text-xs text-muted-foreground">{fmtDate(doc.uploadedAt)}</span>
-                        <span className={`text-xs px-1.5 py-0.5 rounded-full ${MODULE_COLORS[doc.module]}`}>
-                          {MODULES.find((m) => m.value === doc.module)?.label}
-                        </span>
-                        {isServerUrl(doc.fileUrl) && (
-                          <span className="flex items-center gap-0.5 text-xs text-emerald-600">
-                            <CheckCircle2 className="w-3 h-3" />
-                            Servidor
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    {doc.fileUrl && (
-                      <div className="flex items-center gap-1 flex-shrink-0">
-                        <a
-                          href={doc.fileUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title="Abrir en nueva pestaña"
-                          className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
-                        >
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </a>
-                        <a
-                          href={doc.fileUrl}
-                          download={doc.name}
-                          title="Descargar"
-                          className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                        </a>
-                      </div>
-                    )}
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-7 w-7 text-destructive hover:text-destructive flex-shrink-0"
-                      onClick={() => setDeleting(doc)}
+                {modDocs.map((doc) => {
+                  const isCached = !!doc.fileUrl && syncedUrls.has(doc.fileUrl);
+                  return (
+                    <div
+                      key={doc.id}
+                      className="border border-border rounded-lg bg-card p-3 flex items-center gap-3"
+                      data-testid={`card-doc-${doc.id}`}
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
-                  </div>
-                ))}
+                      <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
+                        <FileText className="w-4 h-4 text-muted-foreground" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm truncate">{doc.name}</p>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs text-muted-foreground">{doc.fileType}</span>
+                          <span className="text-xs text-muted-foreground">·</span>
+                          <span className="text-xs text-muted-foreground">{fmtDate(doc.uploadedAt)}</span>
+                          <span className={`text-xs px-1.5 py-0.5 rounded-full ${MODULE_COLORS[doc.module]}`}>
+                            {MODULES.find((m) => m.value === doc.module)?.label}
+                          </span>
+                          {isCached && (
+                            <span className="flex items-center gap-0.5 text-xs text-emerald-600">
+                              <CheckCircle2 className="w-3 h-3" />
+                              Offline
+                            </span>
+                          )}
+                          {isServerUrl(doc.fileUrl) && !isCached && (
+                            <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
+                              <CheckCircle2 className="w-3 h-3" />
+                              Servidor
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      {doc.fileUrl && (
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <a
+                            href={doc.fileUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="Abrir en nueva pestaña"
+                            className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                          <a
+                            href={doc.fileUrl}
+                            download={doc.name}
+                            title="Descargar"
+                            className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                          </a>
+                        </div>
+                      )}
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-7 w-7 text-destructive hover:text-destructive flex-shrink-0"
+                        onClick={() => setDeleting(doc)}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -317,6 +450,7 @@ export default function DocumentsModule({ tripId }: Props) {
         </div>
       )}
 
+      {/* Upload dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Subir Documento</DialogTitle></DialogHeader>
@@ -325,7 +459,9 @@ export default function DocumentsModule({ tripId }: Props) {
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Archivo</label>
                 <div
-                  className={`flex items-center gap-3 border border-border rounded-md px-3 py-2 bg-background transition-colors ${uploading ? "opacity-60" : "cursor-pointer hover:bg-muted/40"}`}
+                  className={`flex items-center gap-3 border border-border rounded-md px-3 py-2 bg-background transition-colors ${
+                    uploading ? "opacity-60" : "cursor-pointer hover:bg-muted/40"
+                  }`}
                   onClick={() => !uploading && fileInputRef.current?.click()}
                 >
                   {uploading ? (
@@ -334,7 +470,9 @@ export default function DocumentsModule({ tripId }: Props) {
                     <Paperclip className="w-4 h-4 text-muted-foreground flex-shrink-0" />
                   )}
                   <span className={`text-sm truncate flex-1 ${selectedFileName ? "text-foreground" : "text-muted-foreground"}`}>
-                    {uploading ? "Subiendo al servidor…" : selectedFileName || "Seleccionar archivo (PDF o imagen)…"}
+                    {uploading
+                      ? "Subiendo al servidor…"
+                      : selectedFileName || "Seleccionar archivo (PDF o imagen)…"}
                   </span>
                 </div>
                 <input
@@ -353,7 +491,11 @@ export default function DocumentsModule({ tripId }: Props) {
               </div>
 
               <FormField control={form.control} name="name" render={({ field }) => (
-                <FormItem><FormLabel>Nombre del documento</FormLabel><FormControl><Input placeholder="Tarjeta de embarque JL408" {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem>
+                  <FormLabel>Nombre del documento</FormLabel>
+                  <FormControl><Input placeholder="Tarjeta de embarque JL408" {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
               )} />
 
               <div className="grid grid-cols-2 gap-3">
@@ -387,8 +529,13 @@ export default function DocumentsModule({ tripId }: Props) {
               </div>
 
               <FormField control={form.control} name="notes" render={({ field }) => (
-                <FormItem><FormLabel>Notas (opcional)</FormLabel><FormControl><Textarea rows={2} {...field} /></FormControl><FormMessage /></FormItem>
+                <FormItem>
+                  <FormLabel>Notas (opcional)</FormLabel>
+                  <FormControl><Textarea rows={2} {...field} /></FormControl>
+                  <FormMessage />
+                </FormItem>
               )} />
+
               <DialogFooter>
                 <Button type="submit" disabled={createDocument.isPending || uploading}>
                   {createDocument.isPending ? "Guardando..." : "Guardar Documento"}
@@ -399,11 +546,14 @@ export default function DocumentsModule({ tripId }: Props) {
         </DialogContent>
       </Dialog>
 
+      {/* Delete confirmation */}
       <AlertDialog open={!!deleting} onOpenChange={() => setDeleting(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar documento?</AlertDialogTitle>
-            <AlertDialogDescription>Se eliminará permanentemente "{deleting?.name}".</AlertDialogDescription>
+            <AlertDialogDescription>
+              Se eliminará permanentemente "{deleting?.name}".
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>

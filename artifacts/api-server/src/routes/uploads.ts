@@ -31,7 +31,9 @@ router.post("/uploads", upload.single("file"), (req, res): void => {
     res.status(400).json({ error: "No se recibió ningún archivo" });
     return;
   }
-  res.json({ url: `/uploads/${req.file.filename}` });
+  // Return URL under /api/uploads/ so the shared proxy correctly routes
+  // file requests to this server (proxy maps /api/* → api-server).
+  res.json({ url: `/api/uploads/${req.file.filename}` });
 });
 
 export default router;

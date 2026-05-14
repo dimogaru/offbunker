@@ -9,6 +9,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import TripProgressBar from "@/components/trip-progress-bar";
 import EditTripDialog from "@/components/edit-trip-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { SavedLocallyBadge } from "@/components/offline-indicator";
 
 interface Trip {
   id: number;
@@ -62,12 +63,17 @@ export default function Dashboard() {
             <Plane className="w-6 h-6 text-primary" />
             <span className="text-xl font-bold tracking-tight">TravelHub</span>
           </div>
-          <Link href="/trips/new">
-            <Button data-testid="button-new-trip" className="gap-2">
-              <PlusCircle className="w-4 h-4" />
-              Nuevo Viaje
-            </Button>
-          </Link>
+          <div className="flex items-center gap-4">
+            <div className="hidden sm:block">
+              <SavedLocallyBadge />
+            </div>
+            <Link href="/trips/new">
+              <Button data-testid="button-new-trip" className="gap-2">
+                <PlusCircle className="w-4 h-4" />
+                Nuevo Viaje
+              </Button>
+            </Link>
+          </div>
         </div>
       </header>
 

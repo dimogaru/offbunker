@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useRoute, Link } from "wouter";
-import { ArrowLeft, Plane, ParkingCircle, Car, Building2, CalendarDays, FolderOpen, Pencil, Share2, Check } from "lucide-react";
+import { ArrowLeft, Plane, ParkingCircle, Car, Building2, CalendarDays, FolderOpen, Pencil, Share2, Check, Download } from "lucide-react";
 import { useGetTrip, getGetTripQueryKey, useGenerateShareLink } from "@workspace/api-client-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import TripProgressBar from "@/components/trip-progress-bar";
@@ -109,6 +109,17 @@ export default function TripDetail() {
             <h1 className="font-bold text-base truncate" data-testid="text-trip-name">{trip.name}</h1>
             <p className="text-xs text-sidebar-foreground/60 truncate">{trip.destination}</p>
           </div>
+          {/* Offline download button */}
+          <a
+            href={`${import.meta.env.BASE_URL}trips/${tripId}/export`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors flex-shrink-0"
+            data-testid="button-offline-download"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Offline
+          </a>
           {/* Share button */}
           <ShareButton tripId={tripId} />
           {/* Edit button */}

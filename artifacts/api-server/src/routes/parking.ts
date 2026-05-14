@@ -27,7 +27,11 @@ router.get("/trips/:tripId/parking", async (req, res): Promise<void> => {
     .where(eq(parkingTable.tripId, params.data.tripId))
     .orderBy(parkingTable.entryDate);
 
-  res.json(ListParkingsResponse.parse(parkings));
+  const mapped = parkings.map(p => ({
+    ...p,
+    priceTotal: p.priceTotal != null ? parseFloat(p.priceTotal) : null,
+  }));
+  res.json(ListParkingsResponse.parse(mapped));
 });
 
 router.post("/trips/:tripId/parking", async (req, res): Promise<void> => {

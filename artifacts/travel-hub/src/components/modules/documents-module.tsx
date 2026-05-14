@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Trash2, FolderOpen, FileText, Upload } from "lucide-react";
+import { Trash2, FolderOpen, FileText, Upload, ExternalLink, Download } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -134,7 +134,25 @@ export default function DocumentsModule({ tripId }: Props) {
                       </div>
                     </div>
                     {doc.fileUrl && (
-                      <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-primary underline flex-shrink-0">View</a>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        <a
+                          href={doc.fileUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Open in new tab"
+                          className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
+                        >
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
+                        <a
+                          href={doc.fileUrl}
+                          download={doc.name}
+                          title="Download for offline"
+                          className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </a>
+                      </div>
                     )}
                     <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive flex-shrink-0" onClick={() => setDeleting(doc)}><Trash2 className="w-3.5 h-3.5" /></Button>
                   </div>

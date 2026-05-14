@@ -7,6 +7,7 @@ import Dashboard from "@/pages/dashboard";
 import NewTrip from "@/pages/new-trip";
 import TripDetail from "@/pages/trip-detail";
 import SharedTrip from "@/pages/shared-trip";
+import TripExport from "@/pages/trip-export";
 
 const queryClient = new QueryClient();
 
@@ -15,6 +16,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Dashboard} />
       <Route path="/trips/new" component={NewTrip} />
+      <Route path="/trips/:tripId/export" component={TripExport} />
       <Route path="/trips/:tripId" component={TripDetail} />
       <Route path="/share/:token" component={SharedTrip} />
       <Route component={NotFound} />

@@ -380,8 +380,12 @@ export default function DocumentsModule({ tripId }: Props) {
                       className="border border-border rounded-lg bg-card p-3 flex items-center gap-3"
                       data-testid={`card-doc-${doc.id}`}
                     >
-                      <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
-                        <FileText className="w-4 h-4 text-muted-foreground" />
+                      <div
+                        className="doc-filetype-icon w-8 h-8 rounded-md bg-muted flex items-center justify-center flex-shrink-0"
+                        data-filetype={doc.fileType}
+                      >
+                        <FileText className="doc-filetype-icon-svg w-4 h-4 text-muted-foreground" />
+                        <span className="doc-filetype-icon-label hidden">{doc.fileType?.slice(0, 3).toUpperCase()}</span>
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-sm truncate">{doc.name}</p>

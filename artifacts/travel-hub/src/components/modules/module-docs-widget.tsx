@@ -143,9 +143,15 @@ export default function ModuleDocsWidget({ tripId, module, moduleLabel }: Props)
           {moduleDocs.map((doc) => (
             <li
               key={doc.id}
-              className="flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-muted/50 hover:bg-muted transition-colors"
+              className="doc-mini-card flex items-center gap-2 px-2.5 py-1.5 rounded-md bg-muted/50 hover:bg-muted transition-colors"
             >
-              <FileText className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+              <div
+                className="doc-filetype-icon doc-filetype-icon--sm w-7 h-7 rounded-md bg-muted flex items-center justify-center flex-shrink-0"
+                data-filetype={doc.fileType}
+              >
+                <FileText className="doc-filetype-icon-svg w-3.5 h-3.5 text-muted-foreground" />
+                <span className="doc-filetype-icon-label hidden">{doc.fileType?.slice(0, 3).toUpperCase()}</span>
+              </div>
               <span className="text-sm flex-1 min-w-0 truncate">{doc.name}</span>
               {doc.fileUrl ? (
                 <a

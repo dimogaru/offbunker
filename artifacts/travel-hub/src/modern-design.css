@@ -1,0 +1,139 @@
+/*
+ * modern-design.css
+ * Applied only when USE_MODERN_DESIGN = true in main.tsx.
+ * The root #root element receives the class "modern-theme".
+ * Every rule is scoped to .modern-theme, so flipping the constant
+ * to false completely removes all visual changes below.
+ */
+
+/* ── Smooth transitions on all interactive elements ────────── */
+.modern-theme button,
+.modern-theme a,
+.modern-theme [role="button"],
+.modern-theme [role="tab"] {
+  transition:
+    background-color 0.3s ease,
+    color            0.3s ease,
+    border-color     0.3s ease,
+    opacity          0.3s ease,
+    box-shadow       0.3s ease,
+    transform        0.15s ease !important;
+}
+.modern-theme button:active {
+  transform: scale(0.97) !important;
+}
+
+/* ── Rounded cards with subtle depth ───────────────────────── */
+.modern-theme .rounded-lg  { border-radius: 14px !important; }
+.modern-theme .rounded-xl  { border-radius: 18px !important; }
+.modern-theme .rounded-2xl { border-radius: 22px !important; }
+
+.modern-theme .bg-card.border,
+.modern-theme .bg-card.border-border {
+  box-shadow: 0 1px 2px rgba(0,0,0,0.06), 0 4px 14px rgba(0,0,0,0.07);
+}
+
+/* ── Sidebar gradient (desktop nav) ────────────────────────── */
+.modern-theme nav.hidden.md\:flex {
+  background: linear-gradient(175deg, hsl(224 47% 14%) 0%, hsl(222 47% 8%) 100%) !important;
+}
+
+/* ── Top header gradient ───────────────────────────────────── */
+.modern-theme header.border-b {
+  background: linear-gradient(to right, hsl(224 47% 14%), hsl(222 47% 10%)) !important;
+}
+
+/* ── Mobile bottom bar gradient ────────────────────────────── */
+.modern-theme nav.md\:hidden {
+  background: linear-gradient(to top, hsl(222 47% 8%), hsl(222 47% 12%)) !important;
+}
+
+/* ── Progress bar gradient fill ────────────────────────────── */
+.modern-theme .h-2.bg-primary.rounded-full,
+.modern-theme .h-full.bg-primary.rounded-full,
+.modern-theme .h-1\.5.bg-primary.rounded-full {
+  background: linear-gradient(90deg, hsl(185 62% 22%) 0%, hsl(185 75% 40%) 100%) !important;
+}
+
+/* ── Typography hierarchy ──────────────────────────────────── */
+.modern-theme h1,
+.modern-theme h2,
+.modern-theme h3 {
+  letter-spacing: -0.015em;
+}
+
+/* ── Active sidebar nav item ───────────────────────────────── */
+.modern-theme nav button.bg-sidebar-primary {
+  box-shadow: 0 2px 10px rgba(0,0,0,0.25) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DOCUMENT FILE-TYPE THUMBNAILS
+   Applied to any element with class "doc-filetype-icon"
+   and a data-filetype attribute.
+   The SVG icon is hidden and a text label is shown instead.
+   ═══════════════════════════════════════════════════════════ */
+
+/* Hide the generic SVG icon in modern mode */
+.modern-theme .doc-filetype-icon .doc-filetype-icon-svg {
+  display: none !important;
+}
+/* Show the text label */
+.modern-theme .doc-filetype-icon .doc-filetype-icon-label {
+  display: block !important;
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1;
+}
+
+/* Make the icon badge larger and more prominent */
+.modern-theme .doc-filetype-icon {
+  width: 42px  !important;
+  height: 42px !important;
+  border-radius: 10px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 3px !important;
+  flex-shrink: 0 !important;
+}
+
+/* Smaller variant for module-docs-widget mini cards */
+.modern-theme .doc-filetype-icon.doc-filetype-icon--sm {
+  width: 34px  !important;
+  height: 34px !important;
+  border-radius: 8px !important;
+  gap: 2px !important;
+}
+
+/* Per file-type colours (semi-transparent so they work in dark mode) */
+.modern-theme .doc-filetype-icon[data-filetype="PDF"] {
+  background: rgba(239, 68, 68, 0.15) !important;
+  color: #f87171 !important;
+}
+.modern-theme .doc-filetype-icon[data-filetype="Imagen"] {
+  background: rgba(34, 197, 94, 0.15) !important;
+  color: #4ade80 !important;
+}
+.modern-theme .doc-filetype-icon[data-filetype="Word"] {
+  background: rgba(59, 130, 246, 0.15) !important;
+  color: #60a5fa !important;
+}
+.modern-theme .doc-filetype-icon[data-filetype="Otro"] {
+  background: rgba(148, 163, 184, 0.12) !important;
+  color: #94a3b8 !important;
+}
+
+/* ── Mini-card style for module-docs-widget list items ─────── */
+.modern-theme .doc-mini-card {
+  border-radius: 12px !important;
+  padding: 10px 12px !important;
+  background: rgba(255,255,255,0.04) !important;
+  border: 1px solid rgba(255,255,255,0.07) !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08) !important;
+}
+.modern-theme .doc-mini-card:hover {
+  background: rgba(255,255,255,0.07) !important;
+}

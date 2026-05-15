@@ -67,7 +67,7 @@ if (!self.define) {
     });
   };
 }
-define(['./workbox-970124e6'], (function (workbox) { 'use strict';
+define(['./workbox-5d155c7a'], (function (workbox) { 'use strict';
 
   self.skipWaiting();
   workbox.clientsClaim();
@@ -81,13 +81,24 @@ define(['./workbox-970124e6'], (function (workbox) { 'use strict';
     "revision": "3ca0b8505b4bec776b69afdba2768812"
   }, {
     "url": "/index.html",
-    "revision": "0.0jaukd0v9ks"
+    "revision": "0.111s7dv95ts"
   }], {});
   workbox.cleanupOutdatedCaches();
   workbox.registerRoute(new workbox.NavigationRoute(workbox.createHandlerBoundToURL("/index.html"), {
     allowlist: [/^\/$/],
     denylist: [/^\/api\//]
   }));
+  workbox.registerRoute(({
+    url
+  }) => url.pathname.startsWith("/api/uploads/"), new workbox.CacheFirst({
+    "cacheName": "travelhub-uploads-v2",
+    plugins: [new workbox.ExpirationPlugin({
+      maxEntries: 300,
+      maxAgeSeconds: 2592000
+    }), new workbox.CacheableResponsePlugin({
+      statuses: [0, 200]
+    })]
+  }), 'GET');
   workbox.registerRoute(({
     url
   }) => url.pathname.startsWith("/api/"), new workbox.NetworkFirst({

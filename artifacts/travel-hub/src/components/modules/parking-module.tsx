@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pencil, Trash2, ParkingCircle, Clock, MapPin, Hash, DollarSign } from "lucide-react";
+import { Pencil, Trash2, ParkingCircle, Clock, MapPin, Hash, Euro } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -79,7 +79,7 @@ export default function ParkingModule({ tripId }: Props) {
                     <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-mono">{p.reservationCode}</span>
                     {p.priceTotal && (
                       <span className="flex items-center gap-0.5 text-xs text-muted-foreground ml-1">
-                        <DollarSign className="w-3 h-3" />
+                        <Euro className="w-3 h-3" />
                         {Number(p.priceTotal).toFixed(2)}
                       </span>
                     )}

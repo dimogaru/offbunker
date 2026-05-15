@@ -128,9 +128,13 @@ export default function ItineraryModule({ tripId }: Props) {
     defaultValues: { date: "", time: "", title: "", description: "", location: "", category: "other" },
   });
 
-  const createItem = useCreateItineraryItem({ mutation: { onSuccess: () => { invalidateItems(); setOpen(false); form.reset(); toast({ title: "Actividad añadida" }); } } });
-  const updateItem = useUpdateItineraryItem({ mutation: { onSuccess: () => { invalidateItems(); setOpen(false); setEditing(null); form.reset(); toast({ title: "Actividad actualizada" }); } } });
-  const deleteItem = useDeleteItineraryItem({ mutation: { onSuccess: () => { invalidateItems(); setDeleting(null); toast({ title: "Actividad eliminada" }); } } });
+  const onMutationError = (label: string) => () => {
+    toast({ title: `Error al ${label}`, description: "Comprueba tu conexión e inténtalo de nuevo.", variant: "destructive" });
+  };
+
+  const createItem = useCreateItineraryItem({ mutation: { onSuccess: () => { invalidateItems(); setOpen(false); form.reset(); toast({ title: "Actividad añadida" }); }, onError: onMutationError("guardar la actividad") } });
+  const updateItem = useUpdateItineraryItem({ mutation: { onSuccess: () => { invalidateItems(); setOpen(false); setEditing(null); form.reset(); toast({ title: "Actividad actualizada" }); }, onError: onMutationError("actualizar la actividad") } });
+  const deleteItem = useDeleteItineraryItem({ mutation: { onSuccess: () => { invalidateItems(); setDeleting(null); toast({ title: "Actividad eliminada" }); }, onError: onMutationError("eliminar la actividad") } });
 
   const createDoc = useCreateDocument({
     mutation: {
@@ -141,9 +145,10 @@ export default function ItineraryModule({ tripId }: Props) {
         if (fileInputRef.current) fileInputRef.current.value = "";
         toast({ title: "Documento añadido" });
       },
+      onError: onMutationError("guardar el documento"),
     },
   });
-  const deleteDoc = useDeleteDocument({ mutation: { onSuccess: () => { invalidateDocs(); setDeletingDoc(null); toast({ title: "Documento eliminado" }); } } });
+  const deleteDoc = useDeleteDocument({ mutation: { onSuccess: () => { invalidateDocs(); setDeletingDoc(null); toast({ title: "Documento eliminado" }); }, onError: onMutationError("eliminar el documento") } });
 
   /* ── Derived state ── */
   const sortedDates = [...new Set(items?.map(i => normalizeDate(i.date)) ?? [])].sort();
@@ -153,8 +158,14 @@ export default function ItineraryModule({ tripId }: Props) {
   const timedItems   = dayItems.filter(i => i.time).sort((a, b) => (a.time ?? "").localeCompare(b.time ?? ""));
   const untimedItems = dayItems.filter(i => !i.time);
 
+  /**
+   * Activity docs use module="itinerary" (valid enum) and notes="activityId:{id}"
+   * so they appear correctly in the Vault and are included in offline sync.
+   */
   function getActivityDocs(activityId: number) {
-    return allDocs?.filter(d => d.module === `itinerary-${activityId}`) ?? [];
+    return allDocs?.filter(d =>
+      d.module === "itinerary" && d.notes === `activityId:${activityId}`
+    ) ?? [];
   }
 
   /* ── Handlers ── */
@@ -164,12 +175,14 @@ export default function ItineraryModule({ tripId }: Props) {
     setOpen(true);
   }
   function openEdit(item: ItineraryItem) {
-    form.reset({ date: item.date, time: item.time ?? "", title: item.title, description: item.description ?? "", location: item.location ?? "", category: (item.category || "other") as FormValues["category"] });
+    // normalizeDate ensures we pass "YYYY-MM-DD" to the date input, not a full ISO string
+    form.reset({ date: normalizeDate(item.date), time: item.time ?? "", title: item.title, description: item.description ?? "", location: item.location ?? "", category: (item.category || "other") as FormValues["category"] });
     setEditing(item);
     setOpen(true);
   }
   function onSubmit(values: FormValues) {
     const payload = { ...values, time: values.time || undefined, description: values.description || undefined, location: values.location || undefined };
+    console.log("[Itinerario] onSubmit →", payload);
     if (editing) updateItem.mutate({ tripId, itemId: editing.id, data: payload });
     else createItem.mutate({ tripId, data: payload });
   }
@@ -197,7 +210,18 @@ export default function ItineraryModule({ tripId }: Props) {
   function handleSaveDoc() {
     if (!uploadingFor || !docName.trim() || createDoc.isPending) return;
     const fileType = docFileUrl ? fileTypeFrom(docFileUrl) : "Otro";
-    createDoc.mutate({ tripId, data: { module: `itinerary-${uploadingFor.id}` as "itinerary", name: docName.trim(), fileType, fileUrl: docFileUrl || undefined } });
+    // module must be the valid enum value "itinerary"; the activity association is
+    // stored in `notes` so the Vault displays it correctly and offline sync picks it up.
+    createDoc.mutate({
+      tripId,
+      data: {
+        module: "itinerary",
+        name: docName.trim(),
+        fileType,
+        fileUrl: docFileUrl || undefined,
+        notes: `activityId:${uploadingFor.id}`,
+      },
+    });
   }
 
   function openUpload(item: ItineraryItem) {

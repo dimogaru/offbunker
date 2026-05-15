@@ -205,8 +205,8 @@ export default function TripDetail() {
             <TripProgressBar tripId={tripId} />
           </div>
 
-          {/* Active module */}
-          <div className="max-w-3xl">
+          {/* Active module — key forces remount on switch, triggering the fade-in */}
+          <div key={activeModule} className="max-w-3xl animate-in fade-in slide-in-from-bottom-2 duration-300">
             {activeModule === "flights"       && <FlightsModule tripId={tripId} />}
             {activeModule === "parking"       && <ParkingModule tripId={tripId} />}
             {activeModule === "rental"        && <RentalsModule tripId={tripId} />}

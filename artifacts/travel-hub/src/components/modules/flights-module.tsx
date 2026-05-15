@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { PlusCircle, Pencil, Trash2, Plane } from "lucide-react";
+import { PlusCircle, Pencil, Trash2, Plane, Clock, Armchair, DoorOpen, LayoutGrid } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -34,6 +34,9 @@ type FormValues = z.infer<typeof schema>;
 function toLocalDatetime(iso: string) { return iso ? iso.substring(0, 16) : ""; }
 function formatDatetime(iso: string) {
   return new Date(iso).toLocaleString("es-ES", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+function formatTime(iso: string) {
+  return new Date(iso).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
 }
 
 interface Props { tripId: number }
@@ -75,40 +78,67 @@ export default function FlightsModule({ tripId }: Props) {
       ) : flights && flights.length > 0 ? (
         <div className="space-y-3">
           {flights.map(f => (
-            <div key={f.id} className="border border-border rounded-xl bg-card p-4" data-testid={`card-flight-${f.id}`}>
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold">{f.airline}</span>
-                    <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-mono">{f.flightNumber}</span>
-                    {f.seat && <span className="text-xs text-muted-foreground">Asiento {f.seat}</span>}
-                  </div>
-                  <div className="flex items-center gap-2 mt-2 text-sm">
-                    <div className="text-center">
-                      <p className="font-bold text-base">{f.departureAirport}</p>
-                      <p className="text-xs text-muted-foreground">{formatDatetime(f.departureTime)}</p>
-                    </div>
-                    <div className="flex-1 flex items-center gap-1">
-                      <div className="h-px flex-1 bg-border" />
-                      <Plane className="w-3.5 h-3.5 text-muted-foreground" />
-                      <div className="h-px flex-1 bg-border" />
-                    </div>
-                    <div className="text-center">
-                      <p className="font-bold text-base">{f.arrivalAirport}</p>
-                      <p className="text-xs text-muted-foreground">{formatDatetime(f.arrivalTime)}</p>
-                    </div>
-                  </div>
-                  {(f.terminal || f.gate) && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {f.terminal && `Terminal ${f.terminal}`}{f.terminal && f.gate && " · "}{f.gate && `Puerta ${f.gate}`}
-                    </p>
-                  )}
+            <div key={f.id} className="booking-card border border-border rounded-xl bg-card p-4" data-testid={`card-flight-${f.id}`}>
+              {/* Top row: airline + flight number + actions */}
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-semibold">{f.airline}</span>
+                  <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-mono">{f.flightNumber}</span>
                 </div>
                 <div className="flex gap-1 flex-shrink-0">
                   <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(f)} data-testid={`button-edit-flight-${f.id}`}><Pencil className="w-3.5 h-3.5" /></Button>
                   <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleting(f)} data-testid={`button-delete-flight-${f.id}`}><Trash2 className="w-3.5 h-3.5" /></Button>
                 </div>
               </div>
+
+              {/* Route row */}
+              <div className="flex items-center gap-2">
+                <div className="text-center min-w-[56px]">
+                  <p className="font-bold text-xl leading-tight">{f.departureAirport}</p>
+                  <p className="flex items-center justify-center gap-0.5 text-xs text-muted-foreground mt-0.5">
+                    <Clock className="w-3 h-3" />
+                    {formatTime(f.departureTime)}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">{new Date(f.departureTime).toLocaleDateString("es-ES", { day: "numeric", month: "short" })}</p>
+                </div>
+                <div className="flex-1 flex items-center gap-1">
+                  <div className="h-px flex-1 bg-border" />
+                  <Plane className="w-4 h-4 text-primary" />
+                  <div className="h-px flex-1 bg-border" />
+                </div>
+                <div className="text-center min-w-[56px]">
+                  <p className="font-bold text-xl leading-tight">{f.arrivalAirport}</p>
+                  <p className="flex items-center justify-center gap-0.5 text-xs text-muted-foreground mt-0.5">
+                    <Clock className="w-3 h-3" />
+                    {formatTime(f.arrivalTime)}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">{new Date(f.arrivalTime).toLocaleDateString("es-ES", { day: "numeric", month: "short" })}</p>
+                </div>
+              </div>
+
+              {/* Details row */}
+              {(f.terminal || f.gate || f.seat) && (
+                <div className="flex items-center gap-3 mt-3 pt-3 border-t border-border/60">
+                  {f.terminal && (
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <LayoutGrid className="w-3.5 h-3.5" />
+                      Terminal {f.terminal}
+                    </span>
+                  )}
+                  {f.gate && (
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <DoorOpen className="w-3.5 h-3.5" />
+                      Puerta {f.gate}
+                    </span>
+                  )}
+                  {f.seat && (
+                    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Armchair className="w-3.5 h-3.5" />
+                      Asiento {f.seat}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>

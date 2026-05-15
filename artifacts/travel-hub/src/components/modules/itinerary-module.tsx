@@ -30,12 +30,21 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  transport: "bg-sky-100 text-sky-700",
-  sightseeing: "bg-violet-100 text-violet-700",
-  dining: "bg-orange-100 text-orange-700",
-  activity: "bg-emerald-100 text-emerald-700",
-  accommodation: "bg-blue-100 text-blue-700",
-  other: "bg-slate-100 text-slate-600",
+  transport: "bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400",
+  sightseeing: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400",
+  dining: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
+  activity: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400",
+  accommodation: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+  other: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+};
+
+const CATEGORY_DOT: Record<string, string> = {
+  transport: "bg-sky-400",
+  sightseeing: "bg-violet-400",
+  dining: "bg-orange-400",
+  activity: "bg-emerald-400",
+  accommodation: "bg-blue-400",
+  other: "bg-slate-400",
 };
 
 const schema = z.object({
@@ -96,46 +105,69 @@ export default function ItineraryModule({ tripId }: Props) {
       {isLoading ? (
         <div className="space-y-4">{[1, 2].map(i => <Skeleton key={i} className="h-40 w-full rounded-xl" />)}</div>
       ) : sortedDates.length > 0 ? (
-        <div className="space-y-6">
-          {sortedDates.map(date => (
-            <div key={date}>
-              <div className="flex items-center gap-2 mb-3">
-                <CalendarDays className="w-4 h-4 text-primary" />
-                <h3 className="font-semibold text-sm capitalize">{formatDate(date)}</h3>
-              </div>
-              <div className="space-y-2 pl-4 border-l-2 border-primary/20">
-                {grouped[date].sort((a, b) => (a.time || "").localeCompare(b.time || "")).map(item => (
-                  <div key={item.id} className="border border-border rounded-lg bg-card p-3" data-testid={`card-itinerary-${item.id}`}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {item.time && (
-                            <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <Clock className="w-3 h-3" />{item.time}
-                            </span>
-                          )}
-                          <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${CATEGORY_COLORS[item.category || "other"]}`}>
-                            {CATEGORY_LABELS[item.category || "other"]}
-                          </span>
-                        </div>
-                        <p className="font-medium text-sm mt-1">{item.title}</p>
-                        {item.description && <p className="text-xs text-muted-foreground mt-0.5">{item.description}</p>}
-                        {item.location && (
-                          <p className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
-                            <MapPin className="w-3 h-3" />{item.location}
-                          </p>
+        <div className="space-y-8">
+          {sortedDates.map(date => {
+            const dayItems = grouped[date].slice().sort((a, b) => (a.time || "").localeCompare(b.time || ""));
+            return (
+              <div key={date}>
+                {/* Day header */}
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0 shadow-sm">
+                    <CalendarDays className="w-3.5 h-3.5 text-primary-foreground" />
+                  </div>
+                  <h3 className="font-semibold text-sm capitalize">{formatDate(date)}</h3>
+                  <div className="flex-1 h-px bg-border" />
+                </div>
+
+                {/* Timeline items */}
+                <div className="ml-3">
+                  {dayItems.map((item, idx) => (
+                    <div key={item.id} className="flex gap-4" data-testid={`card-itinerary-${item.id}`}>
+                      {/* Dot + vertical connector */}
+                      <div className="flex flex-col items-center w-4 flex-shrink-0 pt-1">
+                        <div className={`w-3 h-3 rounded-full ring-2 ring-background flex-shrink-0 ${CATEGORY_DOT[item.category || "other"]}`} />
+                        {idx < dayItems.length - 1 && (
+                          <div className="flex-1 min-h-[2rem] mt-1.5" style={{ borderLeft: "2px dashed rgba(128,128,128,0.25)" }} />
                         )}
                       </div>
-                      <div className="flex gap-1">
-                        <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => openEdit(item)}><Pencil className="w-3 h-3" /></Button>
-                        <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive hover:text-destructive" onClick={() => setDeleting(item)}><Trash2 className="w-3 h-3" /></Button>
+
+                      {/* Content */}
+                      <div className={`flex-1 ${idx < dayItems.length - 1 ? "pb-5" : "pb-1"}`}>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            {/* Time + category badge */}
+                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                              {item.time && (
+                                <span className="flex items-center gap-1 text-xs font-mono font-semibold bg-muted px-1.5 py-0.5 rounded text-foreground">
+                                  <Clock className="w-3 h-3 text-muted-foreground" />
+                                  {item.time}
+                                </span>
+                              )}
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${CATEGORY_COLORS[item.category || "other"]}`}>
+                                {CATEGORY_LABELS[item.category || "other"]}
+                              </span>
+                            </div>
+                            <p className="font-medium text-sm">{item.title}</p>
+                            {item.description && <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{item.description}</p>}
+                            {item.location && (
+                              <p className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                                <MapPin className="w-3 h-3 flex-shrink-0" />
+                                {item.location}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex gap-0.5 flex-shrink-0">
+                            <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => openEdit(item)}><Pencil className="w-3 h-3" /></Button>
+                            <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive hover:text-destructive" onClick={() => setDeleting(item)}><Trash2 className="w-3 h-3" /></Button>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="text-center py-12 text-muted-foreground border border-dashed border-border rounded-xl">
@@ -155,8 +187,7 @@ export default function ItineraryModule({ tripId }: Props) {
               </div>
               <FormField control={form.control} name="title" render={({ field }) => (<FormItem><FormLabel>Título de la actividad</FormLabel><FormControl><Input placeholder="Visitar el Templo Sensoji" {...field} /></FormControl><FormMessage /></FormItem>)} />
               <FormField control={form.control} name="category" render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Categoría</FormLabel>
+                <FormItem><FormLabel>Categoría</FormLabel>
                   <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                     <SelectContent>

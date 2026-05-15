@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pencil, Trash2, ParkingCircle } from "lucide-react";
+import { Pencil, Trash2, ParkingCircle, Clock, MapPin, Hash, DollarSign } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -28,7 +28,7 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 function toLocalDatetime(iso: string) { return iso ? iso.substring(0, 16) : ""; }
-function fmt(iso: string) { return new Date(iso).toLocaleString("es-ES", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }); }
+function fmt(iso: string) { return new Date(iso).toLocaleString("es-ES", { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); }
 
 interface Props { tripId: number }
 
@@ -66,22 +66,46 @@ export default function ParkingModule({ tripId }: Props) {
       ) : parkings && parkings.length > 0 ? (
         <div className="space-y-3">
           {parkings.map(p => (
-            <div key={p.id} className="border border-border rounded-xl bg-card p-4" data-testid={`card-parking-${p.id}`}>
-              <div className="flex items-start justify-between gap-2">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-semibold">{p.location}</p>
+            <div key={p.id} className="booking-card border border-border rounded-xl bg-card p-4" data-testid={`card-parking-${p.id}`}>
+              {/* Header */}
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <MapPin className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                    <p className="font-semibold truncate">{p.location}</p>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Hash className="w-3 h-3 text-muted-foreground flex-shrink-0" />
                     <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-mono">{p.reservationCode}</span>
+                    {p.priceTotal && (
+                      <span className="flex items-center gap-0.5 text-xs text-muted-foreground ml-1">
+                        <DollarSign className="w-3 h-3" />
+                        {Number(p.priceTotal).toFixed(2)}
+                      </span>
+                    )}
                   </div>
-                  <div className="grid grid-cols-2 gap-2 mt-2 text-sm text-muted-foreground">
-                    <div><span className="text-xs uppercase font-medium text-foreground">Entrada</span><br />{fmt(p.entryDate)}</div>
-                    <div><span className="text-xs uppercase font-medium text-foreground">Salida</span><br />{fmt(p.exitDate)}</div>
-                  </div>
-                  {p.priceTotal && <p className="text-sm mt-1 font-medium">${Number(p.priceTotal).toFixed(2)}</p>}
                 </div>
-                <div className="flex gap-1">
+                <div className="flex gap-1 flex-shrink-0">
                   <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(p)}><Pencil className="w-3.5 h-3.5" /></Button>
                   <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleting(p)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                </div>
+              </div>
+
+              {/* Dates */}
+              <div className="grid grid-cols-2 gap-3 pt-3 border-t border-border/60">
+                <div className="space-y-0.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Entrada</p>
+                  <p className="flex items-center gap-1 text-sm font-medium">
+                    <Clock className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" />
+                    {fmt(p.entryDate)}
+                  </p>
+                </div>
+                <div className="space-y-0.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Salida</p>
+                  <p className="flex items-center gap-1 text-sm font-medium">
+                    <Clock className="w-3.5 h-3.5 text-orange-400 flex-shrink-0" />
+                    {fmt(p.exitDate)}
+                  </p>
                 </div>
               </div>
             </div>

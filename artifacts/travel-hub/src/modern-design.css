@@ -67,6 +67,15 @@
   box-shadow: 0 2px 10px rgba(0,0,0,0.25) !important;
 }
 
+/* ── Booking card hover lift ───────────────────────────────── */
+.modern-theme .booking-card {
+  transition: transform 0.25s ease, box-shadow 0.25s ease !important;
+}
+.modern-theme .booking-card:hover {
+  transform: scale(1.018) !important;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.14) !important;
+}
+
 /* ═══════════════════════════════════════════════════════════
    DOCUMENT FILE-TYPE THUMBNAILS
    Applied to any element with class "doc-filetype-icon"

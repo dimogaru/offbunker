@@ -10,7 +10,6 @@ import TripDetail from "@/pages/trip-detail";
 import SharedTrip from "@/pages/shared-trip";
 import TripExport from "@/pages/trip-export";
 import OfflineIndicator from "@/components/offline-indicator";
-import PullToRefresh from "@/components/pull-to-refresh";
 
 const CACHE_KEY = "travelhub-cache-v1";
 const CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
@@ -132,7 +131,6 @@ function App() {
         </WouterRouter>
         <Toaster />
         <OfflineIndicator />
-        <PullToRefresh />
       </TooltipProvider>
     </QueryClientProvider>
   );

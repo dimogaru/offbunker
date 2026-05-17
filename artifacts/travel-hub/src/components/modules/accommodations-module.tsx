@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import {
   Pencil, Trash2, Building2, MapPin, ExternalLink, Clock, Phone, Hash,
-  Paperclip, X, Loader2, CheckCircle2,
+  Paperclip, X, Loader2, CheckCircle2, Eye,
 } from "lucide-react";
 import MapsLink from "@/components/maps-link";
 import { useForm } from "react-hook-form";
@@ -80,6 +80,7 @@ export default function AccommodationsModule({ tripId }: Props) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<AccommodationExt | null>(null);
   const [deleting, setDeleting] = useState<AccommodationExt | null>(null);
+  const [isViewing, setIsViewing] = useState(false);
 
   /* Doc upload state */
   const [uploadingFor, setUploadingFor] = useState<AccommodationExt | null>(null);
@@ -128,8 +129,10 @@ export default function AccommodationsModule({ tripId }: Props) {
   }
 
   /* ── Handlers ── */
-  function openNew() { form.reset({ name: "", type: "hotel", bookingPlatform: "", address: "", checkIn: "", checkOut: "", confirmationCode: "", contactPhone: "", notes: "" }); setEditing(null); setOpen(true); }
-  function openEdit(a: AccommodationExt) { form.reset({ name: a.name, type: (a.type || "hotel") as FormValues["type"], bookingPlatform: a.bookingPlatform ?? "", address: a.address, checkIn: toLocal(a.checkIn), checkOut: toLocal(a.checkOut), confirmationCode: a.confirmationCode, contactPhone: a.contactPhone ?? "", notes: a.notes ?? "" }); setEditing(a); setOpen(true); }
+  function openNew() { form.reset({ name: "", type: "hotel", bookingPlatform: "", address: "", checkIn: "", checkOut: "", confirmationCode: "", contactPhone: "", notes: "" }); setEditing(null); setIsViewing(false); setOpen(true); }
+  function openEdit(a: AccommodationExt) { form.reset({ name: a.name, type: (a.type || "hotel") as FormValues["type"], bookingPlatform: a.bookingPlatform ?? "", address: a.address, checkIn: toLocal(a.checkIn), checkOut: toLocal(a.checkOut), confirmationCode: a.confirmationCode, contactPhone: a.contactPhone ?? "", notes: a.notes ?? "" }); setEditing(a); setIsViewing(false); setOpen(true); }
+  function openView(a: AccommodationExt) { form.reset({ name: a.name, type: (a.type || "hotel") as FormValues["type"], bookingPlatform: a.bookingPlatform ?? "", address: a.address, checkIn: toLocal(a.checkIn), checkOut: toLocal(a.checkOut), confirmationCode: a.confirmationCode, contactPhone: a.contactPhone ?? "", notes: a.notes ?? "" }); setEditing(a); setIsViewing(true); setOpen(true); }
+  function handleDialogClose(v: boolean) { setOpen(v); if (!v) setIsViewing(false); }
 
   function onSubmit(values: FormValues) {
     const payload = { ...values, checkIn: new Date(values.checkIn).toISOString(), checkOut: new Date(values.checkOut).toISOString(), bookingPlatform: values.bookingPlatform || undefined, contactPhone: values.contactPhone || undefined, notes: values.notes || undefined };
@@ -207,6 +210,7 @@ export default function AccommodationsModule({ tripId }: Props) {
                     </div>
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => openView(a)} title="Ver detalles"><Eye className="w-3.5 h-3.5" /></Button>
                     <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(a)}><Pencil className="w-3.5 h-3.5" /></Button>
                     <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleting(a)}><Trash2 className="w-3.5 h-3.5" /></Button>
                   </div>
@@ -278,19 +282,21 @@ export default function AccommodationsModule({ tripId }: Props) {
         </div>
       )}
 
-      {/* ── Accommodation form dialog ── */}
-      <Dialog open={open} onOpenChange={setOpen}>
+      {/* ── Accommodation form / view dialog ── */}
+      <Dialog open={open} onOpenChange={handleDialogClose}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{editing ? "Editar Alojamiento" : "Añadir Alojamiento"}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{isViewing ? "Detalles del Alojamiento" : editing ? "Editar Alojamiento" : "Añadir Alojamiento"}</DialogTitle>
+          </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
               <div className="grid grid-cols-3 gap-3">
                 <div className="col-span-2">
-                  <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nombre</FormLabel><FormControl><Input placeholder="Park Hyatt Tokyo" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                  <FormField control={form.control} name="name" render={({ field }) => (<FormItem><FormLabel>Nombre</FormLabel><FormControl><Input placeholder="Park Hyatt Tokyo" disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
                 </div>
                 <FormField control={form.control} name="type" render={({ field }) => (
                   <FormItem><FormLabel>Tipo</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} defaultValue={field.value} disabled={isViewing}>
                       <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                       <SelectContent>
                         <SelectItem value="hotel">Hotel</SelectItem>
@@ -303,27 +309,59 @@ export default function AccommodationsModule({ tripId }: Props) {
                   </FormItem>
                 )} />
               </div>
-              <FormField control={form.control} name="bookingPlatform" render={({ field }) => (<FormItem><FormLabel>Plataforma de Reserva (opcional)</FormLabel><FormControl><Input placeholder="Booking.com, Airbnb, Web del Hotel…" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="bookingPlatform" render={({ field }) => (<FormItem><FormLabel>Plataforma de Reserva (opcional)</FormLabel><FormControl><Input placeholder="Booking.com, Airbnb, Web del Hotel…" disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
               <FormField control={form.control} name="address" render={({ field }) => (
                 <FormItem>
                   <div className="flex items-center justify-between">
                     <FormLabel>Dirección</FormLabel>
                     {addressValue && <MapsLink query={addressValue} label="Ver en Google Maps" />}
                   </div>
-                  <FormControl><Input placeholder="1-1 Example St, Tokio" {...field} /></FormControl>
+                  <FormControl><Input placeholder="1-1 Example St, Tokio" disabled={isViewing} {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
               <div className="grid grid-cols-2 gap-3">
-                <FormField control={form.control} name="checkIn"  render={({ field }) => (<FormItem><FormLabel>Entrada</FormLabel><FormControl><Input type="datetime-local" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="checkOut" render={({ field }) => (<FormItem><FormLabel>Salida</FormLabel><FormControl><Input type="datetime-local" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="checkIn"  render={({ field }) => (<FormItem><FormLabel>Entrada</FormLabel><FormControl><Input type="datetime-local" disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="checkOut" render={({ field }) => (<FormItem><FormLabel>Salida</FormLabel><FormControl><Input type="datetime-local" disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
               </div>
-              <FormField control={form.control} name="confirmationCode" render={({ field }) => (<FormItem><FormLabel>Código de confirmación</FormLabel><FormControl><Input placeholder="CONF-12345" {...field} /></FormControl><FormMessage /></FormItem>)} />
-              <FormField control={form.control} name="contactPhone"     render={({ field }) => (<FormItem><FormLabel>Teléfono de contacto (opcional)</FormLabel><FormControl><Input placeholder="+81 3-1234-5678" {...field} /></FormControl><FormMessage /></FormItem>)} />
-              <FormField control={form.control} name="notes"            render={({ field }) => (<FormItem><FormLabel>Notas (opcional)</FormLabel><FormControl><Textarea rows={2} {...field} /></FormControl><FormMessage /></FormItem>)} />
-              <DialogFooter>
-                <Button type="submit" disabled={createAccommodation.isPending || updateAccommodation.isPending}>{editing ? "Guardar cambios" : "Añadir alojamiento"}</Button>
-              </DialogFooter>
+              <FormField control={form.control} name="confirmationCode" render={({ field }) => (<FormItem><FormLabel>Código de confirmación</FormLabel><FormControl><Input placeholder="CONF-12345" disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="contactPhone"     render={({ field }) => (<FormItem><FormLabel>Teléfono de contacto (opcional)</FormLabel><FormControl><Input placeholder="+81 3-1234-5678" disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="notes"            render={({ field }) => (<FormItem><FormLabel>Notas (opcional)</FormLabel><FormControl><Textarea rows={2} disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
+
+              {/* Read-only document chips */}
+              {isViewing && editing && (() => {
+                const viewDocs = getAccDocs(editing.id);
+                return (
+                  <div className="pt-2 border-t border-border/50">
+                    <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Documentos adjuntos</p>
+                    {viewDocs.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No hay documentos adjuntos a este alojamiento</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {viewDocs.map(doc => (
+                          <div key={doc.id} className="flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-1 text-xs">
+                            <span className={`font-bold px-1 py-0.5 rounded-full text-[9px] uppercase tracking-wide flex-shrink-0 ${FILE_CHIP_COLORS[doc.fileType] ?? FILE_CHIP_COLORS["Otro"]}`}>
+                              {doc.fileType?.slice(0, 3)}
+                            </span>
+                            <span className="font-medium max-w-[110px] truncate text-foreground/80">{doc.name}</span>
+                            {doc.fileUrl && (
+                              <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors flex-shrink-0" title="Abrir documento">
+                                <ExternalLink className="w-2.5 h-2.5" />
+                              </a>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {!isViewing && (
+                <DialogFooter>
+                  <Button type="submit" disabled={createAccommodation.isPending || updateAccommodation.isPending}>{editing ? "Guardar cambios" : "Añadir alojamiento"}</Button>
+                </DialogFooter>
+              )}
             </form>
           </Form>
         </DialogContent>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pencil, Trash2, Car } from "lucide-react";
+import { Pencil, Trash2, Car, Eye } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -42,6 +42,7 @@ export default function RentalsModule({ tripId }: Props) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Rental | null>(null);
   const [deleting, setDeleting] = useState<Rental | null>(null);
+  const [isViewing, setIsViewing] = useState(false);
 
   const { data: rentals, isLoading } = useListRentals(tripId, { query: { queryKey: getListRentalsQueryKey(tripId) } });
   const invalidate = () => queryClient.invalidateQueries({ queryKey: getListRentalsQueryKey(tripId) });
@@ -52,8 +53,10 @@ export default function RentalsModule({ tripId }: Props) {
   const updateRental = useUpdateRental({ mutation: { onSuccess: () => { invalidate(); setOpen(false); setEditing(null); form.reset(); toast({ title: "Alquiler actualizado" }); } } });
   const deleteRental = useDeleteRental({ mutation: { onSuccess: () => { invalidate(); setDeleting(null); toast({ title: "Alquiler eliminado" }); } } });
 
-  function openNew() { form.reset({ company: "", pickupLocation: "", returnLocation: "", pickupDate: "", returnDate: "", fuelPolicy: "", vehicleType: "", confirmationCode: "", notes: "" }); setEditing(null); setOpen(true); }
-  function openEdit(r: Rental) { form.reset({ company: r.company, pickupLocation: r.pickupLocation, returnLocation: r.returnLocation ?? "", pickupDate: toLocal(r.pickupDate), returnDate: toLocal(r.returnDate), fuelPolicy: r.fuelPolicy, vehicleType: r.vehicleType ?? "", confirmationCode: r.confirmationCode ?? "", notes: r.notes ?? "" }); setEditing(r); setOpen(true); }
+  function openNew() { form.reset({ company: "", pickupLocation: "", returnLocation: "", pickupDate: "", returnDate: "", fuelPolicy: "", vehicleType: "", confirmationCode: "", notes: "" }); setEditing(null); setIsViewing(false); setOpen(true); }
+  function openEdit(r: Rental) { form.reset({ company: r.company, pickupLocation: r.pickupLocation, returnLocation: r.returnLocation ?? "", pickupDate: toLocal(r.pickupDate), returnDate: toLocal(r.returnDate), fuelPolicy: r.fuelPolicy, vehicleType: r.vehicleType ?? "", confirmationCode: r.confirmationCode ?? "", notes: r.notes ?? "" }); setEditing(r); setIsViewing(false); setOpen(true); }
+  function openView(r: Rental) { form.reset({ company: r.company, pickupLocation: r.pickupLocation, returnLocation: r.returnLocation ?? "", pickupDate: toLocal(r.pickupDate), returnDate: toLocal(r.returnDate), fuelPolicy: r.fuelPolicy, vehicleType: r.vehicleType ?? "", confirmationCode: r.confirmationCode ?? "", notes: r.notes ?? "" }); setEditing(r); setIsViewing(true); setOpen(true); }
+  function handleDialogClose(v: boolean) { setOpen(v); if (!v) setIsViewing(false); }
 
   function onSubmit(values: FormValues) {
     const payload = { ...values, pickupDate: new Date(values.pickupDate).toISOString(), returnDate: new Date(values.returnDate).toISOString(), returnLocation: values.returnLocation || undefined, vehicleType: values.vehicleType || undefined, confirmationCode: values.confirmationCode || undefined, notes: values.notes || undefined };
@@ -85,6 +88,7 @@ export default function RentalsModule({ tripId }: Props) {
                   <p className="text-xs text-muted-foreground mt-1">Combustible: {r.fuelPolicy}</p>
                 </div>
                 <div className="flex gap-1">
+                  <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => openView(r)} title="Ver detalles"><Eye className="w-3.5 h-3.5" /></Button>
                   <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(r)}><Pencil className="w-3.5 h-3.5" /></Button>
                   <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleting(r)}><Trash2 className="w-3.5 h-3.5" /></Button>
                 </div>
@@ -99,25 +103,28 @@ export default function RentalsModule({ tripId }: Props) {
         </div>
       )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      {/* ── Rental form / view dialog ── */}
+      <Dialog open={open} onOpenChange={handleDialogClose}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{editing ? "Editar Alquiler" : "Añadir Alquiler de Vehículo"}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{isViewing ? "Detalles del Alquiler" : editing ? "Editar Alquiler" : "Añadir Alquiler de Vehículo"}</DialogTitle>
+          </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <FormField control={form.control} name="company" render={({ field }) => (<FormItem><FormLabel>Empresa</FormLabel><FormControl><Input placeholder="Hertz" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="vehicleType" render={({ field }) => (<FormItem><FormLabel>Tipo de vehículo</FormLabel><FormControl><Input placeholder="Toyota Corolla" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="company" render={({ field }) => (<FormItem><FormLabel>Empresa</FormLabel><FormControl><Input placeholder="Hertz" disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="vehicleType" render={({ field }) => (<FormItem><FormLabel>Tipo de vehículo</FormLabel><FormControl><Input placeholder="Toyota Corolla" disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
               </div>
-              <FormField control={form.control} name="pickupLocation" render={({ field }) => (<FormItem><FormLabel>Lugar de recogida</FormLabel><FormControl><Input placeholder="Terminal 2 Aeropuerto" {...field} /></FormControl><FormMessage /></FormItem>)} />
-              <FormField control={form.control} name="returnLocation" render={({ field }) => (<FormItem><FormLabel>Lugar de devolución (si es diferente)</FormLabel><FormControl><Input placeholder="Oficina centro ciudad" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="pickupLocation" render={({ field }) => (<FormItem><FormLabel>Lugar de recogida</FormLabel><FormControl><Input placeholder="Terminal 2 Aeropuerto" disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="returnLocation" render={({ field }) => (<FormItem><FormLabel>Lugar de devolución (si es diferente)</FormLabel><FormControl><Input placeholder="Oficina centro ciudad" disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
               <div className="grid grid-cols-2 gap-3">
-                <FormField control={form.control} name="pickupDate" render={({ field }) => (<FormItem><FormLabel>Fecha de recogida</FormLabel><FormControl><Input type="datetime-local" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="returnDate" render={({ field }) => (<FormItem><FormLabel>Fecha de devolución</FormLabel><FormControl><Input type="datetime-local" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="pickupDate" render={({ field }) => (<FormItem><FormLabel>Fecha de recogida</FormLabel><FormControl><Input type="datetime-local" disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="returnDate" render={({ field }) => (<FormItem><FormLabel>Fecha de devolución</FormLabel><FormControl><Input type="datetime-local" disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
               </div>
               <FormField control={form.control} name="fuelPolicy" render={({ field }) => (
                 <FormItem>
                   <FormLabel>Política de combustible</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={isViewing}>
                     <FormControl><SelectTrigger><SelectValue placeholder="Seleccionar política" /></SelectTrigger></FormControl>
                     <SelectContent>
                       <SelectItem value="Full-to-full">Lleno a lleno</SelectItem>
@@ -128,11 +135,13 @@ export default function RentalsModule({ tripId }: Props) {
                   <FormMessage />
                 </FormItem>
               )} />
-              <FormField control={form.control} name="confirmationCode" render={({ field }) => (<FormItem><FormLabel>Código de confirmación</FormLabel><FormControl><Input placeholder="HZ-2026-12345" {...field} /></FormControl><FormMessage /></FormItem>)} />
-              <FormField control={form.control} name="notes" render={({ field }) => (<FormItem><FormLabel>Notas</FormLabel><FormControl><Textarea rows={2} {...field} /></FormControl><FormMessage /></FormItem>)} />
-              <DialogFooter>
-                <Button type="submit" disabled={createRental.isPending || updateRental.isPending}>{editing ? "Guardar cambios" : "Añadir alquiler"}</Button>
-              </DialogFooter>
+              <FormField control={form.control} name="confirmationCode" render={({ field }) => (<FormItem><FormLabel>Código de confirmación</FormLabel><FormControl><Input placeholder="HZ-2026-12345" disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="notes" render={({ field }) => (<FormItem><FormLabel>Notas</FormLabel><FormControl><Textarea rows={2} disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
+              {!isViewing && (
+                <DialogFooter>
+                  <Button type="submit" disabled={createRental.isPending || updateRental.isPending}>{editing ? "Guardar cambios" : "Añadir alquiler"}</Button>
+                </DialogFooter>
+              )}
             </form>
           </Form>
         </DialogContent>

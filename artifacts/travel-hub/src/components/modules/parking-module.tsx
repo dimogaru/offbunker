@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Pencil, Trash2, ParkingCircle, Clock, MapPin, Hash, Euro } from "lucide-react";
+import { Pencil, Trash2, ParkingCircle, Clock, MapPin, Hash, Euro, Eye } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -38,6 +38,7 @@ export default function ParkingModule({ tripId }: Props) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Parking | null>(null);
   const [deleting, setDeleting] = useState<Parking | null>(null);
+  const [isViewing, setIsViewing] = useState(false);
 
   const { data: parkings, isLoading } = useListParkings(tripId, { query: { queryKey: getListParkingsQueryKey(tripId) } });
   const invalidate = () => queryClient.invalidateQueries({ queryKey: getListParkingsQueryKey(tripId) });
@@ -48,8 +49,10 @@ export default function ParkingModule({ tripId }: Props) {
   const updateParking = useUpdateParking({ mutation: { onSuccess: () => { invalidate(); setOpen(false); setEditing(null); form.reset(); toast({ title: "Estacionamiento actualizado" }); } } });
   const deleteParking = useDeleteParking({ mutation: { onSuccess: () => { invalidate(); setDeleting(null); toast({ title: "Estacionamiento eliminado" }); } } });
 
-  function openNew() { form.reset({ location: "", reservationCode: "", entryDate: "", exitDate: "", priceTotal: "", notes: "" }); setEditing(null); setOpen(true); }
-  function openEdit(p: Parking) { form.reset({ location: p.location, reservationCode: p.reservationCode, entryDate: toLocalDatetime(p.entryDate), exitDate: toLocalDatetime(p.exitDate), priceTotal: p.priceTotal?.toString() ?? "", notes: p.notes ?? "" }); setEditing(p); setOpen(true); }
+  function openNew() { form.reset({ location: "", reservationCode: "", entryDate: "", exitDate: "", priceTotal: "", notes: "" }); setEditing(null); setIsViewing(false); setOpen(true); }
+  function openEdit(p: Parking) { form.reset({ location: p.location, reservationCode: p.reservationCode, entryDate: toLocalDatetime(p.entryDate), exitDate: toLocalDatetime(p.exitDate), priceTotal: p.priceTotal?.toString() ?? "", notes: p.notes ?? "" }); setEditing(p); setIsViewing(false); setOpen(true); }
+  function openView(p: Parking) { form.reset({ location: p.location, reservationCode: p.reservationCode, entryDate: toLocalDatetime(p.entryDate), exitDate: toLocalDatetime(p.exitDate), priceTotal: p.priceTotal?.toString() ?? "", notes: p.notes ?? "" }); setEditing(p); setIsViewing(true); setOpen(true); }
+  function handleDialogClose(v: boolean) { setOpen(v); if (!v) setIsViewing(false); }
 
   function onSubmit(values: FormValues) {
     const payload = { location: values.location, reservationCode: values.reservationCode, entryDate: new Date(values.entryDate).toISOString(), exitDate: new Date(values.exitDate).toISOString(), priceTotal: values.priceTotal ? parseFloat(values.priceTotal) : undefined, notes: values.notes || undefined };
@@ -86,6 +89,7 @@ export default function ParkingModule({ tripId }: Props) {
                   </div>
                 </div>
                 <div className="flex gap-1 flex-shrink-0">
+                  <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => openView(p)} title="Ver detalles"><Eye className="w-3.5 h-3.5" /></Button>
                   <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(p)}><Pencil className="w-3.5 h-3.5" /></Button>
                   <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleting(p)}><Trash2 className="w-3.5 h-3.5" /></Button>
                 </div>
@@ -118,22 +122,27 @@ export default function ParkingModule({ tripId }: Props) {
         </div>
       )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      {/* ── Parking form / view dialog ── */}
+      <Dialog open={open} onOpenChange={handleDialogClose}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>{editing ? "Editar Estacionamiento" : "Añadir Estacionamiento"}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{isViewing ? "Detalles del Estacionamiento" : editing ? "Editar Estacionamiento" : "Añadir Estacionamiento"}</DialogTitle>
+          </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
-              <FormField control={form.control} name="location" render={({ field }) => (<FormItem><FormLabel>Ubicación</FormLabel><FormControl><Input placeholder="Parking T4 Barajas" {...field} /></FormControl><FormMessage /></FormItem>)} />
-              <FormField control={form.control} name="reservationCode" render={({ field }) => (<FormItem><FormLabel>Código de reserva</FormLabel><FormControl><Input placeholder="MAD-78234" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="location" render={({ field }) => (<FormItem><FormLabel>Ubicación</FormLabel><FormControl><Input placeholder="Parking T4 Barajas" disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="reservationCode" render={({ field }) => (<FormItem><FormLabel>Código de reserva</FormLabel><FormControl><Input placeholder="MAD-78234" disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
               <div className="grid grid-cols-2 gap-3">
-                <FormField control={form.control} name="entryDate" render={({ field }) => (<FormItem><FormLabel>Fecha de entrada</FormLabel><FormControl><Input type="datetime-local" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="exitDate" render={({ field }) => (<FormItem><FormLabel>Fecha de salida</FormLabel><FormControl><Input type="datetime-local" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="entryDate" render={({ field }) => (<FormItem><FormLabel>Fecha de entrada</FormLabel><FormControl><Input type="datetime-local" disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="exitDate" render={({ field }) => (<FormItem><FormLabel>Fecha de salida</FormLabel><FormControl><Input type="datetime-local" disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
               </div>
-              <FormField control={form.control} name="priceTotal" render={({ field }) => (<FormItem><FormLabel>Precio total (opcional)</FormLabel><FormControl><Input type="number" placeholder="145.50" step="0.01" {...field} /></FormControl><FormMessage /></FormItem>)} />
-              <FormField control={form.control} name="notes" render={({ field }) => (<FormItem><FormLabel>Notas</FormLabel><FormControl><Textarea rows={2} {...field} /></FormControl><FormMessage /></FormItem>)} />
-              <DialogFooter>
-                <Button type="submit" disabled={createParking.isPending || updateParking.isPending}>{editing ? "Guardar cambios" : "Añadir estacionamiento"}</Button>
-              </DialogFooter>
+              <FormField control={form.control} name="priceTotal" render={({ field }) => (<FormItem><FormLabel>Precio total (opcional)</FormLabel><FormControl><Input type="number" placeholder="145.50" step="0.01" disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="notes" render={({ field }) => (<FormItem><FormLabel>Notas</FormLabel><FormControl><Textarea rows={2} disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
+              {!isViewing && (
+                <DialogFooter>
+                  <Button type="submit" disabled={createParking.isPending || updateParking.isPending}>{editing ? "Guardar cambios" : "Añadir estacionamiento"}</Button>
+                </DialogFooter>
+              )}
             </form>
           </Form>
         </DialogContent>

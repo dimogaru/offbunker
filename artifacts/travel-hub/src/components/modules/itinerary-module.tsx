@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import {
   Pencil, Trash2, CalendarDays, Clock, MapPin, ExternalLink,
-  Paperclip, X, Loader2, CheckCircle2,
+  Paperclip, X, Loader2, CheckCircle2, Eye,
 } from "lucide-react";
 import MapsLink from "@/components/maps-link";
 import { useForm } from "react-hook-form";
@@ -55,7 +55,6 @@ const FILE_CHIP_COLORS: Record<string, string> = {
 
 /* ─────────────────── Helpers ────────────────────────────────── */
 
-/** Normalise to YYYY-MM-DD regardless of whether the server returns a bare date or a full ISO string */
 function normalizeDate(dateStr: string) {
   return dateStr.includes("T") ? dateStr.split("T")[0] : dateStr;
 }
@@ -98,6 +97,7 @@ export default function ItineraryModule({ tripId }: Props) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<ItineraryItem | null>(null);
   const [deleting, setDeleting] = useState<ItineraryItem | null>(null);
+  const [isViewing, setIsViewing] = useState(false);
 
   /* Day tab state */
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -159,10 +159,6 @@ export default function ItineraryModule({ tripId }: Props) {
   const timedItems   = dayItems.filter(i => i.time).sort((a, b) => (a.time ?? "").localeCompare(b.time ?? ""));
   const untimedItems = dayItems.filter(i => !i.time);
 
-  /**
-   * Activity docs use module="itinerary" (valid enum) and notes="activityId:{id}"
-   * so they appear correctly in the Vault and are included in offline sync.
-   */
   function getActivityDocs(activityId: number) {
     return allDocs?.filter(d =>
       d.module === "itinerary" && d.notes === `activityId:${activityId}`
@@ -173,17 +169,25 @@ export default function ItineraryModule({ tripId }: Props) {
   function openNew() {
     form.reset({ date: effectiveDate ?? "", time: "", title: "", description: "", location: "", category: "other" });
     setEditing(null);
+    setIsViewing(false);
     setOpen(true);
   }
   function openEdit(item: ItineraryItem) {
-    // normalizeDate ensures we pass "YYYY-MM-DD" to the date input, not a full ISO string
     form.reset({ date: normalizeDate(item.date), time: item.time ?? "", title: item.title, description: item.description ?? "", location: item.location ?? "", category: (item.category || "other") as FormValues["category"] });
     setEditing(item);
+    setIsViewing(false);
     setOpen(true);
   }
+  function openView(item: ItineraryItem) {
+    form.reset({ date: normalizeDate(item.date), time: item.time ?? "", title: item.title, description: item.description ?? "", location: item.location ?? "", category: (item.category || "other") as FormValues["category"] });
+    setEditing(item);
+    setIsViewing(true);
+    setOpen(true);
+  }
+  function handleDialogClose(v: boolean) { setOpen(v); if (!v) setIsViewing(false); }
+
   function onSubmit(values: FormValues) {
     const payload = { ...values, time: values.time || undefined, description: values.description || undefined, location: values.location || undefined };
-    console.log("[Itinerario] onSubmit →", payload);
     if (editing) updateItem.mutate({ tripId, itemId: editing.id, data: payload });
     else createItem.mutate({ tripId, data: payload });
   }
@@ -211,8 +215,6 @@ export default function ItineraryModule({ tripId }: Props) {
   function handleSaveDoc() {
     if (!uploadingFor || !docName.trim() || createDoc.isPending) return;
     const fileType = docFileUrl ? fileTypeFrom(docFileUrl) : "Otro";
-    // module must be the valid enum value "itinerary"; the activity association is
-    // stored in `notes` so the Vault displays it correctly and offline sync picks it up.
     createDoc.mutate({
       tripId,
       data: {
@@ -265,6 +267,7 @@ export default function ItineraryModule({ tripId }: Props) {
               )}
             </div>
             <div className="flex gap-0.5 flex-shrink-0">
+              <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={() => openView(item)} title="Ver detalles"><Eye className="w-3 h-3" /></Button>
               <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => openEdit(item)}><Pencil className="w-3 h-3" /></Button>
               <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive hover:text-destructive" onClick={() => setDeleting(item)}><Trash2 className="w-3 h-3" /></Button>
             </div>
@@ -357,7 +360,6 @@ export default function ItineraryModule({ tripId }: Props) {
         </div>
       ) : (
         <div>
-          {/* Timed items — timeline */}
           {timedItems.length > 0 && (
             <div className="ml-2">
               {timedItems.map((item, idx) =>
@@ -365,8 +367,6 @@ export default function ItineraryModule({ tripId }: Props) {
               )}
             </div>
           )}
-
-          {/* Untimed items */}
           {untimedItems.length > 0 && (
             <div className="mt-4">
               <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-3 ml-6">
@@ -380,20 +380,22 @@ export default function ItineraryModule({ tripId }: Props) {
         </div>
       )}
 
-      {/* ── Form dialog (create / edit activity) ── */}
-      <Dialog open={open} onOpenChange={setOpen}>
+      {/* ── Form / view dialog ── */}
+      <Dialog open={open} onOpenChange={handleDialogClose}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>{editing ? "Editar Actividad" : "Añadir Actividad"}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{isViewing ? "Detalles de la Actividad" : editing ? "Editar Actividad" : "Añadir Actividad"}</DialogTitle>
+          </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <FormField control={form.control} name="date" render={({ field }) => (<FormItem><FormLabel>Fecha</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="time" render={({ field }) => (<FormItem><FormLabel>Hora (opcional)</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="date" render={({ field }) => (<FormItem><FormLabel>Fecha</FormLabel><FormControl><Input type="date" disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="time" render={({ field }) => (<FormItem><FormLabel>Hora (opcional)</FormLabel><FormControl><Input type="time" disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
               </div>
-              <FormField control={form.control} name="title" render={({ field }) => (<FormItem><FormLabel>Título</FormLabel><FormControl><Input placeholder="Visitar el Templo Sensoji" {...field} /></FormControl><FormMessage /></FormItem>)} />
+              <FormField control={form.control} name="title" render={({ field }) => (<FormItem><FormLabel>Título</FormLabel><FormControl><Input placeholder="Visitar el Templo Sensoji" disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
               <FormField control={form.control} name="category" render={({ field }) => (
                 <FormItem><FormLabel>Categoría</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={isViewing}>
                     <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                     <SelectContent>
                       {CATEGORIES.map(c => <SelectItem key={c} value={c}>{CATEGORY_LABELS[c]}</SelectItem>)}
@@ -408,16 +410,48 @@ export default function ItineraryModule({ tripId }: Props) {
                     <FormLabel>Dirección o Lugar (opcional)</FormLabel>
                     {field.value && <MapsLink query={field.value} label="Ver en Maps" />}
                   </div>
-                  <FormControl><Input placeholder="Asakusa, Tokio" {...field} /></FormControl>
+                  <FormControl><Input placeholder="Asakusa, Tokio" disabled={isViewing} {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )} />
-              <FormField control={form.control} name="description" render={({ field }) => (<FormItem><FormLabel>Descripción (opcional)</FormLabel><FormControl><Textarea rows={2} {...field} /></FormControl><FormMessage /></FormItem>)} />
-              <DialogFooter>
-                <Button type="submit" disabled={createItem.isPending || updateItem.isPending}>
-                  {editing ? "Guardar cambios" : "Añadir actividad"}
-                </Button>
-              </DialogFooter>
+              <FormField control={form.control} name="description" render={({ field }) => (<FormItem><FormLabel>Descripción (opcional)</FormLabel><FormControl><Textarea rows={2} disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
+
+              {/* Read-only document chips */}
+              {isViewing && editing && (() => {
+                const viewDocs = getActivityDocs(editing.id);
+                return (
+                  <div className="pt-2 border-t border-border/50">
+                    <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Documentos adjuntos</p>
+                    {viewDocs.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No hay documentos adjuntos a esta actividad</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {viewDocs.map(doc => (
+                          <div key={doc.id} className="flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-1 text-xs">
+                            <span className={`font-bold px-1 py-0.5 rounded-full text-[9px] uppercase tracking-wide flex-shrink-0 ${FILE_CHIP_COLORS[doc.fileType] ?? FILE_CHIP_COLORS["Otro"]}`}>
+                              {doc.fileType?.slice(0, 3)}
+                            </span>
+                            <span className="font-medium max-w-[100px] truncate text-foreground/80">{doc.name}</span>
+                            {doc.fileUrl && (
+                              <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors flex-shrink-0" title="Abrir documento">
+                                <ExternalLink className="w-2.5 h-2.5" />
+                              </a>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {!isViewing && (
+                <DialogFooter>
+                  <Button type="submit" disabled={createItem.isPending || updateItem.isPending}>
+                    {editing ? "Guardar cambios" : "Añadir actividad"}
+                  </Button>
+                </DialogFooter>
+              )}
             </form>
           </Form>
         </DialogContent>
@@ -468,10 +502,10 @@ export default function ItineraryModule({ tripId }: Props) {
         </DialogContent>
       </Dialog>
 
-      {/* ── Delete document dialog ── */}
+      {/* ── Delete doc dialog ── */}
       <AlertDialog open={!!deletingDoc} onOpenChange={() => setDeletingDoc(null)}>
         <AlertDialogContent>
-          <AlertDialogHeader><AlertDialogTitle>¿Eliminar documento?</AlertDialogTitle><AlertDialogDescription>Se eliminará "{deletingDoc?.name}" de esta actividad.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogHeader><AlertDialogTitle>¿Eliminar documento?</AlertDialogTitle><AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={() => deletingDoc && deleteDoc.mutate({ tripId, documentId: deletingDoc.id })} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>

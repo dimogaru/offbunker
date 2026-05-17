@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import {
   PlusCircle, Pencil, Trash2, Plane, Clock, Armchair, DoorOpen, LayoutGrid,
-  Paperclip, ExternalLink, X, Loader2, CheckCircle2,
+  Paperclip, ExternalLink, X, Loader2, CheckCircle2, Eye,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -77,6 +77,7 @@ export default function FlightsModule({ tripId }: Props) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Flight | null>(null);
   const [deleting, setDeleting] = useState<Flight | null>(null);
+  const [isViewing, setIsViewing] = useState(false);
 
   /* Doc upload state */
   const [uploadingFor, setUploadingFor] = useState<Flight | null>(null);
@@ -130,12 +131,24 @@ export default function FlightsModule({ tripId }: Props) {
   function openNew() {
     form.reset({ airline: "", flightNumber: "", departureAirport: "", arrivalAirport: "", departureTime: "", arrivalTime: "", terminal: "", gate: "", seat: "", notes: "" });
     setEditing(null);
+    setIsViewing(false);
     setOpen(true);
   }
   function openEdit(f: Flight) {
     form.reset({ airline: f.airline, flightNumber: f.flightNumber, departureAirport: f.departureAirport, arrivalAirport: f.arrivalAirport, departureTime: toLocalDatetime(f.departureTime), arrivalTime: toLocalDatetime(f.arrivalTime), terminal: f.terminal ?? "", gate: f.gate ?? "", seat: f.seat ?? "", notes: f.notes ?? "" });
     setEditing(f);
+    setIsViewing(false);
     setOpen(true);
+  }
+  function openView(f: Flight) {
+    form.reset({ airline: f.airline, flightNumber: f.flightNumber, departureAirport: f.departureAirport, arrivalAirport: f.arrivalAirport, departureTime: toLocalDatetime(f.departureTime), arrivalTime: toLocalDatetime(f.arrivalTime), terminal: f.terminal ?? "", gate: f.gate ?? "", seat: f.seat ?? "", notes: f.notes ?? "" });
+    setEditing(f);
+    setIsViewing(true);
+    setOpen(true);
+  }
+  function handleDialogClose(v: boolean) {
+    setOpen(v);
+    if (!v) setIsViewing(false);
   }
   function onSubmit(values: FormValues) {
     const payload = { ...values, departureTime: new Date(values.departureTime).toISOString(), arrivalTime: new Date(values.arrivalTime).toISOString() };
@@ -204,6 +217,7 @@ export default function FlightsModule({ tripId }: Props) {
                     <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-mono">{f.flightNumber}</span>
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => openView(f)} title="Ver detalles"><Eye className="w-3.5 h-3.5" /></Button>
                     <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(f)} data-testid={`button-edit-flight-${f.id}`}><Pencil className="w-3.5 h-3.5" /></Button>
                     <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleting(f)} data-testid={`button-delete-flight-${f.id}`}><Trash2 className="w-3.5 h-3.5" /></Button>
                   </div>
@@ -280,33 +294,69 @@ export default function FlightsModule({ tripId }: Props) {
         </div>
       )}
 
-      {/* ── Flight form dialog ── */}
-      <Dialog open={open} onOpenChange={setOpen}>
+      {/* ── Flight form / view dialog ── */}
+      <Dialog open={open} onOpenChange={handleDialogClose}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{editing ? "Editar Vuelo" : "Añadir Vuelo"}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>
+              {isViewing ? "Detalles del Vuelo" : editing ? "Editar Vuelo" : "Añadir Vuelo"}
+            </DialogTitle>
+          </DialogHeader>
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <FormField control={form.control} name="airline"          render={({ field }) => (<FormItem><FormLabel>Aerolínea</FormLabel><FormControl><Input placeholder="Japan Airlines" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="flightNumber"     render={({ field }) => (<FormItem><FormLabel>Nº de vuelo</FormLabel><FormControl><Input placeholder="JL408" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="airline"          render={({ field }) => (<FormItem><FormLabel>Aerolínea</FormLabel><FormControl><Input placeholder="Japan Airlines" disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="flightNumber"     render={({ field }) => (<FormItem><FormLabel>Nº de vuelo</FormLabel><FormControl><Input placeholder="JL408" disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <FormField control={form.control} name="departureAirport" render={({ field }) => (<FormItem><FormLabel>Origen (IATA)</FormLabel><FormControl><Input placeholder="MAD" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="arrivalAirport"   render={({ field }) => (<FormItem><FormLabel>Destino (IATA)</FormLabel><FormControl><Input placeholder="NRT" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="departureAirport" render={({ field }) => (<FormItem><FormLabel>Origen (IATA)</FormLabel><FormControl><Input placeholder="MAD" disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="arrivalAirport"   render={({ field }) => (<FormItem><FormLabel>Destino (IATA)</FormLabel><FormControl><Input placeholder="NRT" disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <FormField control={form.control} name="departureTime"    render={({ field }) => (<FormItem><FormLabel>Salida</FormLabel><FormControl><Input type="datetime-local" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="arrivalTime"      render={({ field }) => (<FormItem><FormLabel>Llegada</FormLabel><FormControl><Input type="datetime-local" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="departureTime"    render={({ field }) => (<FormItem><FormLabel>Salida</FormLabel><FormControl><Input type="datetime-local" disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="arrivalTime"      render={({ field }) => (<FormItem><FormLabel>Llegada</FormLabel><FormControl><Input type="datetime-local" disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
               </div>
               <div className="grid grid-cols-3 gap-3">
-                <FormField control={form.control} name="terminal"         render={({ field }) => (<FormItem><FormLabel>Terminal</FormLabel><FormControl><Input placeholder="T4" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="gate"             render={({ field }) => (<FormItem><FormLabel>Puerta</FormLabel><FormControl><Input placeholder="G22" {...field} /></FormControl><FormMessage /></FormItem>)} />
-                <FormField control={form.control} name="seat"             render={({ field }) => (<FormItem><FormLabel>Asiento</FormLabel><FormControl><Input placeholder="24A" {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="terminal"         render={({ field }) => (<FormItem><FormLabel>Terminal</FormLabel><FormControl><Input placeholder="T4" disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="gate"             render={({ field }) => (<FormItem><FormLabel>Puerta</FormLabel><FormControl><Input placeholder="G22" disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
+                <FormField control={form.control} name="seat"             render={({ field }) => (<FormItem><FormLabel>Asiento</FormLabel><FormControl><Input placeholder="24A" disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
               </div>
-              <FormField control={form.control} name="notes"              render={({ field }) => (<FormItem><FormLabel>Notas</FormLabel><FormControl><Textarea rows={2} {...field} /></FormControl><FormMessage /></FormItem>)} />
-              <DialogFooter>
-                <Button type="submit" disabled={createFlight.isPending || updateFlight.isPending}>{editing ? "Guardar cambios" : "Añadir vuelo"}</Button>
-              </DialogFooter>
+              <FormField control={form.control} name="notes" render={({ field }) => (<FormItem><FormLabel>Notas</FormLabel><FormControl><Textarea rows={2} disabled={isViewing} {...field} /></FormControl><FormMessage /></FormItem>)} />
+
+              {/* Read-only document chips */}
+              {isViewing && editing && (() => {
+                const viewDocs = getFlightDocs(editing.id);
+                return (
+                  <div className="pt-2 border-t border-border/50">
+                    <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Documentos adjuntos</p>
+                    {viewDocs.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No hay documentos adjuntos a este vuelo</p>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5">
+                        {viewDocs.map(doc => (
+                          <div key={doc.id} className="flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-1 text-xs">
+                            <span className={`font-bold px-1 py-0.5 rounded-full text-[9px] uppercase tracking-wide flex-shrink-0 ${FILE_CHIP_COLORS[doc.fileType] ?? FILE_CHIP_COLORS["Otro"]}`}>
+                              {doc.fileType?.slice(0, 3)}
+                            </span>
+                            <span className="font-medium max-w-[110px] truncate text-foreground/80">{doc.name}</span>
+                            {doc.fileUrl && (
+                              <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors flex-shrink-0" title="Abrir documento">
+                                <ExternalLink className="w-2.5 h-2.5" />
+                              </a>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {!isViewing && (
+                <DialogFooter>
+                  <Button type="submit" disabled={createFlight.isPending || updateFlight.isPending}>{editing ? "Guardar cambios" : "Añadir vuelo"}</Button>
+                </DialogFooter>
+              )}
             </form>
           </Form>
         </DialogContent>

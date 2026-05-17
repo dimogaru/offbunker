@@ -70,10 +70,8 @@ export default function Dashboard() {
 
   async function handleLogout() {
     await logout();
-    // Wipe all cached query data so the next user gets a clean slate
     queryClient.clear();
-    // replace: true prevents the back button from returning to the dashboard
-    navigate("/login", { replace: true } as never);
+    window.location.replace("/login");
   }
 
   return (
@@ -92,16 +90,13 @@ export default function Dashboard() {
               <User className="w-3.5 h-3.5" />
               <span>{user?.username}</span>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
+            <button
               onClick={handleLogout}
-              className="gap-1.5"
-              title="Cerrar sesión"
+              className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
             >
               <LogOut className="w-4 h-4" />
-              <span>Cerrar sesión</span>
-            </Button>
+              <span>Cerrar Sesión 🚪</span>
+            </button>
             <Link href="/trips/new">
               <Button data-testid="button-new-trip" className="gap-2">
                 <PlusCircle className="w-4 h-4" />

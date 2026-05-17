@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useLocation, Link } from "wouter";
 import {
   ArrowLeft, Plane, ParkingCircle, Car, Building2, CalendarDays,
-  FolderOpen, Pencil, Share2, Check, Link2, X, Users,
+  FolderOpen, Pencil, Share2, Check, Link2, X, Users, LogOut,
 } from "lucide-react";
 import { useGetTrip, getGetTripQueryKey, useGenerateShareLink } from "@workspace/api-client-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -246,8 +246,14 @@ export default function TripDetail() {
   const [, navigate] = useLocation();
   const [editOpen, setEditOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const queryClient = useQueryClient();
+
+  async function handleLogout() {
+    await logout();
+    queryClient.clear();
+    window.location.replace("/login");
+  }
 
   const activeModule: ModuleId = VALID_IDS.includes(moduleParam ?? "")
     ? (moduleParam as ModuleId)
@@ -392,6 +398,19 @@ export default function TripDetail() {
               {label}
             </button>
           ))}
+
+          {/* Divider + logout */}
+          <hr className="my-3 border-sidebar-border" />
+          <div className="px-1 mb-1 text-[10px] font-medium text-sidebar-foreground/40 uppercase tracking-wide">
+            {user?.username}
+          </div>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-2 w-full bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-3 py-2 rounded-lg transition-colors"
+          >
+            <LogOut className="w-4 h-4 flex-shrink-0" />
+            Cerrar Sesión 🚪
+          </button>
         </nav>
 
         {/* Main content */}

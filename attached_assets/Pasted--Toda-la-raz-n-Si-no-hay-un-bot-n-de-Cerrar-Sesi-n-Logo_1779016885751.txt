@@ -1,0 +1,34 @@
+¡Toda la razón! Si no hay un botón de Cerrar Sesión (Logout), el navegador se queda "atrapado" con la sesión de SuperAdmin y no tienes forma humana de salir para probar los usuarios normales que vayas creando.
+
+Este botón debe estar visible tanto para el SuperAdmin como para los usuarios normales, limpiando por completo la memoria de la sesión (cookies, localStorage, etc.) y mandando al usuario de vuelta a la pantalla de Login.
+
+Aquí tienes el prompt que debes pasarle a la IA de Replit para añadir esta pieza que falta:
+
+Prompt: Implementación de Botón de Cerrar Sesión (Logout)
+"Para poder alternar entre el SuperAdmin y los usuarios normales, necesito añadir la funcionalidad de Cerrar Sesión (Logout). Por favor, implementa los siguientes cambios:
+
+1. Ubicación del Botón de Logout:
+
+Para el SuperAdmin: Añade un botón claro que diga 'Cerrar Sesión' (o un icono de salida) en la parte superior derecha de su panel exclusivo.
+
+Para los Usuarios Normales: Añade este mismo botón de 'Cerrar Sesión' en la barra superior o al final del menú lateral (debajo de 'Documentos'), asegurando que se adapte bien tanto en diseño de escritorio como en móvil.
+
+2. Lógica del Backend y Frontend al hacer clic:
+
+Al pulsar el botón, la aplicación debe ejecutar una función handleLogout que realice las siguientes acciones de limpieza profunda:
+
+Borrar los tokens de autenticación o variables de sesión del localStorage o sessionStorage (ej: localStorage.removeItem('token'), localStorage.removeItem('user'), etc.).
+
+Si se usan cookies de sesión, asegúrate de limpiarlas en el navegador.
+
+Restablecer todos los estados globales de la aplicación a su valor inicial (vaciar la lista de viajes actual en memoria, limpiar el usuario activo, etc.) para que el siguiente usuario no vea datos del anterior por error.
+
+3. Redirección Inmediata:
+
+Una vez completada la limpieza, redirige automáticamente al usuario a la pantalla de Inicio de Sesión (Login).
+
+Bloquea el botón 'Atrás' del navegador para que, si el usuario le da hacia atrás tras cerrar sesión, no pueda volver a entrar al panel sin loguearse de nuevo.
+
+4. Estética del Botón:
+
+Utiliza un diseño sutil pero identificable (por ejemplo, un color gris oscuro, rojo suave o un icono estándar de puerta con flecha de salida) que encaje con el estilo premium que estamos construyendo."

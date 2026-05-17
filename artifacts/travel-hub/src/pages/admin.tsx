@@ -115,7 +115,8 @@ export default function AdminPage() {
 
   async function handleLogout() {
     await logout();
-    navigate("/login");
+    qc.clear();
+    navigate("/login", { replace: true } as never);
   }
 
   return (
@@ -132,9 +133,9 @@ export default function AdminPage() {
           </div>
           <div className="flex items-center gap-3">
             <span className="text-sm text-muted-foreground hidden sm:block">{user?.username}</span>
-            <Button variant="ghost" size="sm" onClick={handleLogout} className="gap-1.5">
+            <Button variant="outline" size="sm" onClick={handleLogout} className="gap-1.5">
               <LogOut className="w-4 h-4" />
-              Salir
+              Cerrar sesión
             </Button>
           </div>
         </div>

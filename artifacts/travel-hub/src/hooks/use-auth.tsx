@@ -71,12 +71,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function logout(): Promise<void> {
+    // Best-effort server-side session destroy
     await fetch("/api/auth/logout", {
       method: "POST",
       credentials: "include",
     }).catch(() => undefined);
+    // Wipe client state
     setUser(null);
     localStorage.removeItem(STORAGE_KEY);
+    // Clear sessionStorage just in case
+    try { sessionStorage.clear(); } catch { /* ignore */ }
   }
 
   return (

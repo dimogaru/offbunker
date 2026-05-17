@@ -95,7 +95,7 @@ export default function Dashboard() {
               className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
             >
               <LogOut className="w-4 h-4" />
-              <span>Cerrar Sesión 🚪</span>
+              <span>Cerrar Sesión</span>
             </button>
             <Link href="/trips/new">
               <Button data-testid="button-new-trip" className="gap-2">

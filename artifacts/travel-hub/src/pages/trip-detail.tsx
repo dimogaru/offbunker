@@ -409,7 +409,7 @@ export default function TripDetail() {
             className="flex items-center gap-2 w-full bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-3 py-2 rounded-lg transition-colors"
           >
             <LogOut className="w-4 h-4 flex-shrink-0" />
-            Cerrar Sesión 🚪
+            Cerrar Sesión
           </button>
         </nav>
 

@@ -3,6 +3,7 @@ import {
   Pencil, Trash2, CalendarDays, Clock, MapPin, ExternalLink,
   Paperclip, X, Loader2, CheckCircle2,
 } from "lucide-react";
+import MapsLink from "@/components/maps-link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -274,15 +275,7 @@ export default function ItineraryModule({ tripId }: Props) {
             <div className="flex items-center gap-1.5 mb-2">
               <MapPin className="w-3 h-3 text-muted-foreground flex-shrink-0" />
               <span className="text-xs text-muted-foreground flex-1 truncate">{item.location}</span>
-              <a
-                href={mapsUrl(item.location)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-0.5 text-xs text-primary hover:underline flex-shrink-0"
-              >
-                <ExternalLink className="w-3 h-3" />
-                Ver Maps
-              </a>
+              <MapsLink query={item.location} label="Ver Maps" />
             </div>
           )}
 
@@ -413,11 +406,7 @@ export default function ItineraryModule({ tripId }: Props) {
                 <FormItem>
                   <div className="flex items-center justify-between">
                     <FormLabel>Dirección o Lugar (opcional)</FormLabel>
-                    {field.value && (
-                      <a href={mapsUrl(field.value)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-primary hover:underline">
-                        <ExternalLink className="w-3 h-3" />Ver en Maps
-                      </a>
-                    )}
+                    {field.value && <MapsLink query={field.value} label="Ver en Maps" />}
                   </div>
                   <FormControl><Input placeholder="Asakusa, Tokio" {...field} /></FormControl>
                   <FormMessage />

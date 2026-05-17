@@ -83,9 +83,15 @@ function saveSyncedUrls(tripId: number, urls: Set<string>) {
   }
 }
 
-interface Props { tripId: number }
+interface Props {
+  tripId: number;
+  /** Local cover-image URL for the trip (e.g. /api/uploads/covers/…).
+   *  When present it is included in the offline sync pass so the hero image
+   *  is available without internet. */
+  coverImageUrl?: string | null;
+}
 
-export default function DocumentsModule({ tripId }: Props) {
+export default function DocumentsModule({ tripId, coverImageUrl }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -167,7 +173,13 @@ export default function DocumentsModule({ tripId }: Props) {
     if (!docs) return;
     const serverDocs = docs.filter((d) => isServerUrl(d.fileUrl));
 
-    if (serverDocs.length === 0) {
+    // Also include the trip's cover image if it is a local server URL.
+    const coverEntry = coverImageUrl && isServerUrl(coverImageUrl)
+      ? [{ name: "Portada del viaje", fileUrl: coverImageUrl }]
+      : [];
+    const allAssets = [...serverDocs, ...coverEntry];
+
+    if (allAssets.length === 0) {
       toast({
         title: "No hay documentos en el servidor",
         description: "Sube documentos primero para poder guardarlos offline.",
@@ -180,7 +192,7 @@ export default function DocumentsModule({ tripId }: Props) {
     }
 
     setSyncing(true);
-    setSyncProgress({ done: 0, total: serverDocs.length });
+    setSyncProgress({ done: 0, total: allAssets.length });
 
     const failed: string[] = [];
     const succeededUrls: string[] = [];
@@ -188,19 +200,19 @@ export default function DocumentsModule({ tripId }: Props) {
     try {
       const cache = await caches.open(OFFLINE_CACHE);
 
-      for (const doc of serverDocs) {
+      for (const asset of allAssets) {
         try {
           // Integrity check: fetch the file and verify it returns 200 OK
           // before storing it in Cache Storage.
-          const response = await fetch(doc.fileUrl!, { cache: "no-store" });
+          const response = await fetch(asset.fileUrl!, { cache: "no-store" });
           if (!response.ok) {
-            failed.push(doc.name);
+            failed.push(asset.name);
           } else {
-            await cache.put(doc.fileUrl!, response);
-            succeededUrls.push(doc.fileUrl!);
+            await cache.put(asset.fileUrl!, response);
+            succeededUrls.push(asset.fileUrl!);
           }
         } catch {
-          failed.push(doc.name);
+          failed.push(asset.name);
         }
         setSyncProgress((p) => ({ ...p, done: p.done + 1 }));
       }

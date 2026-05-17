@@ -3,6 +3,7 @@ import {
   Pencil, Trash2, Building2, MapPin, ExternalLink, Clock, Phone, Hash,
   Paperclip, X, Loader2, CheckCircle2,
 } from "lucide-react";
+import MapsLink from "@/components/maps-link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -215,9 +216,7 @@ export default function AccommodationsModule({ tripId }: Props) {
                 <div className="flex items-center gap-1.5 mb-3">
                   <MapPin className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
                   <span className="text-sm text-muted-foreground truncate flex-1">{a.address}</span>
-                  <a href={mapsUrl(a.address)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-0.5 text-xs text-primary hover:underline flex-shrink-0">
-                    <ExternalLink className="w-3 h-3" />Maps
-                  </a>
+                  <MapsLink query={a.address} label="Maps" />
                 </div>
 
                 {/* Check-in / check-out */}
@@ -309,11 +308,7 @@ export default function AccommodationsModule({ tripId }: Props) {
                 <FormItem>
                   <div className="flex items-center justify-between">
                     <FormLabel>Dirección</FormLabel>
-                    {addressValue && (
-                      <a href={mapsUrl(addressValue)} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-xs text-primary hover:underline">
-                        <ExternalLink className="w-3 h-3" />Ver en Google Maps
-                      </a>
-                    )}
+                    {addressValue && <MapsLink query={addressValue} label="Ver en Google Maps" />}
                   </div>
                   <FormControl><Input placeholder="1-1 Example St, Tokio" {...field} /></FormControl>
                   <FormMessage />

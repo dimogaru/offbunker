@@ -212,7 +212,7 @@ export default function TripDetail() {
             {activeModule === "rental"        && <RentalsModule tripId={tripId} />}
             {activeModule === "accommodation" && <AccommodationsModule tripId={tripId} />}
             {activeModule === "itinerary"     && <ItineraryModule tripId={tripId} />}
-            {activeModule === "vault"         && <DocumentsModule tripId={tripId} />}
+            {activeModule === "vault"         && <DocumentsModule tripId={tripId} coverImageUrl={trip.coverImage} />}
           </div>
         </main>
       </div>

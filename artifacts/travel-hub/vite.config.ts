@@ -35,11 +35,23 @@ export default defineConfig({
     runtimeErrorOverlay(),
     VitePWA({
       registerType: "autoUpdate",
+
+      // ── Dev mode ────────────────────────────────────────────────────────
+      // The Vite dev server serves JavaScript as un-bundled ES modules, so
+      // there are no compiled files for Workbox to precache.  Enabling the
+      // SW in dev mode produces a worker with an empty precache list that
+      // cannot serve the app shell offline.  We disable it here and rely on
+      // the production (built) service worker for real offline support.
       devOptions: {
-        enabled: true,
-        type: "module",
+        enabled: false,
       },
-      includeAssets: ["icon.svg"],
+
+      // ── Assets to include alongside the auto-detected glob patterns ──────
+      includeAssets: ["icon.svg", "favicon.svg", "opengraph.jpg", "robots.txt"],
+
+      // ── Web App Manifest ─────────────────────────────────────────────────
+      // vite-plugin-pwa automatically injects <link rel="manifest"> into the
+      // built HTML, so no manual tag is needed in index.html.
       manifest: {
         name: "TravelHub",
         short_name: "TravelHub",
@@ -60,14 +72,39 @@ export default defineConfig({
           },
         ],
       },
+
+      // ── Workbox (generateSW strategy) ────────────────────────────────────
       workbox: {
+        // ── App-shell navigation fallback ──────────────────────────────────
+        // Any navigation to an unknown URL (e.g. /trips/42) is served the
+        // cached index.html so the SPA router can handle it client-side.
+        // API routes are excluded so they go to the network as normal.
         navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api\//],
+
+        // ── Precache: all built static assets ──────────────────────────────
+        // Workbox scans the build output and injects a versioned manifest of
+        // every matching file.  These are served Cache-First automatically;
+        // no runtime rule is needed for them.
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}"],
+
+        // ── Immediate activation ───────────────────────────────────────────
+        // Without these two flags a freshly installed SW enters "waiting"
+        // state.  The user would need a second page load before the SW takes
+        // control, meaning the very first offline refresh still fails.
+        skipWaiting: true,
+        clientsClaim: true,
+
+        // ── Stale cache cleanup ────────────────────────────────────────────
+        // Removes precache entries from previous build versions on activate,
+        // preventing the device from being stuck on an outdated shell.
+        cleanupOutdatedCaches: true,
+
+        // ── Runtime caching ───────────────────────────────────────────────
+        // IMPORTANT: /api/uploads/ must come BEFORE /api/ so uploaded files
+        // use CacheFirst (offline-accessible) while all other API responses
+        // use NetworkFirst (always-fresh data, 5 s timeout before stale).
         runtimeCaching: [
-          // IMPORTANT: /api/uploads/ must be listed BEFORE /api/ so that
-          // uploaded files use CacheFirst (offline-friendly) while all other
-          // API endpoints use NetworkFirst (always-fresh).
           {
             urlPattern: ({ url }) => url.pathname.startsWith("/api/uploads/"),
             handler: "CacheFirst",

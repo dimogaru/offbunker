@@ -1,13 +1,13 @@
 import { useEffect } from "react";
 import { useRoute } from "wouter";
 import {
-  useGetTrip,
-  useListFlights,
-  useListParkings,
-  useListRentals,
-  useListAccommodations,
-  useListItineraryItems,
-  useListDocuments,
+  useGetTrip, getGetTripQueryKey,
+  useListFlights, getListFlightsQueryKey,
+  useListParkings, getListParkingsQueryKey,
+  useListRentals, getListRentalsQueryKey,
+  useListAccommodations, getListAccommodationsQueryKey,
+  useListItineraryItems, getListItineraryItemsQueryKey,
+  useListDocuments, getListDocumentsQueryKey,
 } from "@workspace/api-client-react";
 import { Plane, ParkingCircle, Car, Building2, CalendarDays, FolderOpen, MapPin, Clock, FileText } from "lucide-react";
 
@@ -60,21 +60,20 @@ export default function TripExport() {
   const [, params] = useRoute("/trips/:tripId/export");
   const tripId = parseInt(params?.tripId ?? "0", 10);
 
-  const { data: trip } = useGetTrip(tripId, { query: { enabled: !!tripId } });
-  const { data: flights } = useListFlights(tripId, { query: { enabled: !!tripId } });
-  const { data: parkings } = useListParkings(tripId, { query: { enabled: !!tripId } });
-  const { data: rentals } = useListRentals(tripId, { query: { enabled: !!tripId } });
-  const { data: accommodations } = useListAccommodations(tripId, { query: { enabled: !!tripId } });
-  const { data: itinerary } = useListItineraryItems(tripId, { query: { enabled: !!tripId } });
-  const { data: documents } = useListDocuments(tripId, { query: { enabled: !!tripId } });
+  const { data: trip }           = useGetTrip(tripId,           { query: { enabled: !!tripId, queryKey: getGetTripQueryKey(tripId) } });
+  const { data: flights }        = useListFlights(tripId,        { query: { enabled: !!tripId, queryKey: getListFlightsQueryKey(tripId) } });
+  const { data: parkings }       = useListParkings(tripId,       { query: { enabled: !!tripId, queryKey: getListParkingsQueryKey(tripId) } });
+  const { data: rentals }        = useListRentals(tripId,        { query: { enabled: !!tripId, queryKey: getListRentalsQueryKey(tripId) } });
+  const { data: accommodations } = useListAccommodations(tripId, { query: { enabled: !!tripId, queryKey: getListAccommodationsQueryKey(tripId) } });
+  const { data: itinerary }      = useListItineraryItems(tripId, { query: { enabled: !!tripId, queryKey: getListItineraryItemsQueryKey(tripId) } });
+  const { data: documents }      = useListDocuments(tripId,      { query: { enabled: !!tripId, queryKey: getListDocumentsQueryKey(tripId) } });
 
   const allLoaded = trip && flights && parkings && rentals && accommodations && itinerary && documents;
 
   useEffect(() => {
-    if (allLoaded) {
-      const timer = setTimeout(() => window.print(), 600);
-      return () => clearTimeout(timer);
-    }
+    if (!allLoaded) return;
+    const timer = setTimeout(() => window.print(), 600);
+    return () => clearTimeout(timer);
   }, [allLoaded]);
 
   if (!allLoaded) {

@@ -29,7 +29,9 @@ export default function OfflineIndicator() {
       setWasOffline(true);
       setVisible(true);
       setJustCameOnline(false);
-    } else if (wasOffline) {
+      return;
+    }
+    if (wasOffline) {
       setJustCameOnline(true);
       setVisible(true);
       const timer = setTimeout(() => {
@@ -39,6 +41,7 @@ export default function OfflineIndicator() {
       }, 3000);
       return () => clearTimeout(timer);
     }
+    return undefined;
   }, [isOnline, wasOffline]);
 
   if (!visible) return null;

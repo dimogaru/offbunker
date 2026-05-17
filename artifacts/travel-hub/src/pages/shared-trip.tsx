@@ -1,5 +1,5 @@
 import { useRoute } from "wouter";
-import { useGetSharedTrip } from "@workspace/api-client-react";
+import { useGetSharedTrip, getGetSharedTripQueryKey } from "@workspace/api-client-react";
 import {
   Plane, ParkingCircle, Car, Building2, CalendarDays,
   MapPin, Calendar, Clock,
@@ -82,7 +82,7 @@ export default function SharedTrip() {
   const token = params?.token ?? "";
 
   const { data, isLoading, isError } = useGetSharedTrip(token, {
-    query: { enabled: !!token },
+    query: { enabled: !!token, queryKey: getGetSharedTripQueryKey(token) },
   });
 
   /* Loading */

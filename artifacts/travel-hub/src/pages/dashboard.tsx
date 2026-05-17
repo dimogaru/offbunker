@@ -1,15 +1,25 @@
 import { useState } from "react";
-import { Link } from "wouter";
-import { PlusCircle, MapPin, Calendar, Plane, Trash2, Pencil } from "lucide-react";
-import { useListTrips, useDeleteTrip, getListTripsQueryKey } from "@workspace/api-client-react";
+import { Link, useLocation } from "wouter";
+import {
+  PlusCircle, MapPin, Calendar, Plane, Trash2, Pencil,
+  LogOut, User, Users,
+} from "lucide-react";
+import {
+  useListTrips, useDeleteTrip, getListTripsQueryKey,
+} from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import TripProgressBar from "@/components/trip-progress-bar";
 import EditTripDialog from "@/components/edit-trip-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { SavedLocallyBadge } from "@/components/offline-indicator";
+import { useAuth } from "@/hooks/use-auth";
 
 interface Trip {
   id: number;
@@ -20,6 +30,7 @@ interface Trip {
   status: string;
   coverImage?: string | null;
   notes?: string | null;
+  ownerId?: number | null;
 }
 
 function statusLabel(status: string) {
@@ -39,6 +50,8 @@ export default function Dashboard() {
   const { data: trips, isLoading } = useListTrips();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { user, logout } = useAuth();
+  const [, navigate] = useLocation();
   const [deletingTrip, setDeletingTrip] = useState<Trip | null>(null);
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
 
@@ -55,6 +68,11 @@ export default function Dashboard() {
     },
   });
 
+  async function handleLogout() {
+    await logout();
+    navigate("/login");
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card sticky top-0 z-10">
@@ -63,10 +81,24 @@ export default function Dashboard() {
             <Plane className="w-6 h-6 text-primary" />
             <span className="text-xl font-bold tracking-tight">TravelHub</span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <div className="hidden sm:block">
               <SavedLocallyBadge />
             </div>
+            <div className="hidden sm:flex items-center gap-1.5 text-sm text-muted-foreground">
+              <User className="w-3.5 h-3.5" />
+              <span>{user?.username}</span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              className="gap-1.5 text-muted-foreground"
+              title="Cerrar sesión"
+            >
+              <LogOut className="w-4 h-4" />
+              <span className="hidden sm:inline">Salir</span>
+            </Button>
             <Link href="/trips/new">
               <Button data-testid="button-new-trip" className="gap-2">
                 <PlusCircle className="w-4 h-4" />
@@ -98,32 +130,36 @@ export default function Dashboard() {
           </div>
         ) : trips && trips.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {trips.map((trip) => {
+            {(trips as Trip[]).map((trip) => {
               const { label, className } = statusLabel(trip.status);
+              const isOwner = !trip.ownerId || trip.ownerId === user?.id;
               return (
                 <div
                   key={trip.id}
                   className="rounded-xl border border-border bg-card overflow-hidden hover:shadow-md transition-shadow group relative"
                   data-testid={`card-trip-${trip.id}`}
                 >
-                  <div className="absolute top-3 left-3 z-10 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingTrip(trip as Trip); }}
-                      className="w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-primary transition-colors"
-                      data-testid={`button-edit-trip-${trip.id}`}
-                      title="Editar viaje"
-                    >
-                      <Pencil className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeletingTrip(trip as Trip); }}
-                      className="w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-destructive transition-colors"
-                      data-testid={`button-delete-trip-${trip.id}`}
-                      title="Eliminar viaje"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+                  {/* Edit / delete buttons — owner only */}
+                  {isOwner && (
+                    <div className="absolute top-3 left-3 z-10 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingTrip(trip); }}
+                        className="w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-primary transition-colors"
+                        data-testid={`button-edit-trip-${trip.id}`}
+                        title="Editar viaje"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDeletingTrip(trip); }}
+                        className="w-7 h-7 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-destructive transition-colors"
+                        data-testid={`button-delete-trip-${trip.id}`}
+                        title="Eliminar viaje"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  )}
 
                   <Link href={`/trips/${trip.id}`}>
                     <div className="cursor-pointer">
@@ -139,10 +175,16 @@ export default function Dashboard() {
                             <Plane className="w-12 h-12 text-primary/40" />
                           </div>
                         )}
-                        <div className="absolute top-3 right-3">
+                        <div className="absolute top-3 right-3 flex flex-col items-end gap-1.5">
                           <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${className} backdrop-blur-sm bg-white/80`}>
                             {label}
                           </span>
+                          {!isOwner && (
+                            <span className="flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border border-violet-200 bg-violet-100/80 text-violet-700 backdrop-blur-sm">
+                              <Users className="w-3 h-3" />
+                              Compartido
+                            </span>
+                          )}
                         </div>
                       </div>
 

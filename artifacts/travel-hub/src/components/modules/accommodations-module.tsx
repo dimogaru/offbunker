@@ -70,9 +70,9 @@ const schema = z.object({
 });
 type FormValues = z.infer<typeof schema>;
 
-interface Props { tripId: number }
+interface Props { tripId: number; readOnly?: boolean }
 
-export default function AccommodationsModule({ tripId }: Props) {
+export default function AccommodationsModule({ tripId, readOnly }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -184,7 +184,7 @@ export default function AccommodationsModule({ tripId }: Props) {
   /* ─── JSX ─── */
   return (
     <div>
-      <ModuleHeader title="Alojamiento" description="Lista cronológica de hoteles y alojamientos" onAdd={openNew} />
+      <ModuleHeader title="Alojamiento" description="Lista cronológica de hoteles y alojamientos" onAdd={openNew} readOnly={readOnly} />
 
       {isLoading ? (
         <div className="space-y-3">{[1, 2].map(i => <Skeleton key={i} className="h-32 w-full rounded-xl" />)}</div>
@@ -211,8 +211,8 @@ export default function AccommodationsModule({ tripId }: Props) {
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
                     <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => openView(a)} title="Ver detalles"><Eye className="w-3.5 h-3.5" /></Button>
-                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(a)}><Pencil className="w-3.5 h-3.5" /></Button>
-                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleting(a)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                    {!readOnly && <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(a)}><Pencil className="w-3.5 h-3.5" /></Button>}
+                    {!readOnly && <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleting(a)}><Trash2 className="w-3.5 h-3.5" /></Button>}
                   </div>
                 </div>
 
@@ -257,18 +257,22 @@ export default function AccommodationsModule({ tripId }: Props) {
                             <ExternalLink className="w-2.5 h-2.5" />
                           </a>
                         )}
-                        <button onClick={() => setDeletingDoc(doc)} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100">
-                          <X className="w-2.5 h-2.5" />
-                        </button>
+                        {!readOnly && (
+                          <button onClick={() => setDeletingDoc(doc)} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100">
+                            <X className="w-2.5 h-2.5" />
+                          </button>
+                        )}
                       </div>
                     ))}
-                    <button
-                      onClick={() => openUpload(a)}
-                      className="flex items-center gap-1 rounded-full border border-dashed border-border px-2 py-1 text-xs text-muted-foreground hover:text-primary hover:border-primary/50 transition-colors"
-                    >
-                      <Paperclip className="w-2.5 h-2.5" />
-                      Añadir doc
-                    </button>
+                    {!readOnly && (
+                      <button
+                        onClick={() => openUpload(a)}
+                        className="flex items-center gap-1 rounded-full border border-dashed border-border px-2 py-1 text-xs text-muted-foreground hover:text-primary hover:border-primary/50 transition-colors"
+                      >
+                        <Paperclip className="w-2.5 h-2.5" />
+                        Añadir doc
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

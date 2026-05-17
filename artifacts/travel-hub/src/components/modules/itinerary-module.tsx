@@ -87,9 +87,9 @@ type FormValues = z.infer<typeof schema>;
 
 /* ─────────────────── Component ──────────────────────────────── */
 
-interface Props { tripId: number }
+interface Props { tripId: number; readOnly?: boolean }
 
-export default function ItineraryModule({ tripId }: Props) {
+export default function ItineraryModule({ tripId, readOnly }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -268,8 +268,8 @@ export default function ItineraryModule({ tripId }: Props) {
             </div>
             <div className="flex gap-0.5 flex-shrink-0">
               <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={() => openView(item)} title="Ver detalles"><Eye className="w-3 h-3" /></Button>
-              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => openEdit(item)}><Pencil className="w-3 h-3" /></Button>
-              <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive hover:text-destructive" onClick={() => setDeleting(item)}><Trash2 className="w-3 h-3" /></Button>
+              {!readOnly && <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => openEdit(item)}><Pencil className="w-3 h-3" /></Button>}
+              {!readOnly && <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive hover:text-destructive" onClick={() => setDeleting(item)}><Trash2 className="w-3 h-3" /></Button>}
             </div>
           </div>
 
@@ -299,18 +299,22 @@ export default function ItineraryModule({ tripId }: Props) {
                       <ExternalLink className="w-2.5 h-2.5" />
                     </a>
                   )}
-                  <button onClick={() => setDeletingDoc(doc)} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100">
-                    <X className="w-2.5 h-2.5" />
-                  </button>
+                  {!readOnly && (
+                    <button onClick={() => setDeletingDoc(doc)} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100">
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  )}
                 </div>
               ))}
-              <button
-                onClick={() => openUpload(item)}
-                className="flex items-center gap-1 rounded-full border border-dashed border-border px-2 py-1 text-xs text-muted-foreground hover:text-primary hover:border-primary/50 transition-colors"
-              >
-                <Paperclip className="w-2.5 h-2.5" />
-                Añadir doc
-              </button>
+              {!readOnly && (
+                <button
+                  onClick={() => openUpload(item)}
+                  className="flex items-center gap-1 rounded-full border border-dashed border-border px-2 py-1 text-xs text-muted-foreground hover:text-primary hover:border-primary/50 transition-colors"
+                >
+                  <Paperclip className="w-2.5 h-2.5" />
+                  Añadir doc
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -321,7 +325,7 @@ export default function ItineraryModule({ tripId }: Props) {
   /* ─── JSX ─── */
   return (
     <div>
-      <ModuleHeader title="Itinerario" description="Programa de actividades día a día" onAdd={openNew} />
+      <ModuleHeader title="Itinerario" description="Programa de actividades día a día" onAdd={openNew} readOnly={readOnly} />
 
       {/* Day Tabs */}
       {!isLoading && sortedDates.length > 0 && (

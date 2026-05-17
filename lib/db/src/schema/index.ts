@@ -1,4 +1,6 @@
+export * from "./users";
 export * from "./trips";
+export * from "./trip-shares";
 export * from "./flights";
 export * from "./parking";
 export * from "./rentals";

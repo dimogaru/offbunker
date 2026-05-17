@@ -1,0 +1,45 @@
+"Necesito implementar un sistema completo de autenticación de usuarios, roles y control de acceso seguro en la aplicación. Aplica los siguientes cambios tanto en el Frontend como en el Backend:
+
+1. Credenciales Iniciales y Control de Acceso (Login):
+
+Crea una pantalla de Inicio de Sesión (Login) con campos para Usuario y Contraseña. Nadie debe poder ver los viajes ni los documentos sin autenticarse primero.
+
+Configura una cuenta inicial por defecto en la base de datos para el SuperAdministrador:
+
+Usuario: 52557586X
+
+Contraseña: 52557586X (Asegúrate de encriptar esta contraseña en el backend usando bcrypt o similar).
+
+2. Panel Exclusivo del SuperAdministrador:
+
+Si inicia sesión el usuario 52557586X, la aplicación debe redirigirlo a una única página exclusiva de administración.
+
+Este rol no puede crear ni ver viajes. Su única función es la gestión de usuarios mediante un CRUD completo:
+
+Ver: Una tabla con el listado de todos los usuarios registrados en el sistema.
+
+Crear: Un formulario para dar de alta nuevos usuarios asignándoles un nombre de usuario y contraseña.
+
+Actualizar: Modificar los datos o restablecer la contraseña de un usuario existente.
+
+Eliminar: Borrar un usuario del sistema (esto debe eliminar también de forma segura todos sus viajes y documentos asociados).
+
+3. Aislamiento de Viajes por Usuario:
+
+Modifica el modelo de datos de los viajes en la base de datos para incluir un campo ownerId (ID del propietario).
+
+Cuando un usuario común (no administrador) inicie sesión, solo debe ver los viajes que él mismo ha creado o aquellos que han sido compartidos con él.
+
+4. Sistema de Compartir Colaborativo (Permisos de Lectura/Escritura):
+
+Modifica el botón actual de 'Compartir' dentro de los viajes de un usuario común. Ahora, en lugar de generar solo un enlace público, abrirá un modal interactivo con las siguientes opciones:
+
+Buscador: Un campo para buscar a otros usuarios registrados en el sistema por su nombre de usuario.
+
+Asignar Permiso de EDICIÓN: Si se comparte con este permiso, el viaje aparecerá en el dashboard del usuario invitado y este tendrá permisos totales (podrá añadir itinerarios, hoteles, editar datos y subir documentos).
+
+Asignar Permiso de VISTA (Solo Lectura): Si se comparte con este permiso, el viaje aparecerá en el dashboard del usuario invitado, pero al abrirlo, el sistema cargará automáticamente el Modo VER (Solo Lectura) que desarrollamos previamente. Se ocultarán por completo todos los botones de añadir, editar, borrar y subir documentos.
+
+5. Robustez en el Modo Offline:
+
+Asegúrate de que el Service Worker guarde en el almacenamiento local el estado de la sesión activa del usuario actual para que pueda seguir consultando sus viajes en modo avión sin que la app lo expulse a la pantalla de login por falta de conexión."

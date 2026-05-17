@@ -26,6 +26,7 @@ interface Props {
   tripId: number;
   module: ModuleKey;
   moduleLabel: string;
+  readOnly?: boolean;
 }
 
 const FILE_CHIP_COLORS: Record<string, string> = {
@@ -35,7 +36,7 @@ const FILE_CHIP_COLORS: Record<string, string> = {
   Otro:   "bg-slate-500/15 text-slate-400",
 };
 
-export default function ModuleDocsWidget({ tripId, module, moduleLabel }: Props) {
+export default function ModuleDocsWidget({ tripId, module, moduleLabel, readOnly }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -122,13 +123,15 @@ export default function ModuleDocsWidget({ tripId, module, moduleLabel }: Props)
             </span>
           )}
         </div>
-        <button
-          onClick={openDialog}
-          className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/70 transition-colors"
-        >
-          <span className="text-base leading-none">+</span>
-          Subir
-        </button>
+        {!readOnly && (
+          <button
+            onClick={openDialog}
+            className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/70 transition-colors"
+          >
+            <span className="text-base leading-none">+</span>
+            Subir
+          </button>
+        )}
       </div>
 
       {/* File Chips */}
@@ -163,13 +166,15 @@ export default function ModuleDocsWidget({ tripId, module, moduleLabel }: Props)
               )}
 
               {/* Delete */}
-              <button
-                onClick={() => setDeleting(doc)}
-                title="Eliminar"
-                className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100"
-              >
-                <X className="w-3 h-3" />
-              </button>
+              {!readOnly && (
+                <button
+                  onClick={() => setDeleting(doc)}
+                  title="Eliminar"
+                  className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
             </div>
           ))}
         </div>

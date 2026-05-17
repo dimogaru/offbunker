@@ -2,10 +2,13 @@ import { useState, useEffect } from "react";
 import { useParams, useLocation, Link } from "wouter";
 import {
   ArrowLeft, Plane, ParkingCircle, Car, Building2, CalendarDays,
-  FolderOpen, Pencil, Share2, Check,
+  FolderOpen, Pencil, Share2, Check, Link2, X, Users,
 } from "lucide-react";
 import { useGetTrip, getGetTripQueryKey, useGenerateShareLink } from "@workspace/api-client-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import TripProgressBar from "@/components/trip-progress-bar";
 import EditTripDialog from "@/components/edit-trip-dialog";
 import FlightsModule from "@/components/modules/flights-module";
@@ -14,7 +17,11 @@ import RentalsModule from "@/components/modules/rentals-module";
 import AccommodationsModule from "@/components/modules/accommodations-module";
 import ItineraryModule from "@/components/modules/itinerary-module";
 import DocumentsModule from "@/components/modules/documents-module";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 
 const MODULES = [
   { id: "flights",       label: "Logística Aérea",     shortLabel: "Vuelos",    icon: Plane },
@@ -28,9 +35,51 @@ const MODULES = [
 type ModuleId = typeof MODULES[number]["id"];
 const VALID_IDS = MODULES.map((m) => m.id) as string[];
 
-function ShareButton({ tripId }: { tripId: number }) {
+/* ─── Share modal ─────────────────────────────────────────────── */
+
+interface UserSearchResult { id: number; username: string; }
+interface UserShare { id: number; userId: number; username: string; permission: string; createdAt: string; }
+
+function ShareModal({
+  tripId,
+  open,
+  onOpenChange,
+}: {
+  tripId: number;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
+  const [permission, setPermission] = useState<"edit" | "view">("view");
+  const [isSearching, setIsSearching] = useState(false);
+
+  const { data: shares = [], refetch: refetchShares } = useQuery<UserShare[]>({
+    queryKey: ["trip-shares", tripId],
+    queryFn: async () => {
+      const res = await fetch(`/api/trips/${tripId}/shares`, { credentials: "include" });
+      if (!res.ok) throw new Error("Error al obtener colaboradores");
+      return res.json() as Promise<UserShare[]>;
+    },
+    enabled: open,
+  });
+
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (!q) { setSearchResults([]); return; }
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const res = await fetch(`/api/users/search?q=${encodeURIComponent(q)}`, { credentials: "include" });
+        if (res.ok) setSearchResults(await res.json() as UserSearchResult[]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const generateLink = useGenerateShareLink({
     mutation: {
@@ -39,34 +88,156 @@ function ShareButton({ tripId }: { tripId: number }) {
         navigator.clipboard.writeText(url).then(() => {
           setCopied(true);
           setTimeout(() => setCopied(false), 2500);
-          toast({ title: "¡Enlace copiado!", description: "Comparte este enlace para una vista de solo lectura." });
+          toast({ title: "¡Enlace copiado!", description: "Vista de solo lectura pública." });
         });
       },
-      onError: () => {
-        toast({ title: "Error", description: "No se pudo generar el enlace.", variant: "destructive" });
-      },
+      onError: () => toast({ title: "Error", description: "No se pudo generar el enlace.", variant: "destructive" }),
     },
   });
 
+  async function addShare(userId: number) {
+    const res = await fetch(`/api/trips/${tripId}/shares`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ userId, permission }),
+    });
+    if (res.ok) {
+      void refetchShares();
+      setSearchQuery("");
+      setSearchResults([]);
+      toast({ title: "Usuario añadido como colaborador" });
+    } else {
+      const err = await res.json().catch(() => ({})) as { error?: string };
+      toast({ title: "Error", description: err.error, variant: "destructive" });
+    }
+  }
+
+  async function removeShare(shareId: number) {
+    await fetch(`/api/trips/${tripId}/shares/${shareId}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    void refetchShares();
+    toast({ title: "Colaborador eliminado" });
+  }
+
   return (
-    <button
-      onClick={() => generateLink.mutate({ tripId })}
-      disabled={generateLink.isPending}
-      className="p-2 rounded-md text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors flex-shrink-0 flex items-center gap-1.5"
-      data-testid="button-share-trip"
-      title="Share trip"
-    >
-      {copied
-        ? <Check className="w-4 h-4 text-emerald-400" />
-        : <Share2 className="w-4 h-4" />}
-      <span className="hidden sm:inline text-xs font-medium">{copied ? "¡Copiado!" : "Compartir"}</span>
-    </button>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Share2 className="w-4 h-4" />
+            Compartir viaje
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 mt-1">
+          {/* Public link */}
+          <div className="border border-border rounded-lg p-4 space-y-2">
+            <h3 className="text-sm font-semibold">Enlace de solo lectura</h3>
+            <p className="text-xs text-muted-foreground">
+              Cualquier persona con este enlace puede ver el viaje sin poder editarlo.
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => generateLink.mutate({ tripId })}
+              disabled={generateLink.isPending}
+              className="gap-2"
+            >
+              {copied
+                ? <Check className="w-3.5 h-3.5 text-emerald-500" />
+                : <Link2 className="w-3.5 h-3.5" />}
+              {copied ? "¡Enlace copiado!" : "Copiar enlace público"}
+            </Button>
+          </div>
+
+          {/* User sharing */}
+          <div className="border border-border rounded-lg p-4 space-y-3">
+            <h3 className="text-sm font-semibold flex items-center gap-1.5">
+              <Users className="w-4 h-4" />
+              Colaboradores con cuenta
+            </h3>
+
+            <div className="flex gap-2">
+              <Input
+                placeholder="Buscar usuario por nombre…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="flex-1 h-8 text-sm"
+              />
+              <select
+                value={permission}
+                onChange={(e) => setPermission(e.target.value as "edit" | "view")}
+                className="border border-border rounded-md px-2 py-1 bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                <option value="view">Ver</option>
+                <option value="edit">Editar</option>
+              </select>
+            </div>
+
+            {isSearching && (
+              <p className="text-xs text-muted-foreground">Buscando…</p>
+            )}
+
+            {searchResults.length > 0 && (
+              <div className="border border-border rounded-md overflow-hidden divide-y divide-border">
+                {searchResults.map((u) => (
+                  <div key={u.id} className="flex items-center justify-between px-3 py-2 hover:bg-muted/30 text-sm">
+                    <span>{u.username}</span>
+                    <Button size="sm" variant="outline" className="h-6 text-xs px-2" onClick={() => addShare(u.id)}>
+                      Añadir
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {shares.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                  Acceso activo
+                </p>
+                {shares.map((s) => (
+                  <div key={s.id} className="flex items-center justify-between text-sm border border-border rounded-md px-3 py-2">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium">{s.username}</span>
+                      <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${
+                        s.permission === "edit"
+                          ? "bg-blue-500/15 text-blue-500"
+                          : "bg-muted text-muted-foreground"
+                      }`}>
+                        {s.permission === "edit" ? "Editar" : "Ver"}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => removeShare(s.id)}
+                      className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                      title="Quitar acceso"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {shares.length === 0 && !searchQuery && (
+              <p className="text-xs text-muted-foreground italic">
+                Sin colaboradores aún. Busca un usuario por su nombre de usuario.
+              </p>
+            )}
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
+/* ─── Main component ──────────────────────────────────────────── */
+
 export default function TripDetail() {
-  // Both /trips/:tripId and /trips/:tripId/:module render this component.
-  // useParams returns whichever params are present in the matched route.
   const { tripId: tripIdStr, module: moduleParam } = useParams<{
     tripId: string;
     module?: string;
@@ -74,15 +245,14 @@ export default function TripDetail() {
   const tripId = parseInt(tripIdStr ?? "0", 10);
   const [, navigate] = useLocation();
   const [editOpen, setEditOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
 
-  // Derive active module purely from URL — no state needed.
-  // This means browser back/forward and page refresh all work correctly.
   const activeModule: ModuleId = VALID_IDS.includes(moduleParam ?? "")
     ? (moduleParam as ModuleId)
     : "flights";
 
-  // If the URL has no module segment, redirect to /trips/:id/flights so the
-  // URL always reflects the current section.
   useEffect(() => {
     if (tripId && !moduleParam) {
       navigate(`/trips/${tripId}/flights`, { replace: true });
@@ -91,13 +261,19 @@ export default function TripDetail() {
 
   function handleModuleChange(mod: ModuleId) {
     navigate(`/trips/${tripId}/${mod}`);
-    // Scroll the main content area to the top when switching sections.
     document.getElementById("module-main")?.scrollTo({ top: 0, behavior: "instant" });
   }
 
   const { data: trip, isLoading } = useGetTrip(tripId, {
     query: { enabled: !!tripId, queryKey: getGetTripQueryKey(tripId) },
   });
+
+  // Permission is injected by the API into the trip response
+  const permission = (trip as Record<string, unknown> | undefined)?.permission as
+    | "owner" | "edit" | "view"
+    | undefined;
+  const isOwner = !permission || permission === "owner";
+  const readOnly = permission === "view";
 
   if (isLoading) {
     return (
@@ -124,9 +300,9 @@ export default function TripDetail() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <p className="text-lg font-semibold">Trip not found</p>
+          <p className="text-lg font-semibold">Viaje no encontrado</p>
           <Link href="/">
-            <span className="text-primary text-sm underline mt-2 inline-block">Back to dashboard</span>
+            <span className="text-primary text-sm underline mt-2 inline-block">Volver al inicio</span>
           </Link>
         </div>
       </div>
@@ -138,7 +314,6 @@ export default function TripDetail() {
       {/* ── Top header ── */}
       <header className="border-b border-border bg-sidebar text-sidebar-foreground sticky top-0 z-20">
         <div className="px-3 sm:px-5 h-14 flex items-center gap-2">
-          {/* Back */}
           <Link href="/">
             <button
               className="p-2 rounded-md hover:bg-sidebar-accent transition-colors flex-shrink-0"
@@ -148,33 +323,54 @@ export default function TripDetail() {
             </button>
           </Link>
 
-          {/* Title */}
           <div className="flex-1 min-w-0">
-            <h1
-              className="font-bold text-sm sm:text-base leading-tight truncate"
-              data-testid="text-trip-name"
-            >
-              {trip.name}
-            </h1>
-            <p className="text-xs text-sidebar-foreground/60 truncate leading-tight">{trip.destination}</p>
+            <div className="flex items-center gap-2 min-w-0">
+              <h1
+                className="font-bold text-sm sm:text-base leading-tight truncate"
+                data-testid="text-trip-name"
+              >
+                {trip.name}
+              </h1>
+              {!isOwner && (
+                <span className="flex-shrink-0 flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-violet-500/20 text-violet-300">
+                  <Users className="w-2.5 h-2.5" />
+                  {readOnly ? "Vista" : "Colaborador"}
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-sidebar-foreground/60 truncate leading-tight">
+              {trip.destination}
+            </p>
           </div>
 
-          {/* Action buttons */}
-          <ShareButton tripId={tripId} />
+          {/* Owner-only actions */}
+          {isOwner && (
+            <>
+              <button
+                onClick={() => setShareOpen(true)}
+                className="p-2 rounded-md text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors flex-shrink-0 flex items-center gap-1.5"
+                data-testid="button-share-trip"
+                title="Compartir viaje"
+              >
+                <Share2 className="w-4 h-4" />
+                <span className="hidden sm:inline text-xs font-medium">Compartir</span>
+              </button>
 
-          <button
-            onClick={() => setEditOpen(true)}
-            className="p-2 rounded-md text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors flex-shrink-0 flex items-center gap-1.5"
-            data-testid="button-edit-trip"
-            title="Editar viaje"
-          >
-            <Pencil className="w-4 h-4" />
-            <span className="hidden sm:inline text-xs font-medium">Editar</span>
-          </button>
+              <button
+                onClick={() => setEditOpen(true)}
+                className="p-2 rounded-md text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors flex-shrink-0 flex items-center gap-1.5"
+                data-testid="button-edit-trip"
+                title="Editar viaje"
+              >
+                <Pencil className="w-4 h-4" />
+                <span className="hidden sm:inline text-xs font-medium">Editar</span>
+              </button>
+            </>
+          )}
         </div>
       </header>
 
-      {/* ── Body: sidebar (desktop) + content ── */}
+      {/* ── Body ── */}
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar — desktop only */}
         <nav
@@ -200,19 +396,17 @@ export default function TripDetail() {
 
         {/* Main content */}
         <main id="module-main" className="flex-1 overflow-y-auto p-4 sm:p-6 pb-24 md:pb-6">
-          {/* Progress bar */}
           <div className="mb-5">
             <TripProgressBar tripId={tripId} />
           </div>
 
-          {/* Active module — key forces remount on switch, triggering the fade-in */}
           <div key={activeModule} className="max-w-3xl animate-in fade-in slide-in-from-bottom-2 duration-300">
-            {activeModule === "flights"       && <FlightsModule tripId={tripId} />}
-            {activeModule === "parking"       && <ParkingModule tripId={tripId} />}
-            {activeModule === "rental"        && <RentalsModule tripId={tripId} />}
-            {activeModule === "accommodation" && <AccommodationsModule tripId={tripId} />}
-            {activeModule === "itinerary"     && <ItineraryModule tripId={tripId} />}
-            {activeModule === "vault"         && <DocumentsModule tripId={tripId} coverImageUrl={trip.coverImage} />}
+            {activeModule === "flights"       && <FlightsModule tripId={tripId} readOnly={readOnly} />}
+            {activeModule === "parking"       && <ParkingModule tripId={tripId} readOnly={readOnly} />}
+            {activeModule === "rental"        && <RentalsModule tripId={tripId} readOnly={readOnly} />}
+            {activeModule === "accommodation" && <AccommodationsModule tripId={tripId} readOnly={readOnly} />}
+            {activeModule === "itinerary"     && <ItineraryModule tripId={tripId} readOnly={readOnly} />}
+            {activeModule === "vault"         && <DocumentsModule tripId={tripId} coverImageUrl={trip.coverImage} readOnly={readOnly} />}
           </div>
         </main>
       </div>
@@ -241,8 +435,11 @@ export default function TripDetail() {
         ))}
       </nav>
 
-      {/* Edit dialog */}
+      {/* Dialogs */}
       <EditTripDialog trip={trip} open={editOpen} onOpenChange={setEditOpen} />
+      {isOwner && (
+        <ShareModal tripId={tripId} open={shareOpen} onOpenChange={setShareOpen} />
+      )}
     </div>
   );
 }

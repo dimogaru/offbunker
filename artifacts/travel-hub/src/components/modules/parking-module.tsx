@@ -30,9 +30,9 @@ type FormValues = z.infer<typeof schema>;
 function toLocalDatetime(iso: string) { return iso ? iso.substring(0, 16) : ""; }
 function fmt(iso: string) { return new Date(iso).toLocaleString("es-ES", { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); }
 
-interface Props { tripId: number }
+interface Props { tripId: number; readOnly?: boolean }
 
-export default function ParkingModule({ tripId }: Props) {
+export default function ParkingModule({ tripId, readOnly }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -62,7 +62,7 @@ export default function ParkingModule({ tripId }: Props) {
 
   return (
     <div>
-      <ModuleHeader title="Estacionamiento" description="Registra tus reservas de estacionamiento en el aeropuerto" onAdd={openNew} />
+      <ModuleHeader title="Estacionamiento" description="Registra tus reservas de estacionamiento en el aeropuerto" onAdd={openNew} readOnly={readOnly} />
 
       {isLoading ? (
         <div className="space-y-3">{[1].map(i => <Skeleton key={i} className="h-24 w-full rounded-xl" />)}</div>
@@ -90,8 +90,8 @@ export default function ParkingModule({ tripId }: Props) {
                 </div>
                 <div className="flex gap-1 flex-shrink-0">
                   <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => openView(p)} title="Ver detalles"><Eye className="w-3.5 h-3.5" /></Button>
-                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(p)}><Pencil className="w-3.5 h-3.5" /></Button>
-                  <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleting(p)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                  {!readOnly && <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(p)}><Pencil className="w-3.5 h-3.5" /></Button>}
+                  {!readOnly && <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleting(p)}><Trash2 className="w-3.5 h-3.5" /></Button>}
                 </div>
               </div>
 
@@ -158,7 +158,7 @@ export default function ParkingModule({ tripId }: Props) {
         </AlertDialogContent>
       </AlertDialog>
 
-      <ModuleDocsWidget tripId={tripId} module="parking" moduleLabel="Estacionamiento" />
+      <ModuleDocsWidget tripId={tripId} module="parking" moduleLabel="Estacionamiento" readOnly={readOnly} />
     </div>
   );
 }

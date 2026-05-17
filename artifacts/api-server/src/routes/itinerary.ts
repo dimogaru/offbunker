@@ -47,6 +47,7 @@ router.post("/trips/:tripId/itinerary", async (req, res): Promise<void> => {
     .insert(itineraryItemsTable)
     .values({
       ...parsed.data,
+      date: parsed.data.date as unknown as string,
       tripId: params.data.tripId,
       time: parsed.data.time ?? null,
       description: parsed.data.description ?? null,
@@ -71,9 +72,15 @@ router.patch("/trips/:tripId/itinerary/:itemId", async (req, res): Promise<void>
     return;
   }
 
+  const updateData = {
+    ...parsed.data,
+    ...(parsed.data.date !== undefined && { date: parsed.data.date as unknown as string }),
+  };
+
   const [item] = await db
     .update(itineraryItemsTable)
-    .set(parsed.data)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    .set(updateData as any)
     .where(and(eq(itineraryItemsTable.id, params.data.itemId), eq(itineraryItemsTable.tripId, params.data.tripId)))
     .returning();
 

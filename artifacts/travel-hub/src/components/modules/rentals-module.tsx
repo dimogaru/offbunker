@@ -34,9 +34,9 @@ type FormValues = z.infer<typeof schema>;
 function toLocal(iso: string) { return iso ? iso.substring(0, 16) : ""; }
 function fmt(iso: string) { return new Date(iso).toLocaleString("es-ES", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }); }
 
-interface Props { tripId: number }
+interface Props { tripId: number; readOnly?: boolean }
 
-export default function RentalsModule({ tripId }: Props) {
+export default function RentalsModule({ tripId, readOnly }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -66,7 +66,7 @@ export default function RentalsModule({ tripId }: Props) {
 
   return (
     <div>
-      <ModuleHeader title="Alquiler de Vehículo" description="Gestiona tus reservas de alquiler de vehículos" onAdd={openNew} />
+      <ModuleHeader title="Alquiler de Vehículo" description="Gestiona tus reservas de alquiler de vehículos" onAdd={openNew} readOnly={readOnly} />
 
       {isLoading ? (
         <Skeleton className="h-28 w-full rounded-xl" />
@@ -89,8 +89,8 @@ export default function RentalsModule({ tripId }: Props) {
                 </div>
                 <div className="flex gap-1">
                   <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => openView(r)} title="Ver detalles"><Eye className="w-3.5 h-3.5" /></Button>
-                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(r)}><Pencil className="w-3.5 h-3.5" /></Button>
-                  <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleting(r)}><Trash2 className="w-3.5 h-3.5" /></Button>
+                  {!readOnly && <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openEdit(r)}><Pencil className="w-3.5 h-3.5" /></Button>}
+                  {!readOnly && <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive hover:text-destructive" onClick={() => setDeleting(r)}><Trash2 className="w-3.5 h-3.5" /></Button>}
                 </div>
               </div>
             </div>
@@ -157,7 +157,7 @@ export default function RentalsModule({ tripId }: Props) {
         </AlertDialogContent>
       </AlertDialog>
 
-      <ModuleDocsWidget tripId={tripId} module="rental" moduleLabel="Alquiler de Vehículo" />
+      <ModuleDocsWidget tripId={tripId} module="rental" moduleLabel="Alquiler de Vehículo" readOnly={readOnly} />
     </div>
   );
 }

@@ -89,9 +89,10 @@ interface Props {
    *  When present it is included in the offline sync pass so the hero image
    *  is available without internet. */
   coverImageUrl?: string | null;
+  readOnly?: boolean;
 }
 
-export default function DocumentsModule({ tripId, coverImageUrl }: Props) {
+export default function DocumentsModule({ tripId, coverImageUrl, readOnly }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -285,10 +286,12 @@ export default function DocumentsModule({ tripId, coverImageUrl }: Props) {
           <h2 className="text-lg font-bold">Bóveda de Documentos</h2>
           <p className="text-muted-foreground text-sm mt-0.5">Guarda tarjetas de embarque, seguros, visados y más</p>
         </div>
-        <Button onClick={onOpenDialog} className="gap-2 flex-shrink-0" data-testid="button-add">
-          <Paperclip className="w-4 h-4" />
-          Subir
-        </Button>
+        {!readOnly && (
+          <Button onClick={onOpenDialog} className="gap-2 flex-shrink-0" data-testid="button-add">
+            <Paperclip className="w-4 h-4" />
+            Subir
+          </Button>
+        )}
       </div>
 
       {/* ── Offline sync banner ── */}
@@ -443,14 +446,16 @@ export default function DocumentsModule({ tripId, coverImageUrl }: Props) {
                           </a>
                         </div>
                       )}
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-7 w-7 text-destructive hover:text-destructive flex-shrink-0"
-                        onClick={() => setDeleting(doc)}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
+                      {!readOnly && (
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 text-destructive hover:text-destructive flex-shrink-0"
+                          onClick={() => setDeleting(doc)}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
                     </div>
                   );
                 })}

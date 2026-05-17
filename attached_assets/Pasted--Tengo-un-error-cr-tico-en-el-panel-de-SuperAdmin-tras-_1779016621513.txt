@@ -1,0 +1,29 @@
+"Tengo un error crítico en el panel de SuperAdmin: tras iniciar sesión con el usuario 52557586X, relleno el formulario para dar de alta a un nuevo usuario pero al pulsar el botón 'Crear' (o 'Save') no ocurre nada y el usuario no se añade a la tabla. Por favor, revisa y corrige los siguientes puntos técnicos:
+
+1. Verificación del Endpoint de Creación (Backend):
+
+Asegúrate de que exista una ruta POST dedicada a la creación de usuarios en el servidor (ej: POST /api/users o la que corresponda a la lógica del Admin).
+
+Comprueba que esta ruta reciba correctamente el username y password, y que antes de guardarlos, inicialice el array o la tabla de usuarios en el archivo de base de datos (JSON, SQLite, etc.) para que no dé un error de tipo undefined.
+
+Aplica obligatoriamente la encriptación de la contraseña en este paso.
+
+2. Enlace del Formulario (Frontend):
+
+Revisa la función asociada al evento del formulario de creación (ej: handleCreateUser o handleSubmit).
+
+Asegúrate de que tenga el método event.preventDefault() para evitar que la página se recargue de forma incorrecta y rompa el flujo de Javascript.
+
+Verifica que los nombres de los campos de entrada (inputs) coincidan exactamente con las variables que lee la función de guardado.
+
+3. Gestión de Errores y Mensajes Visuales (Feedback):
+
+Agrega un bloque try/catch en la función tanto en el frontend como en el backend.
+
+Si falta algún campo por rellenar o el servidor falla, haz que se muestre un mensaje de error claro en la pantalla (tipo alert o un texto en rojo debajo del formulario) para saber exactamente qué está fallando.
+
+Si el guardado es exitoso, limpia los campos del formulario, cierra el modal (si aplica) y fuerza la actualización inmediata de la tabla de usuarios de abajo para que aparezca el nuevo usuario al instante sin necesidad de reiniciar el proyecto.
+
+4. Cabeceras de Autorización:
+
+Dado que el panel es exclusivo de SuperAdmin, asegúrate de que la petición para crear usuarios incluya los tokens o credenciales de sesión necesarios que demuestren al backend que quien hace la petición es realmente el SuperAdmin."

@@ -1,6 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
-import { db } from "@workspace/db";
+import { db, pool } from "@workspace/db";
 import { sql } from "drizzle-orm";
 
 const rawPort = process.env["PORT"];
@@ -15,6 +15,36 @@ const port = Number(rawPort);
 
 if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
+}
+
+// Ensure the connect-pg-simple session table exists.
+// createTableIfMissing:true reads a .sql asset that esbuild doesn't bundle,
+// so we create the table explicitly here before the server accepts any requests.
+try {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS "session" (
+      "sid"    varchar        NOT NULL COLLATE "default",
+      "sess"   json           NOT NULL,
+      "expire" timestamp(6)   NOT NULL
+    );
+  `);
+  // Add PK only if it doesn't already exist
+  await pool.query(`
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint WHERE conname = 'session_pkey'
+      ) THEN
+        ALTER TABLE "session"
+          ADD CONSTRAINT "session_pkey" PRIMARY KEY ("sid")
+          NOT DEFERRABLE INITIALLY IMMEDIATE;
+      END IF;
+    END $$;
+  `);
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS "IDX_session_expire" ON "session" ("expire");
+  `);
+} catch (err) {
+  logger.error({ err }, "Failed to ensure session table — sessions may not persist");
 }
 
 // One-time migration: documents uploaded before the /api/uploads fix had URLs

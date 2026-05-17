@@ -9,7 +9,6 @@ import {
   rentalsTable,
   accommodationsTable,
   itineraryItemsTable,
-  documentsTable,
 } from "@workspace/db";
 
 const router: IRouter = Router();
@@ -63,17 +62,20 @@ router.get("/shared/:token", async (req, res): Promise<void> => {
     return;
   }
 
-  const [flights, parkings, rentals, accommodations, itinerary, documents] =
+  const [flights, parkings, rentals, accommodations, itinerary] =
     await Promise.all([
       db.select().from(flightsTable).where(eq(flightsTable.tripId, trip.id)),
       db.select().from(parkingTable).where(eq(parkingTable.tripId, trip.id)),
       db.select().from(rentalsTable).where(eq(rentalsTable.tripId, trip.id)),
       db.select().from(accommodationsTable).where(eq(accommodationsTable.tripId, trip.id)),
       db.select().from(itineraryItemsTable).where(eq(itineraryItemsTable.tripId, trip.id)),
-      db.select().from(documentsTable).where(eq(documentsTable.tripId, trip.id)),
     ]);
 
-  res.json({ trip, flights, parkings, rentals, accommodations, itinerary, documents });
+  // Strip shareToken (and any other internal fields) from the public trip snapshot.
+  // Documents are intentionally excluded — file URLs must never be exposed to guests.
+  const { shareToken: _st, ...publicTrip } = trip;
+
+  res.json({ trip: publicTrip, flights, parkings, rentals, accommodations, itinerary });
 });
 
 export default router;

@@ -216,25 +216,6 @@ export const GetSharedTripResponse = zod.object({
       createdAt: zod.coerce.date(),
     }),
   ),
-  documents: zod.array(
-    zod.object({
-      id: zod.number(),
-      tripId: zod.number(),
-      module: zod.enum([
-        "flights",
-        "parking",
-        "rental",
-        "accommodation",
-        "itinerary",
-        "vault",
-      ]),
-      name: zod.string(),
-      fileType: zod.string(),
-      fileUrl: zod.string().nullish(),
-      notes: zod.string().nullish(),
-      uploadedAt: zod.coerce.date(),
-    }),
-  ),
 });
 
 /**

@@ -6,7 +6,6 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { Accommodation } from "./accommodation";
-import type { Document } from "./document";
 import type { Flight } from "./flight";
 import type { ItineraryItem } from "./itineraryItem";
 import type { Parking } from "./parking";
@@ -20,5 +19,4 @@ export interface SharedTrip {
   rentals: Rental[];
   accommodations: Accommodation[];
   itinerary: ItineraryItem[];
-  documents: Document[];
 }

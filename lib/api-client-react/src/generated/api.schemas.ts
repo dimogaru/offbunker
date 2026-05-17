@@ -407,5 +407,4 @@ export interface SharedTrip {
   rentals: Rental[];
   accommodations: Accommodation[];
   itinerary: ItineraryItem[];
-  documents: Document[];
 }

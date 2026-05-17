@@ -1260,7 +1260,7 @@ components:
 
     SharedTrip:
       type: object
-      required: [trip, flights, parkings, rentals, accommodations, itinerary, documents]
+      required: [trip, flights, parkings, rentals, accommodations, itinerary]
       properties:
         trip:
           $ref: "#/components/schemas/Trip"
@@ -1284,7 +1284,3 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ItineraryItem"
-        documents:
-          type: array
-          items:
-            $ref: "#/components/schemas/Document"

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useLocation, Link } from "wouter";
 import {
   ArrowLeft, Plane, ParkingCircle, Car, Building2, CalendarDays,
-  FolderOpen, Pencil, Share2, Check, Link2, X, Users, LogOut,
+  FolderOpen, Pencil, Share2, Check, Link2, X, Users, LogOut, Shield,
 } from "lucide-react";
 import { useGetTrip, getGetTripQueryKey, useGenerateShareLink } from "@workspace/api-client-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -385,6 +385,15 @@ export default function TripDetail() {
           className="hidden md:flex w-56 border-r border-border bg-sidebar text-sidebar-foreground flex-shrink-0 flex-col py-4 px-3 gap-1"
           data-testid="nav-modules"
         >
+          {/* Brand — links back to dashboard */}
+          <Link href="/">
+            <div className="flex items-center gap-2 px-3 py-2 mb-2 rounded-md hover:bg-sidebar-accent transition-colors cursor-pointer">
+              <Shield className="w-4 h-4 text-primary flex-shrink-0" />
+              <span className="text-sm font-bold tracking-tight text-primary">OffBunker</span>
+            </div>
+          </Link>
+          <hr className="mb-2 border-sidebar-border" />
+
           {MODULES.map(({ id, label, icon: Icon }) => (
             <button
               key={id}

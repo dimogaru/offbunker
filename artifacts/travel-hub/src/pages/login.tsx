@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Plane, LogIn, WifiOff } from "lucide-react";
+import { Shield, LogIn, WifiOff } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { Button } from "@/components/ui/button";
@@ -43,9 +43,14 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
-        <div className="flex items-center justify-center gap-2 mb-8">
-          <Plane className="w-7 h-7 text-primary" />
-          <span className="text-2xl font-bold tracking-tight">TravelHub</span>
+        <div className="flex flex-col items-center gap-2 mb-8">
+          <div className="flex items-center gap-2.5">
+            <Shield className="w-8 h-8 text-primary" />
+            <span className="text-3xl font-bold tracking-tight text-primary">OffBunker</span>
+          </div>
+          <p className="text-sm text-muted-foreground text-center">
+            La información de tu viaje, blindada y offline.
+          </p>
         </div>
 
         {/* Offline notice */}

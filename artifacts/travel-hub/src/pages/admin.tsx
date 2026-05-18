@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import {
-  Plane, PlusCircle, Pencil, Trash2, LogOut, ShieldCheck,
+  Shield, PlusCircle, Pencil, Trash2, LogOut, ShieldCheck,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
@@ -124,11 +124,10 @@ export default function AdminPage() {
       <header className="border-b border-border bg-card sticky top-0 z-10">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Plane className="w-6 h-6 text-primary" />
-            <span className="text-xl font-bold tracking-tight">TravelHub</span>
-            <span className="ml-2 flex items-center gap-1 text-xs font-medium bg-primary/10 text-primary px-2 py-0.5 rounded-full">
-              <ShieldCheck className="w-3 h-3" />
-              Admin
+            <Shield className="w-6 h-6 text-primary" />
+            <span className="text-xl font-bold tracking-tight">OffBunker</span>
+            <span className="hidden sm:flex ml-1 items-center gap-1 text-xs font-medium text-muted-foreground">
+              | Panel de Administración
             </span>
           </div>
           <div className="flex items-center gap-3">

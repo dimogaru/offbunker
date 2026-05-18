@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
   PlusCircle, MapPin, Calendar, Plane, Trash2, Pencil,
-  LogOut, User, Users,
+  LogOut, User, Users, Shield,
 } from "lucide-react";
 import {
   useListTrips, useDeleteTrip, getListTripsQueryKey,
@@ -81,8 +81,8 @@ export default function Dashboard() {
       <header className="border-b border-border bg-card sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Plane className="w-6 h-6 text-primary" />
-            <span className="text-xl font-bold tracking-tight">TravelHub</span>
+            <Shield className="w-6 h-6 text-primary" />
+            <span className="text-xl font-bold tracking-tight">OffBunker</span>
           </div>
           <div className="flex items-center gap-3">
             <div className="hidden sm:block">

@@ -20,6 +20,7 @@ import EditTripDialog from "@/components/edit-trip-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { SavedLocallyBadge } from "@/components/offline-indicator";
 import { useAuth } from "@/hooks/use-auth";
+import { useOnlineStatus } from "@/hooks/use-online-status";
 
 interface Trip {
   id: number;
@@ -51,6 +52,7 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const { user, logout } = useAuth();
+  const isOnline = useOnlineStatus();
   const [, navigate] = useLocation();
   const [deletingTrip, setDeletingTrip] = useState<Trip | null>(null);
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
@@ -97,12 +99,19 @@ export default function Dashboard() {
               <LogOut className="w-4 h-4" />
               <span>Cerrar Sesión</span>
             </button>
-            <Link href="/trips/new">
-              <Button data-testid="button-new-trip" className="gap-2">
+            {isOnline ? (
+              <Link href="/trips/new">
+                <Button data-testid="button-new-trip" className="gap-2">
+                  <PlusCircle className="w-4 h-4" />
+                  Nuevo Viaje
+                </Button>
+              </Link>
+            ) : (
+              <Button data-testid="button-new-trip" className="gap-2" disabled title="Requiere conexión a internet">
                 <PlusCircle className="w-4 h-4" />
                 Nuevo Viaje
               </Button>
-            </Link>
+            )}
           </div>
         </div>
       </header>
@@ -137,8 +146,8 @@ export default function Dashboard() {
                   className="rounded-xl border border-border bg-card overflow-hidden hover:shadow-md transition-shadow group relative"
                   data-testid={`card-trip-${trip.id}`}
                 >
-                  {/* Edit / delete buttons — owner only */}
-                  {isOwner && (
+                  {/* Edit / delete buttons — owner only, hidden when offline */}
+                  {isOwner && isOnline && (
                     <div className="absolute top-3 left-3 z-10 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingTrip(trip); }}

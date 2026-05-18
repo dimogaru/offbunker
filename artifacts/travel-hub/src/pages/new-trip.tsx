@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
+import { useOnlineStatus } from "@/hooks/use-online-status";
+import { WifiOff } from "lucide-react";
 
 const schema = z.object({
   name: z.string().min(1, "El nombre del viaje es obligatorio"),
@@ -25,6 +27,7 @@ type FormValues = z.infer<typeof schema>;
 export default function NewTrip() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const isOnline = useOnlineStatus();
   const queryClient = useQueryClient();
 
   const form = useForm<FormValues>({
@@ -46,6 +49,10 @@ export default function NewTrip() {
   });
 
   function onSubmit(values: FormValues) {
+    if (!isOnline) {
+      toast({ title: "Sin conexión", description: "Crear viajes requiere conexión a internet.", variant: "destructive" });
+      return;
+    }
     createTrip.mutate({
       data: {
         name: values.name,
@@ -78,6 +85,13 @@ export default function NewTrip() {
         <div className="bg-card border border-border rounded-xl p-6">
           <h1 className="text-xl font-bold mb-1">Planifica un nuevo viaje</h1>
           <p className="text-muted-foreground text-sm mb-6">Introduce los datos básicos para comenzar</p>
+
+          {!isOnline && (
+            <div className="mb-4 flex items-center gap-2.5 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
+              <WifiOff className="w-4 h-4 flex-shrink-0" />
+              <span>Sin conexión — no es posible crear viajes en modo offline.</span>
+            </div>
+          )}
 
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -131,7 +145,7 @@ export default function NewTrip() {
               )} />
 
               <div className="flex gap-3 pt-2">
-                <Button type="submit" disabled={createTrip.isPending} className="flex-1" data-testid="button-submit-trip">
+                <Button type="submit" disabled={createTrip.isPending || !isOnline} className="flex-1" data-testid="button-submit-trip">
                   {createTrip.isPending ? "Creando..." : "Crear Viaje"}
                 </Button>
                 <Link href="/">

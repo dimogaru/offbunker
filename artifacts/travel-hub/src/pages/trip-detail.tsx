@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import { useOnlineStatus } from "@/hooks/use-online-status";
 
 const MODULES = [
   { id: "flights",       label: "Logística Aérea",     shortLabel: "Vuelos",    icon: Plane },
@@ -247,6 +248,7 @@ export default function TripDetail() {
   const [editOpen, setEditOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const { user, logout } = useAuth();
+  const isOnline = useOnlineStatus();
   const queryClient = useQueryClient();
 
   async function handleLogout() {
@@ -420,12 +422,12 @@ export default function TripDetail() {
           </div>
 
           <div key={activeModule} className="max-w-3xl animate-in fade-in slide-in-from-bottom-2 duration-300">
-            {activeModule === "flights"       && <FlightsModule tripId={tripId} readOnly={readOnly} />}
-            {activeModule === "parking"       && <ParkingModule tripId={tripId} readOnly={readOnly} />}
-            {activeModule === "rental"        && <RentalsModule tripId={tripId} readOnly={readOnly} />}
-            {activeModule === "accommodation" && <AccommodationsModule tripId={tripId} readOnly={readOnly} />}
-            {activeModule === "itinerary"     && <ItineraryModule tripId={tripId} readOnly={readOnly} />}
-            {activeModule === "vault"         && <DocumentsModule tripId={tripId} coverImageUrl={trip.coverImage} readOnly={readOnly} />}
+            {activeModule === "flights"       && <FlightsModule tripId={tripId} readOnly={readOnly || !isOnline} />}
+            {activeModule === "parking"       && <ParkingModule tripId={tripId} readOnly={readOnly || !isOnline} />}
+            {activeModule === "rental"        && <RentalsModule tripId={tripId} readOnly={readOnly || !isOnline} />}
+            {activeModule === "accommodation" && <AccommodationsModule tripId={tripId} readOnly={readOnly || !isOnline} />}
+            {activeModule === "itinerary"     && <ItineraryModule tripId={tripId} readOnly={readOnly || !isOnline} />}
+            {activeModule === "vault"         && <DocumentsModule tripId={tripId} coverImageUrl={trip.coverImage} readOnly={readOnly || !isOnline} />}
           </div>
         </main>
       </div>

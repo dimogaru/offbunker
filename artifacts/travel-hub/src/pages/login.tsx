@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Plane, LogIn } from "lucide-react";
+import { Plane, LogIn, WifiOff } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import { useOnlineStatus } from "@/hooks/use-online-status";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function LoginPage() {
   const { login } = useAuth();
+  const isOnline = useOnlineStatus();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [username, setUsername] = useState("");
@@ -28,7 +30,7 @@ export default function LoginPage() {
       }
     } catch (err) {
       toast({
-        title: "Error de inicio de sesión",
+        title: isOnline ? "Error de inicio de sesión" : "Error de acceso offline",
         description:
           err instanceof Error ? err.message : "Credenciales incorrectas",
         variant: "destructive",
@@ -46,10 +48,25 @@ export default function LoginPage() {
           <span className="text-2xl font-bold tracking-tight">TravelHub</span>
         </div>
 
+        {/* Offline notice */}
+        {!isOnline && (
+          <div className="mb-4 flex items-start gap-2.5 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-800 px-4 py-3 text-sm text-amber-800 dark:text-amber-300">
+            <WifiOff className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold">Sin conexión</p>
+              <p className="text-xs mt-0.5 opacity-80">
+                Puedes acceder con el último usuario y contraseña que usaste en esta sesión.
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
           <h1 className="text-lg font-semibold mb-1">Iniciar sesión</h1>
           <p className="text-sm text-muted-foreground mb-5">
-            Introduce tus credenciales para continuar
+            {isOnline
+              ? "Introduce tus credenciales para continuar"
+              : "Verificación local — solo el último usuario registrado puede acceder"}
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -89,7 +106,7 @@ export default function LoginPage() {
               ) : (
                 <>
                   <LogIn className="w-4 h-4" />
-                  Iniciar sesión
+                  {isOnline ? "Iniciar sesión" : "Acceder sin conexión"}
                 </>
               )}
             </Button>

@@ -135,7 +135,7 @@ export default function AdminPage() {
             <span className="text-sm text-muted-foreground hidden sm:block">{user?.username}</span>
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+              className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
             >
               <LogOut className="w-4 h-4" />
               Cerrar Sesión

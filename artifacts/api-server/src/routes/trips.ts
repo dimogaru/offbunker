@@ -1,7 +1,5 @@
 import { Router, type IRouter } from "express";
 import { eq, inArray } from "drizzle-orm";
-import { mkdir, writeFile } from "fs/promises";
-import path from "path";
 import {
   db,
   tripsTable,
@@ -26,31 +24,12 @@ const router: IRouter = Router();
 
 /* ─── Cover-image helper ─────────────────────────────────────── */
 
-const coversDir = path.join(process.cwd(), "uploads", "covers");
-
-async function localizecover(url: string | null | undefined): Promise<string | null> {
+// Return the URL as-is so cover images survive server restarts/redeployments.
+// Downloading to local disk was unreliable in production (ephemeral filesystem).
+function localizecover(url: string | null | undefined): string | null {
   if (!url) return null;
-  if (url.startsWith("/")) return url;
-  if (!url.startsWith("http://") && !url.startsWith("https://")) return null;
-
-  try {
-    await mkdir(coversDir, { recursive: true });
-    const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
-    if (!res.ok) return null;
-
-    const ct = res.headers.get("content-type") ?? "";
-    const ext = ct.includes("png") ? ".png"
-      : ct.includes("webp") ? ".webp"
-      : ct.includes("gif") ? ".gif"
-      : ".jpg";
-
-    const id = Math.random().toString(36).slice(2, 10);
-    const filename = `cover-${id}${ext}`;
-    await writeFile(path.join(coversDir, filename), Buffer.from(await res.arrayBuffer()));
-    return `/api/uploads/covers/${filename}`;
-  } catch {
-    return null;
-  }
+  if (url.startsWith("/") || url.startsWith("http://") || url.startsWith("https://")) return url;
+  return null;
 }
 
 /* ─── Routes ─────────────────────────────────────────────────── */

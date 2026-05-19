@@ -1,27 +1,11 @@
 import { Router } from "express";
 import multer from "multer";
-import path from "path";
-import fs from "fs";
 
-const uploadsDir = path.join(process.cwd(), "uploads");
-fs.mkdirSync(uploadsDir, { recursive: true });
-
-const storage = multer.diskStorage({
-  destination: uploadsDir,
-  filename: (_req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    const base = path.basename(file.originalname, ext)
-      .replace(/[^a-z0-9]/gi, "-")
-      .toLowerCase()
-      .slice(0, 50);
-    const id = Math.random().toString(36).slice(2, 10);
-    cb(null, `${base}-${id}${ext}`);
-  },
-});
-
+// Use memory storage — files are converted to base64 data URLs and stored in
+// the database, so they survive server restarts and redeployments.
 const upload = multer({
-  storage,
-  limits: { fileSize: 25 * 1024 * 1024 },
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB per file
 });
 
 const router = Router();
@@ -31,9 +15,10 @@ router.post("/uploads", upload.single("file"), (req, res): void => {
     res.status(400).json({ error: "No se recibió ningún archivo" });
     return;
   }
-  // Return URL under /api/uploads/ so the shared proxy correctly routes
-  // file requests to this server (proxy maps /api/* → api-server).
-  res.json({ url: `/api/uploads/${req.file.filename}` });
+  const mimeType = req.file.mimetype || "application/octet-stream";
+  const base64   = req.file.buffer.toString("base64");
+  const dataUrl  = `data:${mimeType};base64,${base64}`;
+  res.json({ url: dataUrl });
 });
 
 export default router;

@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import {
   PlusCircle, Pencil, Trash2, Plane, Clock, Armchair, DoorOpen, LayoutGrid,
-  Paperclip, ExternalLink, X, Loader2, CheckCircle2, Eye,
+  Paperclip, Loader2, CheckCircle2, Eye,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -259,19 +259,20 @@ export default function FlightsModule({ tripId, readOnly }: Props) {
                 <div className={`${f.terminal || f.gate || f.seat ? "" : "pt-3 border-t border-border/50 mt-3"}`}>
                   <div className="flex items-center flex-wrap gap-1.5">
                     {docs.map(doc => (
-                      <div key={doc.id} className="group flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-1 text-xs hover:border-primary/40 transition-colors">
+                      <div key={doc.id} className="flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-1 text-xs hover:border-primary/40 transition-colors">
                         <span className={`font-bold px-1 py-0.5 rounded-full text-[9px] uppercase tracking-wide flex-shrink-0 ${FILE_CHIP_COLORS[doc.fileType] ?? FILE_CHIP_COLORS["Otro"]}`}>
                           {doc.fileType?.slice(0, 3)}
                         </span>
-                        <span className="font-medium max-w-[110px] truncate text-foreground/80">{doc.name}</span>
-                        {doc.fileUrl && (
-                          <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors flex-shrink-0">
-                            <ExternalLink className="w-2.5 h-2.5" />
+                        {doc.fileUrl ? (
+                          <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="font-medium max-w-[110px] truncate text-foreground/80 hover:text-primary transition-colors">
+                            {doc.name}
                           </a>
+                        ) : (
+                          <span className="font-medium max-w-[110px] truncate text-foreground/80">{doc.name}</span>
                         )}
                         {!readOnly && (
-                          <button onClick={() => setDeletingDoc(doc)} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100">
-                            <X className="w-2.5 h-2.5" />
+                          <button onClick={() => setDeletingDoc(doc)} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 p-0.5" title="Eliminar documento">
+                            <Trash2 className="w-3 h-3" />
                           </button>
                         )}
                       </div>
@@ -342,11 +343,12 @@ export default function FlightsModule({ tripId, readOnly }: Props) {
                             <span className={`font-bold px-1 py-0.5 rounded-full text-[9px] uppercase tracking-wide flex-shrink-0 ${FILE_CHIP_COLORS[doc.fileType] ?? FILE_CHIP_COLORS["Otro"]}`}>
                               {doc.fileType?.slice(0, 3)}
                             </span>
-                            <span className="font-medium max-w-[110px] truncate text-foreground/80">{doc.name}</span>
-                            {doc.fileUrl && (
-                              <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors flex-shrink-0" title="Abrir documento">
-                                <ExternalLink className="w-2.5 h-2.5" />
+                            {doc.fileUrl ? (
+                              <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="font-medium max-w-[110px] truncate text-foreground/80 hover:text-primary transition-colors">
+                                {doc.name}
                               </a>
+                            ) : (
+                              <span className="font-medium max-w-[110px] truncate text-foreground/80">{doc.name}</span>
                             )}
                           </div>
                         ))}

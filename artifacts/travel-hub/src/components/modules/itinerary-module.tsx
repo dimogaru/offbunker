@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import {
-  Pencil, Trash2, CalendarDays, Clock, MapPin, ExternalLink,
-  Paperclip, X, Loader2, CheckCircle2, Eye,
+  Pencil, Trash2, CalendarDays, Clock, MapPin,
+  Paperclip, Loader2, CheckCircle2, Eye,
 } from "lucide-react";
 import MapsLink from "@/components/maps-link";
 import { useForm } from "react-hook-form";
@@ -288,20 +288,21 @@ export default function ItineraryModule({ tripId, readOnly }: Props) {
               {docs.map(doc => (
                 <div
                   key={doc.id}
-                  className="group flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-1 text-xs hover:border-primary/40 transition-colors"
+                  className="flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-1 text-xs hover:border-primary/40 transition-colors"
                 >
                   <span className={`font-bold px-1 py-0.5 rounded-full text-[9px] uppercase tracking-wide flex-shrink-0 ${FILE_CHIP_COLORS[doc.fileType] ?? FILE_CHIP_COLORS["Otro"]}`}>
                     {doc.fileType?.slice(0, 3)}
                   </span>
-                  <span className="font-medium max-w-[100px] truncate text-foreground/80">{doc.name}</span>
-                  {doc.fileUrl && (
-                    <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors flex-shrink-0">
-                      <ExternalLink className="w-2.5 h-2.5" />
+                  {doc.fileUrl ? (
+                    <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="font-medium max-w-[100px] truncate text-foreground/80 hover:text-primary transition-colors">
+                      {doc.name}
                     </a>
+                  ) : (
+                    <span className="font-medium max-w-[100px] truncate text-foreground/80">{doc.name}</span>
                   )}
                   {!readOnly && (
-                    <button onClick={() => setDeletingDoc(doc)} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100">
-                      <X className="w-2.5 h-2.5" />
+                    <button onClick={() => setDeletingDoc(doc)} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 p-0.5" title="Eliminar documento">
+                      <Trash2 className="w-3 h-3" />
                     </button>
                   )}
                 </div>
@@ -435,11 +436,12 @@ export default function ItineraryModule({ tripId, readOnly }: Props) {
                             <span className={`font-bold px-1 py-0.5 rounded-full text-[9px] uppercase tracking-wide flex-shrink-0 ${FILE_CHIP_COLORS[doc.fileType] ?? FILE_CHIP_COLORS["Otro"]}`}>
                               {doc.fileType?.slice(0, 3)}
                             </span>
-                            <span className="font-medium max-w-[100px] truncate text-foreground/80">{doc.name}</span>
-                            {doc.fileUrl && (
-                              <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors flex-shrink-0" title="Abrir documento">
-                                <ExternalLink className="w-2.5 h-2.5" />
+                            {doc.fileUrl ? (
+                              <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="font-medium max-w-[100px] truncate text-foreground/80 hover:text-primary transition-colors">
+                                {doc.name}
                               </a>
+                            ) : (
+                              <span className="font-medium max-w-[100px] truncate text-foreground/80">{doc.name}</span>
                             )}
                           </div>
                         ))}

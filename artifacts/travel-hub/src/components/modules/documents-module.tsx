@@ -388,7 +388,8 @@ export default function DocumentsModule({ tripId, coverImageUrl, readOnly }: Pro
               </h3>
               <div className="space-y-2">
                 {modDocs.map((doc) => {
-                  const isCached = !!doc.fileUrl && syncedUrls.has(doc.fileUrl);
+                  const isDataUrl = !!doc.fileUrl && doc.fileUrl.startsWith("data:");
+                  const isCached = isDataUrl || (!!doc.fileUrl && syncedUrls.has(doc.fileUrl));
                   return (
                     <div
                       key={doc.id}

@@ -46,7 +46,7 @@ const TYPE_LABEL: Record<string, string> = { hotel: "Hotel", airbnb: "Airbnb", h
 
 function toLocal(iso: string) { return iso ? iso.substring(0, 16) : ""; }
 function fmt(iso: string) { return new Date(iso).toLocaleString("es-ES", { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); }
-function mapsUrl(address: string) { return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address).replace(/%20/g, "+")}`; }
+function fmtShort(iso: string) { return new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "short" }); }
 function fileTypeFrom(url: string) {
   const ext = url.split(".").pop()?.toLowerCase() ?? "";
   if (ext === "pdf") return "PDF";
@@ -82,6 +82,9 @@ export default function AccommodationsModule({ tripId, readOnly }: Props) {
   const [deleting, setDeleting] = useState<AccommodationExt | null>(null);
   const [isViewing, setIsViewing] = useState(false);
 
+  /* Tab selection */
+  const [selectedAccId, setSelectedAccId] = useState<number | null>(null);
+
   /* Doc upload state */
   const [uploadingFor, setUploadingFor] = useState<AccommodationExt | null>(null);
   const [docName, setDocName] = useState("");
@@ -98,6 +101,11 @@ export default function AccommodationsModule({ tripId, readOnly }: Props) {
 
   const invalidateAcc  = () => queryClient.invalidateQueries({ queryKey: getListAccommodationsQueryKey(tripId) });
   const invalidateDocs = () => queryClient.invalidateQueries({ queryKey: getListDocumentsQueryKey(tripId) });
+
+  /* ── Derived: tab logic ── */
+  const accList = (accommodations as AccommodationExt[] | undefined) ?? [];
+  const effectiveAccId = (selectedAccId && accList.find(a => a.id === selectedAccId)) ? selectedAccId : (accList[0]?.id ?? null);
+  const selectedAcc = accList.find(a => a.id === effectiveAccId) ?? null;
 
   /* ── Mutations ── */
   const form = useForm<FormValues>({ resolver: zodResolver(schema), defaultValues: { name: "", type: "hotel", bookingPlatform: "", address: "", checkIn: "", checkOut: "", confirmationCode: "", contactPhone: "", notes: "" } });
@@ -184,16 +192,39 @@ export default function AccommodationsModule({ tripId, readOnly }: Props) {
   /* ─── JSX ─── */
   return (
     <div>
-      <ModuleHeader title="Alojamiento" description="Lista cronológica de hoteles y alojamientos" onAdd={openNew} readOnly={readOnly} />
+      <ModuleHeader title="Alojamiento" description="Hoteles y alojamientos del viaje" onAdd={openNew} readOnly={readOnly} />
 
       {isLoading ? (
         <div className="space-y-3">{[1, 2].map(i => <Skeleton key={i} className="h-32 w-full rounded-xl" />)}</div>
-      ) : accommodations && accommodations.length > 0 ? (
+      ) : accList.length > 0 ? (
         <div className="space-y-3">
-          {(accommodations as AccommodationExt[]).map(a => {
+
+          {/* ── Tab strip ── */}
+          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+            {accList.map(a => {
+              const isActive = a.id === effectiveAccId;
+              return (
+                <button
+                  key={a.id}
+                  onClick={() => setSelectedAccId(a.id)}
+                  className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${
+                    isActive
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "bg-muted text-muted-foreground hover:bg-muted/70"
+                  }`}
+                >
+                  {a.name} ({fmtShort(a.checkIn)} – {fmtShort(a.checkOut)})
+                </button>
+              );
+            })}
+          </div>
+
+          {/* ── Selected accommodation card ── */}
+          {selectedAcc && (() => {
+            const a = selectedAcc;
             const docs = getAccDocs(a.id);
             return (
-              <div key={a.id} className="booking-card border border-border rounded-xl bg-card p-4" data-testid={`card-accommodation-${a.id}`}>
+              <div className="booking-card border border-border rounded-xl bg-card p-4" data-testid={`card-accommodation-${a.id}`}>
                 {/* Header */}
                 <div className="flex items-start justify-between gap-2 mb-3">
                   <div className="flex-1 min-w-0">
@@ -278,7 +309,7 @@ export default function AccommodationsModule({ tripId, readOnly }: Props) {
                 </div>
               </div>
             );
-          })}
+          })()}
         </div>
       ) : (
         <div className="text-center py-12 text-muted-foreground border border-dashed border-border rounded-xl">

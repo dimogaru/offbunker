@@ -47,14 +47,14 @@ export default defineConfig({
       },
 
       // ── Assets to include alongside the auto-detected glob patterns ──────
-      includeAssets: ["icon.svg", "favicon.svg", "opengraph.jpg", "robots.txt"],
+      includeAssets: ["icon.svg", "icon-192.png", "icon-512.png", "apple-touch-icon.png", "favicon.svg", "opengraph.jpg", "robots.txt"],
 
       // ── Web App Manifest ─────────────────────────────────────────────────
       // vite-plugin-pwa automatically injects <link rel="manifest"> into the
       // built HTML, so no manual tag is needed in index.html.
       manifest: {
-        name: "TravelHub",
-        short_name: "TravelHub",
+        name: "OffBunker",
+        short_name: "OffBunker",
         description: "Gestiona tus viajes sin conexión a internet",
         theme_color: "#0f4a52",
         background_color: "#0f4a52",
@@ -68,7 +68,25 @@ export default defineConfig({
             src: "/icon.svg",
             sizes: "any",
             type: "image/svg+xml",
-            purpose: "any maskable",
+            purpose: "any",
+          },
+          {
+            src: "/icon-192.png",
+            sizes: "192x192",
+            type: "image/png",
+            purpose: "any",
+          },
+          {
+            src: "/icon-512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "any",
+          },
+          {
+            src: "/icon-512.png",
+            sizes: "512x512",
+            type: "image/png",
+            purpose: "maskable",
           },
         ],
       },

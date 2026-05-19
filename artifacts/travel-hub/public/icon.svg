@@ -1,7 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" fill="none">
-  <rect width="192" height="192" rx="40" fill="#0f4a52"/>
-  <g transform="translate(96,96)">
-    <path d="M-48,16 L-12,-8 L12,32 L24,28 L8,-16 L36,-28 L44,-12 L52,-16 L36,-44 L-8,-24 L-52,-4 L-48,16Z" fill="white" opacity="0.9"/>
-    <rect x="-44" y="22" width="88" height="6" rx="3" fill="white" opacity="0.5"/>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- Maskable safe-zone background -->
+  <rect width="512" height="512" rx="110" fill="#0f4a52"/>
+  <!-- Shield fill (slightly lighter teal) -->
+  <path d="M256 102 L390 156 L390 288 Q390 382 256 426 Q122 382 122 288 L122 156 Z" fill="#1b6878"/>
+  <!-- Shield border (white) -->
+  <path d="M256 102 L390 156 L390 288 Q390 382 256 426 Q122 382 122 288 L122 156 Z" stroke="white" stroke-width="14" stroke-linejoin="round" stroke-linecap="round"/>
+  <!-- Airplane body (pointing up) -->
+  <rect x="247" y="164" width="18" height="114" rx="9" fill="white"/>
+  <!-- Wings -->
+  <path d="M247 232 L188 260 L188 276 L247 252 Z" fill="white"/>
+  <path d="M265 232 L324 260 L324 276 L265 252 Z" fill="white"/>
+  <!-- Tail fins -->
+  <path d="M247 278 L222 300 L222 312 L247 294 Z" fill="white"/>
+  <path d="M265 278 L290 300 L290 312 L265 294 Z" fill="white"/>
 </svg>

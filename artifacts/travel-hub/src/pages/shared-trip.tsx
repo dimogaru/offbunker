@@ -159,7 +159,7 @@ export default function SharedTrip() {
       <div className="bg-primary/5 border-b border-primary/10 px-4 py-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Plane className="w-4 h-4 text-primary" />
-          <span className="text-xs font-semibold text-primary">TravelHub</span>
+          <span className="text-xs font-semibold text-primary">OffBunker</span>
           <span className="text-xs text-muted-foreground">— viaje compartido (solo lectura)</span>
         </div>
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -365,8 +365,8 @@ export default function SharedTrip() {
         <div className="mt-12 pt-6 border-t border-border text-center">
           <div className="flex items-center justify-center gap-2 text-muted-foreground">
             <Plane className="w-4 h-4 text-primary" />
-            <span className="text-sm font-semibold text-primary">TravelHub</span>
-            <span className="text-xs">— planificación de viajes simplificada</span>
+            <span className="text-sm font-semibold text-primary">OffBunker</span>
+            <span className="text-xs">— gestión de viajes offline</span>
           </div>
         </div>
       </div>

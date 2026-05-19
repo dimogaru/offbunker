@@ -195,7 +195,7 @@ export default function TripExport() {
 
         {/* Branding row */}
         <div className="branding">
-          <div><strong>TravelHub</strong> — Trip Document</div>
+          <div><strong>OffBunker</strong> — Trip Document</div>
           <div className="generated-at">Generated {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}</div>
         </div>
 
@@ -378,7 +378,7 @@ export default function TripExport() {
 
         {/* Footer */}
         <div className="footer">
-          <span>TravelHub — trip planning made simple</span>
+          <span>OffBunker — gestión de viajes offline</span>
           <span>{trip.name} · {fmtShortDate(trip.startDate)} – {fmtShortDate(trip.endDate)}</span>
         </div>
       </div>

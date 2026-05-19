@@ -46,7 +46,7 @@ const TYPE_LABEL: Record<string, string> = { hotel: "Hotel", airbnb: "Airbnb", h
 
 function toLocal(iso: string) { return iso ? iso.substring(0, 16) : ""; }
 function fmt(iso: string) { return new Date(iso).toLocaleString("es-ES", { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); }
-function fmtShort(iso: string) { return new Date(iso).toLocaleDateString("es-ES", { day: "numeric", month: "short" }); }
+function fmtDay(iso: string) { return new Date(iso).getDate(); }
 function fileTypeFrom(url: string) {
   const ext = url.split(".").pop()?.toLowerCase() ?? "";
   if (ext === "pdf") return "PDF";
@@ -213,7 +213,7 @@ export default function AccommodationsModule({ tripId, readOnly }: Props) {
                       : "bg-muted text-muted-foreground hover:bg-muted/70"
                   }`}
                 >
-                  {a.name} ({fmtShort(a.checkIn)} – {fmtShort(a.checkOut)})
+                  Día {fmtDay(a.checkIn)} - Día {fmtDay(a.checkOut)}
                 </button>
               );
             })}

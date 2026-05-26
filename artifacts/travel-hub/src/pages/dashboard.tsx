@@ -92,26 +92,30 @@ export default function Dashboard() {
               <User className="w-3.5 h-3.5" />
               <span>{user?.username}</span>
             </div>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors whitespace-nowrap"
-            >
-              <LogOut className="w-4 h-4" />
-              <span>Cerrar Sesión</span>
-            </button>
-            {isOnline ? (
-              <Link href="/trips/new">
-                <Button data-testid="button-new-trip" className="gap-2">
+            {/* Mobile: first (order-1); desktop: last (sm:order-2) */}
+            <div className="order-1 sm:order-2">
+              {isOnline ? (
+                <Link href="/trips/new">
+                  <Button data-testid="button-new-trip" className="gap-2">
+                    <PlusCircle className="w-4 h-4" />
+                    Nuevo Viaje
+                  </Button>
+                </Link>
+              ) : (
+                <Button data-testid="button-new-trip" className="gap-2" disabled title="Requiere conexión a internet">
                   <PlusCircle className="w-4 h-4" />
                   Nuevo Viaje
                 </Button>
-              </Link>
-            ) : (
-              <Button data-testid="button-new-trip" className="gap-2" disabled title="Requiere conexión a internet">
-                <PlusCircle className="w-4 h-4" />
-                Nuevo Viaje
-              </Button>
-            )}
+              )}
+            </div>
+            {/* Mobile: second (order-2), icon-only square; desktop: first (sm:order-1), text+icon */}
+            <button
+              onClick={handleLogout}
+              className="order-2 sm:order-1 flex items-center justify-center bg-red-600 hover:bg-red-700 text-white font-semibold p-2.5 sm:px-4 sm:py-2 sm:gap-2 rounded-lg transition-colors"
+            >
+              <LogOut className="w-5 h-5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline text-sm">Cerrar Sesión</span>
+            </button>
           </div>
         </div>
       </header>

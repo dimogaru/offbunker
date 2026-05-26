@@ -7,3 +7,4 @@ export * from "./rentals";
 export * from "./accommodations";
 export * from "./itinerary";
 export * from "./documents";
+export * from "./baggage";

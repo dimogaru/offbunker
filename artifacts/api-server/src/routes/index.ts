@@ -9,6 +9,7 @@ import rentalsRouter from "./rentals";
 import accommodationsRouter from "./accommodations";
 import itineraryRouter from "./itinerary";
 import documentsRouter from "./documents";
+import baggageRouter from "./baggage";
 import shareRouter from "./share";
 import uploadsRouter from "./uploads";
 import { getTripAccess } from "../lib/trip-access";
@@ -65,6 +66,7 @@ router.use(rentalsRouter);
 router.use(accommodationsRouter);
 router.use(itineraryRouter);
 router.use(documentsRouter);
+router.use(baggageRouter);
 router.use(shareRouter);
 router.use(uploadsRouter);
 

@@ -1,0 +1,37 @@
+"Necesito añadir un nuevo apartado en el menú lateral y en el panel de navegación de cada viaje llamado 'Equipaje' (Listas Inteligentes). Este módulo debe permitir gestionar los objetos para el viaje combinando automatización y optimización UX. Por favor, programa la siguiente estructura y funciones:
+
+1. Interfaz y Categorización Visual:
+
+Organiza la lista de equipaje en bloques colapsables (acordeones) o pestañas independientes utilizando estas 5 categorías obligatorias:
+
+Documentos y Dinero (Pasaporte, visados, tarjetas, efectivo...)
+
+Electrónica (Cargadores, powerbank, adaptador universal...)
+
+Ropa y Calzado (Mudas, calzado cómodo, abrigo...)
+
+Aseo y Salud (Líquidos <100ml, protector solar, medicación...)
+
+Último Minuto (Llaves, móvil, cartera, gafas...)
+
+Cada ítem debe tener un checkbox o estado visual que indique si ya está guardado (checked) o pendiente.
+
+2. El 'Modo Maleta' (Optimización UX Táctil):
+
+Añade un botón destacado en la parte superior que active el 'Modo Maleta'.
+
+Al activarse, la pantalla pasa a un modo simplificado con fuentes más grandes para su uso en móviles. Permite que el usuario pueda marcar un objeto como 'guardado' mediante un deslizamiento (swipe) hacia la derecha o con un toque en un área de pulsación gigante.
+
+Añade un filtro rápido: 'Ocultar guardados' para que en la pantalla solo aparezcan los objetos que faltan por meter en la maleta.
+
+3. La Regla del 'Último Minuto' y Alertas:
+
+Permitir configurar cualquier ítem de la lista con la etiqueta especial 'Último Minuto' (moverlo automáticamente a esa categoría).
+
+Lógica de Alerta: En la base de datos, vincula la fecha y hora de salida del primer vuelo/transporte de la pestaña 'Logística Aérea'. Programa una función para que, 2 horas antes de esa hora de salida, la aplicación muestre un aviso crítico en pantalla o notificación (aprovechando las capacidades PWA) listando exclusivamente los objetos de 'Último Minuto'.
+
+4. Plantillas y Persistencia Offline:
+
+Plantillas: Añade la opción de 'Guardar como plantilla' (ej: 'Escapada de Fin de Semana', 'Viaje de Trabajo') para que el usuario pueda clonar esa lista en futuros viajes sin empezar desde cero.
+
+Sincronización: Asegúrate de que la lista de equipaje se guarde en el almacenamiento local (localStorage / IndexedDB) para que el usuario pueda revisar y tachar su maleta completamente offline (en el coche, aeropuerto o habitaciones de hotel sin WiFi), y que se sincronice con el servidor (Web) en cuanto recupere la conexión."

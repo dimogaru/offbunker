@@ -20,6 +20,9 @@ import type {
   Accommodation,
   AccommodationInput,
   AccommodationUpdate,
+  BaggageItem,
+  BaggageItemInput,
+  BaggageItemUpdate,
   Document,
   DocumentInput,
   Flight,
@@ -2807,4 +2810,352 @@ export const useDeleteDocument = <
   TContext
 > => {
   return useMutation(getDeleteDocumentMutationOptions(options));
+};
+
+/**
+ * @summary List baggage items for a trip
+ */
+export const getListBaggageItemsUrl = (tripId: number) => {
+  return `/api/trips/${tripId}/baggage`;
+};
+
+export const listBaggageItems = async (
+  tripId: number,
+  options?: RequestInit,
+): Promise<BaggageItem[]> => {
+  return customFetch<BaggageItem[]>(getListBaggageItemsUrl(tripId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListBaggageItemsQueryKey = (tripId: number) => {
+  return [`/api/trips/${tripId}/baggage`] as const;
+};
+
+export const getListBaggageItemsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listBaggageItems>>,
+  TError = ErrorType<unknown>,
+>(
+  tripId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listBaggageItems>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListBaggageItemsQueryKey(tripId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listBaggageItems>>
+  > = ({ signal }) => listBaggageItems(tripId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!tripId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof listBaggageItems>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListBaggageItemsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listBaggageItems>>
+>;
+export type ListBaggageItemsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List baggage items for a trip
+ */
+
+export function useListBaggageItems<
+  TData = Awaited<ReturnType<typeof listBaggageItems>>,
+  TError = ErrorType<unknown>,
+>(
+  tripId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listBaggageItems>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListBaggageItemsQueryOptions(tripId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Add a baggage item to a trip
+ */
+export const getCreateBaggageItemUrl = (tripId: number) => {
+  return `/api/trips/${tripId}/baggage`;
+};
+
+export const createBaggageItem = async (
+  tripId: number,
+  baggageItemInput: BaggageItemInput,
+  options?: RequestInit,
+): Promise<BaggageItem> => {
+  return customFetch<BaggageItem>(getCreateBaggageItemUrl(tripId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(baggageItemInput),
+  });
+};
+
+export const getCreateBaggageItemMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createBaggageItem>>,
+    TError,
+    { tripId: number; data: BodyType<BaggageItemInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createBaggageItem>>,
+  TError,
+  { tripId: number; data: BodyType<BaggageItemInput> },
+  TContext
+> => {
+  const mutationKey = ["createBaggageItem"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createBaggageItem>>,
+    { tripId: number; data: BodyType<BaggageItemInput> }
+  > = (props) => {
+    const { tripId, data } = props ?? {};
+
+    return createBaggageItem(tripId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateBaggageItemMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createBaggageItem>>
+>;
+export type CreateBaggageItemMutationBody = BodyType<BaggageItemInput>;
+export type CreateBaggageItemMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Add a baggage item to a trip
+ */
+export const useCreateBaggageItem = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createBaggageItem>>,
+    TError,
+    { tripId: number; data: BodyType<BaggageItemInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createBaggageItem>>,
+  TError,
+  { tripId: number; data: BodyType<BaggageItemInput> },
+  TContext
+> => {
+  return useMutation(getCreateBaggageItemMutationOptions(options));
+};
+
+/**
+ * @summary Update a baggage item
+ */
+export const getUpdateBaggageItemUrl = (tripId: number, itemId: number) => {
+  return `/api/trips/${tripId}/baggage/${itemId}`;
+};
+
+export const updateBaggageItem = async (
+  tripId: number,
+  itemId: number,
+  baggageItemUpdate: BaggageItemUpdate,
+  options?: RequestInit,
+): Promise<BaggageItem> => {
+  return customFetch<BaggageItem>(getUpdateBaggageItemUrl(tripId, itemId), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(baggageItemUpdate),
+  });
+};
+
+export const getUpdateBaggageItemMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateBaggageItem>>,
+    TError,
+    { tripId: number; itemId: number; data: BodyType<BaggageItemUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateBaggageItem>>,
+  TError,
+  { tripId: number; itemId: number; data: BodyType<BaggageItemUpdate> },
+  TContext
+> => {
+  const mutationKey = ["updateBaggageItem"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateBaggageItem>>,
+    { tripId: number; itemId: number; data: BodyType<BaggageItemUpdate> }
+  > = (props) => {
+    const { tripId, itemId, data } = props ?? {};
+
+    return updateBaggageItem(tripId, itemId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateBaggageItemMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateBaggageItem>>
+>;
+export type UpdateBaggageItemMutationBody = BodyType<BaggageItemUpdate>;
+export type UpdateBaggageItemMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Update a baggage item
+ */
+export const useUpdateBaggageItem = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateBaggageItem>>,
+    TError,
+    { tripId: number; itemId: number; data: BodyType<BaggageItemUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateBaggageItem>>,
+  TError,
+  { tripId: number; itemId: number; data: BodyType<BaggageItemUpdate> },
+  TContext
+> => {
+  return useMutation(getUpdateBaggageItemMutationOptions(options));
+};
+
+/**
+ * @summary Delete a baggage item
+ */
+export const getDeleteBaggageItemUrl = (tripId: number, itemId: number) => {
+  return `/api/trips/${tripId}/baggage/${itemId}`;
+};
+
+export const deleteBaggageItem = async (
+  tripId: number,
+  itemId: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteBaggageItemUrl(tripId, itemId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteBaggageItemMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteBaggageItem>>,
+    TError,
+    { tripId: number; itemId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteBaggageItem>>,
+  TError,
+  { tripId: number; itemId: number },
+  TContext
+> => {
+  const mutationKey = ["deleteBaggageItem"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteBaggageItem>>,
+    { tripId: number; itemId: number }
+  > = (props) => {
+    const { tripId, itemId } = props ?? {};
+
+    return deleteBaggageItem(tripId, itemId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteBaggageItemMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteBaggageItem>>
+>;
+
+export type DeleteBaggageItemMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Delete a baggage item
+ */
+export const useDeleteBaggageItem = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteBaggageItem>>,
+    TError,
+    { tripId: number; itemId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteBaggageItem>>,
+  TError,
+  { tripId: number; itemId: number },
+  TContext
+> => {
+  return useMutation(getDeleteBaggageItemMutationOptions(options));
 };

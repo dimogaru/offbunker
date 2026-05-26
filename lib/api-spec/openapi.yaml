@@ -712,6 +712,98 @@ paths:
         "204":
           description: Deleted
 
+  /trips/{tripId}/baggage:
+    get:
+      operationId: listBaggageItems
+      tags: [baggage]
+      summary: List baggage items for a trip
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of baggage items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BaggageItem"
+    post:
+      operationId: createBaggageItem
+      tags: [baggage]
+      summary: Add a baggage item to a trip
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BaggageItemInput"
+      responses:
+        "201":
+          description: Created baggage item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BaggageItem"
+
+  /trips/{tripId}/baggage/{itemId}:
+    patch:
+      operationId: updateBaggageItem
+      tags: [baggage]
+      summary: Update a baggage item
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BaggageItemUpdate"
+      responses:
+        "200":
+          description: Updated baggage item
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BaggageItem"
+    delete:
+      operationId: deleteBaggageItem
+      tags: [baggage]
+      summary: Delete a baggage item
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
 components:
   schemas:
     HealthStatus:
@@ -1250,6 +1342,59 @@ components:
           type: string
         notes:
           type: string
+
+    BaggageItem:
+      type: object
+      required: [id, tripId, name, category, isChecked, isLastMinute, sortOrder, createdAt]
+      properties:
+        id:
+          type: integer
+        tripId:
+          type: integer
+        name:
+          type: string
+        category:
+          type: string
+          enum: [documents_money, electronics, clothing, toiletries, last_minute]
+        isChecked:
+          type: boolean
+        isLastMinute:
+          type: boolean
+        sortOrder:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    BaggageItemInput:
+      type: object
+      required: [name, category]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        category:
+          type: string
+          enum: [documents_money, electronics, clothing, toiletries, last_minute]
+        isLastMinute:
+          type: boolean
+        sortOrder:
+          type: integer
+
+    BaggageItemUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        category:
+          type: string
+          enum: [documents_money, electronics, clothing, toiletries, last_minute]
+        isChecked:
+          type: boolean
+        isLastMinute:
+          type: boolean
+        sortOrder:
+          type: integer
 
     ShareLink:
       type: object

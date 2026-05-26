@@ -396,6 +396,66 @@ export interface DocumentInput {
   notes?: string;
 }
 
+export type BaggageItemCategory =
+  (typeof BaggageItemCategory)[keyof typeof BaggageItemCategory];
+
+export const BaggageItemCategory = {
+  documents_money: "documents_money",
+  electronics: "electronics",
+  clothing: "clothing",
+  toiletries: "toiletries",
+  last_minute: "last_minute",
+} as const;
+
+export interface BaggageItem {
+  id: number;
+  tripId: number;
+  name: string;
+  category: BaggageItemCategory;
+  isChecked: boolean;
+  isLastMinute: boolean;
+  sortOrder: number;
+  createdAt: string;
+}
+
+export type BaggageItemInputCategory =
+  (typeof BaggageItemInputCategory)[keyof typeof BaggageItemInputCategory];
+
+export const BaggageItemInputCategory = {
+  documents_money: "documents_money",
+  electronics: "electronics",
+  clothing: "clothing",
+  toiletries: "toiletries",
+  last_minute: "last_minute",
+} as const;
+
+export interface BaggageItemInput {
+  /** @minLength 1 */
+  name: string;
+  category: BaggageItemInputCategory;
+  isLastMinute?: boolean;
+  sortOrder?: number;
+}
+
+export type BaggageItemUpdateCategory =
+  (typeof BaggageItemUpdateCategory)[keyof typeof BaggageItemUpdateCategory];
+
+export const BaggageItemUpdateCategory = {
+  documents_money: "documents_money",
+  electronics: "electronics",
+  clothing: "clothing",
+  toiletries: "toiletries",
+  last_minute: "last_minute",
+} as const;
+
+export interface BaggageItemUpdate {
+  name?: string;
+  category?: BaggageItemUpdateCategory;
+  isChecked?: boolean;
+  isLastMinute?: boolean;
+  sortOrder?: number;
+}
+
 export interface ShareLink {
   shareToken: string;
 }

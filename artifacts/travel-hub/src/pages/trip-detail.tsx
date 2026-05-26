@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useLocation, Link } from "wouter";
 import {
   ArrowLeft, Plane, ParkingCircle, Car, Building2, CalendarDays,
-  FolderOpen, Pencil, Share2, Check, Link2, X, Users, LogOut, Shield,
+  FolderOpen, Pencil, Share2, Check, Link2, X, Users, LogOut, Shield, Luggage,
 } from "lucide-react";
 import { useGetTrip, getGetTripQueryKey, useGenerateShareLink } from "@workspace/api-client-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -17,6 +17,7 @@ import RentalsModule from "@/components/modules/rentals-module";
 import AccommodationsModule from "@/components/modules/accommodations-module";
 import ItineraryModule from "@/components/modules/itinerary-module";
 import DocumentsModule from "@/components/modules/documents-module";
+import BaggageModule from "@/components/modules/baggage-module";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -31,6 +32,7 @@ const MODULES = [
   { id: "accommodation", label: "Alojamiento",          shortLabel: "Estancia", icon: Building2 },
   { id: "itinerary",     label: "Itinerario",           shortLabel: "Plan",     icon: CalendarDays },
   { id: "vault",         label: "Documentos",           shortLabel: "Docs",     icon: FolderOpen },
+  { id: "baggage",       label: "Equipaje",             shortLabel: "Maleta",   icon: Luggage },
 ] as const;
 
 type ModuleId = typeof MODULES[number]["id"];
@@ -437,6 +439,7 @@ export default function TripDetail() {
             {activeModule === "accommodation" && <AccommodationsModule tripId={tripId} readOnly={readOnly || !isOnline} />}
             {activeModule === "itinerary"     && <ItineraryModule tripId={tripId} readOnly={readOnly || !isOnline} />}
             {activeModule === "vault"         && <DocumentsModule tripId={tripId} coverImageUrl={trip.coverImage} readOnly={readOnly || !isOnline} />}
+            {activeModule === "baggage"       && <BaggageModule tripId={tripId} readOnly={readOnly || !isOnline} />}
           </div>
         </main>
       </div>

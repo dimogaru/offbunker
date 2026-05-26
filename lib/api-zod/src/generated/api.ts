@@ -740,3 +740,97 @@ export const DeleteDocumentParams = zod.object({
   tripId: zod.coerce.number(),
   documentId: zod.coerce.number(),
 });
+
+/**
+ * @summary List baggage items for a trip
+ */
+export const ListBaggageItemsParams = zod.object({
+  tripId: zod.coerce.number(),
+});
+
+export const ListBaggageItemsResponseItem = zod.object({
+  id: zod.number(),
+  tripId: zod.number(),
+  name: zod.string(),
+  category: zod.enum([
+    "documents_money",
+    "electronics",
+    "clothing",
+    "toiletries",
+    "last_minute",
+  ]),
+  isChecked: zod.boolean(),
+  isLastMinute: zod.boolean(),
+  sortOrder: zod.number(),
+  createdAt: zod.coerce.date(),
+});
+export const ListBaggageItemsResponse = zod.array(ListBaggageItemsResponseItem);
+
+/**
+ * @summary Add a baggage item to a trip
+ */
+export const CreateBaggageItemParams = zod.object({
+  tripId: zod.coerce.number(),
+});
+
+export const CreateBaggageItemBody = zod.object({
+  name: zod.string().min(1),
+  category: zod.enum([
+    "documents_money",
+    "electronics",
+    "clothing",
+    "toiletries",
+    "last_minute",
+  ]),
+  isLastMinute: zod.boolean().optional(),
+  sortOrder: zod.number().optional(),
+});
+
+/**
+ * @summary Update a baggage item
+ */
+export const UpdateBaggageItemParams = zod.object({
+  tripId: zod.coerce.number(),
+  itemId: zod.coerce.number(),
+});
+
+export const UpdateBaggageItemBody = zod.object({
+  name: zod.string().optional(),
+  category: zod
+    .enum([
+      "documents_money",
+      "electronics",
+      "clothing",
+      "toiletries",
+      "last_minute",
+    ])
+    .optional(),
+  isChecked: zod.boolean().optional(),
+  isLastMinute: zod.boolean().optional(),
+  sortOrder: zod.number().optional(),
+});
+
+export const UpdateBaggageItemResponse = zod.object({
+  id: zod.number(),
+  tripId: zod.number(),
+  name: zod.string(),
+  category: zod.enum([
+    "documents_money",
+    "electronics",
+    "clothing",
+    "toiletries",
+    "last_minute",
+  ]),
+  isChecked: zod.boolean(),
+  isLastMinute: zod.boolean(),
+  sortOrder: zod.number(),
+  createdAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Delete a baggage item
+ */
+export const DeleteBaggageItemParams = zod.object({
+  tripId: zod.coerce.number(),
+  itemId: zod.coerce.number(),
+});

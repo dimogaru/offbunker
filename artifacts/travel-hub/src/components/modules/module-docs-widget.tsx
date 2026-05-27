@@ -3,6 +3,39 @@ import {
   Paperclip, FileText, ExternalLink, Trash2,
   Loader2, CheckCircle2, X,
 } from "lucide-react";
+
+function dataUrlToBlob(dataUrl: string): Blob {
+  const [header, b64] = dataUrl.split(",");
+  const mime = header.match(/:(.*?);/)?.[1] ?? "application/octet-stream";
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
+}
+
+function openDocUrl(url: string): void {
+  if (url.startsWith("data:")) {
+    const blob = dataUrlToBlob(url);
+    const blobUrl = URL.createObjectURL(blob);
+    window.open(blobUrl, "_blank", "noopener,noreferrer");
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+  } else {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+}
+
+function fileTypeFromDataUrl(url: string, fileName: string): string {
+  if (url.startsWith("data:")) {
+    const mime = url.match(/^data:(.*?);/)?.[1] ?? "";
+    if (mime === "application/pdf") return "PDF";
+    if (mime.startsWith("image/")) return "Imagen";
+    return "Otro";
+  }
+  const ext = fileName.split(".").pop()?.toLowerCase() ?? "";
+  if (ext === "pdf") return "PDF";
+  if (["png", "jpg", "jpeg", "webp", "gif"].includes(ext)) return "Imagen";
+  return "Otro";
+}
 import { useQueryClient } from "@tanstack/react-query";
 import {
   useListDocuments, useCreateDocument, useDeleteDocument,
@@ -133,8 +166,7 @@ export default function ModuleDocsWidget({ tripId, module, moduleLabel, readOnly
 
   function handleSubmit() {
     if (!docName.trim() || createDoc.isPending) return;
-    const ext = fileUrl.split(".").pop()?.toLowerCase() ?? "";
-    const fileType = ext === "pdf" ? "PDF" : ["png", "jpg", "jpeg", "webp", "gif"].includes(ext) ? "Imagen" : "Otro";
+    const fileType = fileUrl ? fileTypeFromDataUrl(fileUrl, docName) : "Otro";
     createDoc.mutate({ tripId, data: { module, name: docName.trim(), fileType, fileUrl: fileUrl || undefined } });
   }
 
@@ -189,15 +221,14 @@ export default function ModuleDocsWidget({ tripId, module, moduleLabel, readOnly
 
               {/* Open link */}
               {doc.fileUrl && (
-                <a
-                  href={doc.fileUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  type="button"
                   title="Abrir documento"
+                  onClick={() => openDocUrl(doc.fileUrl!)}
                   className="text-muted-foreground hover:text-primary transition-colors flex-shrink-0"
                 >
                   <ExternalLink className="w-3 h-3" />
-                </a>
+                </button>
               )}
 
               {/* Delete */}

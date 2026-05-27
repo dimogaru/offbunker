@@ -47,7 +47,32 @@ const TYPE_LABEL: Record<string, string> = { hotel: "Hotel", airbnb: "Airbnb", h
 function toLocal(iso: string) { return iso ? iso.substring(0, 16) : ""; }
 function fmt(iso: string) { return new Date(iso).toLocaleString("es-ES", { weekday: "short", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }); }
 function fmtDay(iso: string) { return new Date(iso).getDate(); }
+function dataUrlToBlob(dataUrl: string): Blob {
+  const [header, b64] = dataUrl.split(",");
+  const mime = header.match(/:(.*?);/)?.[1] ?? "application/octet-stream";
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
+}
+function openDocUrl(url: string): void {
+  if (url.startsWith("data:")) {
+    const blob = dataUrlToBlob(url);
+    const blobUrl = URL.createObjectURL(blob);
+    window.open(blobUrl, "_blank", "noopener,noreferrer");
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+  } else {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+}
 function fileTypeFrom(url: string) {
+  if (url.startsWith("data:")) {
+    const mime = url.match(/^data:(.*?);/)?.[1] ?? "";
+    if (mime === "application/pdf") return "PDF";
+    if (mime.startsWith("image/")) return "Imagen";
+    if (mime.includes("word") || mime.includes("document")) return "Word";
+    return "Otro";
+  }
   const ext = url.split(".").pop()?.toLowerCase() ?? "";
   if (ext === "pdf") return "PDF";
   if (["png", "jpg", "jpeg", "webp", "gif"].includes(ext)) return "Imagen";
@@ -283,9 +308,9 @@ export default function AccommodationsModule({ tripId, readOnly }: Props) {
                           {doc.fileType?.slice(0, 3)}
                         </span>
                         {doc.fileUrl ? (
-                          <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="font-medium max-w-[110px] truncate text-foreground/80 hover:text-primary transition-colors">
+                          <button type="button" onClick={() => openDocUrl(doc.fileUrl!)} className="font-medium max-w-[110px] truncate text-foreground/80 hover:text-primary transition-colors text-left">
                             {doc.name}
-                          </a>
+                          </button>
                         ) : (
                           <span className="font-medium max-w-[110px] truncate text-foreground/80">{doc.name}</span>
                         )}
@@ -380,9 +405,9 @@ export default function AccommodationsModule({ tripId, readOnly }: Props) {
                               {doc.fileType?.slice(0, 3)}
                             </span>
                             {doc.fileUrl ? (
-                              <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="font-medium max-w-[110px] truncate text-foreground/80 hover:text-primary transition-colors">
+                              <button type="button" onClick={() => openDocUrl(doc.fileUrl!)} className="font-medium max-w-[110px] truncate text-foreground/80 hover:text-primary transition-colors text-left">
                                 {doc.name}
-                              </a>
+                              </button>
                             ) : (
                               <span className="font-medium max-w-[110px] truncate text-foreground/80">{doc.name}</span>
                             )}

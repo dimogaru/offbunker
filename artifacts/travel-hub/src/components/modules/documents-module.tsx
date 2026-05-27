@@ -89,7 +89,7 @@ function downloadDocUrl(url: string, fileName: string): void {
 const MODULES = [
   { value: "flights", label: "Vuelos" },
   { value: "parking", label: "Estacionamiento" },
-  { value: "rental", label: "Alquiler" },
+  { value: "rental", label: "Transporte" },
   { value: "accommodation", label: "Alojamiento" },
   { value: "itinerary", label: "Itinerario" },
   { value: "vault", label: "General" },

@@ -823,6 +823,7 @@ export const ListBaggageItemsParams = zod.object({
 export const ListBaggageItemsResponseItem = zod.object({
   id: zod.number(),
   tripId: zod.number(),
+  userId: zod.number(),
   name: zod.string(),
   category: zod.enum([
     "documents_money",
@@ -885,6 +886,7 @@ export const UpdateBaggageItemBody = zod.object({
 export const UpdateBaggageItemResponse = zod.object({
   id: zod.number(),
   tripId: zod.number(),
+  userId: zod.number(),
   name: zod.string(),
   category: zod.enum([
     "documents_money",

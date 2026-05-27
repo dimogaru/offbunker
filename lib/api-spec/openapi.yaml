@@ -1412,11 +1412,13 @@ components:
 
     BaggageItem:
       type: object
-      required: [id, tripId, name, category, isChecked, isLastMinute, sortOrder, createdAt]
+      required: [id, tripId, userId, name, category, isChecked, isLastMinute, sortOrder, createdAt]
       properties:
         id:
           type: integer
         tripId:
+          type: integer
+        userId:
           type: integer
         name:
           type: string

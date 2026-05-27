@@ -21,10 +21,16 @@ router.get("/trips/:tripId/baggage", async (req, res): Promise<void> => {
     return;
   }
 
+  const userId = req.session?.userId as number;
   const items = await db
     .select()
     .from(baggageItemsTable)
-    .where(eq(baggageItemsTable.tripId, params.data.tripId))
+    .where(
+      and(
+        eq(baggageItemsTable.tripId, params.data.tripId),
+        eq(baggageItemsTable.userId, userId),
+      ),
+    )
     .orderBy(baggageItemsTable.sortOrder, baggageItemsTable.createdAt);
 
   res.json(ListBaggageItemsResponse.parse(items));
@@ -43,11 +49,13 @@ router.post("/trips/:tripId/baggage", async (req, res): Promise<void> => {
     return;
   }
 
+  const userId = req.session?.userId as number;
   const [item] = await db
     .insert(baggageItemsTable)
     .values({
       ...parsed.data,
       tripId: params.data.tripId,
+      userId,
       isLastMinute: parsed.data.isLastMinute ?? false,
       sortOrder: parsed.data.sortOrder ?? 0,
     })
@@ -69,14 +77,21 @@ router.patch("/trips/:tripId/baggage/:itemId", async (req, res): Promise<void> =
     return;
   }
 
+  const userId = req.session?.userId as number;
   const [item] = await db
     .update(baggageItemsTable)
     .set(parsed.data)
-    .where(and(eq(baggageItemsTable.id, params.data.itemId), eq(baggageItemsTable.tripId, params.data.tripId)))
+    .where(
+      and(
+        eq(baggageItemsTable.id, params.data.itemId),
+        eq(baggageItemsTable.tripId, params.data.tripId),
+        eq(baggageItemsTable.userId, userId),
+      ),
+    )
     .returning();
 
   if (!item) {
-    res.status(404).json({ error: "Item no encontrado" });
+    res.status(404).json({ error: "Ítem no encontrado" });
     return;
   }
 
@@ -90,13 +105,20 @@ router.delete("/trips/:tripId/baggage/:itemId", async (req, res): Promise<void> 
     return;
   }
 
+  const userId = req.session?.userId as number;
   const [item] = await db
     .delete(baggageItemsTable)
-    .where(and(eq(baggageItemsTable.id, params.data.itemId), eq(baggageItemsTable.tripId, params.data.tripId)))
+    .where(
+      and(
+        eq(baggageItemsTable.id, params.data.itemId),
+        eq(baggageItemsTable.tripId, params.data.tripId),
+        eq(baggageItemsTable.userId, userId),
+      ),
+    )
     .returning();
 
   if (!item) {
-    res.status(404).json({ error: "Item no encontrado" });
+    res.status(404).json({ error: "Ítem no encontrado" });
     return;
   }
 

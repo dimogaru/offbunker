@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import {
   Plus, Trash2, ChevronDown, ChevronRight,
   Luggage, AlertTriangle, Briefcase, FileDown, FileUp, X, Check,
@@ -65,29 +66,30 @@ const CATEGORIES = [
 
 type CategoryId = (typeof CATEGORIES)[number]["id"];
 
-/* ─── Template helpers ───────────────────────────────────────── */
+/* ─── Template helpers (user-scoped) ─────────────────────────── */
 
-const TEMPLATES_KEY = "offbunker-baggage-templates";
 type TemplateItem = { name: string; category: CategoryId; isLastMinute: boolean };
 type Template = { name: string; items: TemplateItem[] };
 
-function loadTemplates(): Template[] {
-  try { return JSON.parse(localStorage.getItem(TEMPLATES_KEY) || "[]"); } catch { return []; }
+function templatesKey(userId: number) { return `offbunker-baggage-templates-${userId}`; }
+
+function loadTemplates(userId: number): Template[] {
+  try { return JSON.parse(localStorage.getItem(templatesKey(userId)) || "[]"); } catch { return []; }
 }
-function persistTemplate(t: Template) {
-  const existing = loadTemplates().filter((x) => x.name !== t.name);
-  localStorage.setItem(TEMPLATES_KEY, JSON.stringify([...existing, t]));
+function persistTemplate(userId: number, t: Template) {
+  const existing = loadTemplates(userId).filter((x) => x.name !== t.name);
+  localStorage.setItem(templatesKey(userId), JSON.stringify([...existing, t]));
 }
-function deleteTemplate(name: string) {
-  const existing = loadTemplates().filter((x) => x.name !== name);
-  localStorage.setItem(TEMPLATES_KEY, JSON.stringify(existing));
+function deleteTemplate(userId: number, name: string) {
+  const existing = loadTemplates(userId).filter((x) => x.name !== name);
+  localStorage.setItem(templatesKey(userId), JSON.stringify(existing));
 }
 
-/* ─── Checked-state offline cache ────────────────────────────── */
+/* ─── Checked-state offline cache (user-scoped) ──────────────── */
 
-function setCachedChecked(tripId: number, itemId: number, checked: boolean) {
+function setCachedChecked(tripId: number, itemId: number, checked: boolean, userId: number) {
   try {
-    const key = `offbunker-baggage-checked-${tripId}`;
+    const key = `offbunker-baggage-checked-${tripId}-${userId}`;
     const cache: Record<number, boolean> = JSON.parse(localStorage.getItem(key) || "{}");
     cache[itemId] = checked;
     localStorage.setItem(key, JSON.stringify(cache));
@@ -104,6 +106,8 @@ interface Props {
 export default function BaggageModule({ tripId, readOnly }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const userId = user?.id ?? 0;
 
   /* data */
   const { data: items = [], isLoading } = useListBaggageItems(tripId);
@@ -127,9 +131,14 @@ export default function BaggageModule({ tripId, readOnly }: Props) {
   const [addingCategory, setAddingCategory] = useState<CategoryId | null>(null);
   const [newItemName, setNewItemName] = useState("");
   const [templatePanelOpen, setTemplatePanelOpen] = useState(false);
-  const [templates, setTemplates] = useState<Template[]>(loadTemplates);
+  const [templates, setTemplates] = useState<Template[]>([]);
   const [saveTemplateName, setSaveTemplateName] = useState("");
   const touchStartX = useRef(0);
+
+  /* Load user-scoped templates when userId is known */
+  useEffect(() => {
+    if (userId) setTemplates(loadTemplates(userId));
+  }, [userId]);
 
   /* ─── Last-minute alert ────────────────────────────────────── */
   const earliestDeparture = flights
@@ -188,7 +197,7 @@ export default function BaggageModule({ tripId, readOnly }: Props) {
       (old: BaggageItem[] | undefined) =>
         (old ?? []).map((i) => (i.id === item.id ? { ...i, isChecked: next } : i)),
     );
-    setCachedChecked(tripId, item.id, next);
+    setCachedChecked(tripId, item.id, next, userId);
     updateItem.mutate({ tripId, itemId: item.id, data: { isChecked: next } });
   };
 
@@ -236,8 +245,8 @@ export default function BaggageModule({ tripId, readOnly }: Props) {
       category: i.category as CategoryId,
       isLastMinute: i.isLastMinute,
     }));
-    persistTemplate({ name, items: templateItems });
-    setTemplates(loadTemplates());
+    persistTemplate(userId, { name, items: templateItems });
+    setTemplates(loadTemplates(userId));
     setSaveTemplateName("");
     toast({ title: `Plantilla "${name}" guardada` });
   };
@@ -254,8 +263,8 @@ export default function BaggageModule({ tripId, readOnly }: Props) {
   };
 
   const handleDeleteTemplate = (name: string) => {
-    deleteTemplate(name);
-    setTemplates(loadTemplates());
+    deleteTemplate(userId, name);
+    setTemplates(loadTemplates(userId));
   };
 
   /* ─── Request notification permission ──────────────────────── */

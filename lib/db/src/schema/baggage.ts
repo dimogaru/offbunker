@@ -2,10 +2,12 @@ import { pgTable, text, serial, timestamp, integer, boolean } from "drizzle-orm/
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { tripsTable } from "./trips";
+import { usersTable } from "./users";
 
 export const baggageItemsTable = pgTable("baggage_items", {
   id: serial("id").primaryKey(),
   tripId: integer("trip_id").notNull().references(() => tripsTable.id, { onDelete: "cascade" }),
+  userId: integer("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   category: text("category").notNull(),
   isChecked: boolean("is_checked").notNull().default(false),

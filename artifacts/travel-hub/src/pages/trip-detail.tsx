@@ -439,7 +439,7 @@ export default function TripDetail() {
             {activeModule === "accommodation" && <AccommodationsModule tripId={tripId} readOnly={readOnly || !isOnline} />}
             {activeModule === "itinerary"     && <ItineraryModule tripId={tripId} readOnly={readOnly || !isOnline} />}
             {activeModule === "vault"         && <DocumentsModule tripId={tripId} coverImageUrl={trip.coverImage} readOnly={readOnly || !isOnline} />}
-            {activeModule === "baggage"       && <BaggageModule tripId={tripId} readOnly={readOnly || !isOnline} />}
+            {activeModule === "baggage"       && <BaggageModule tripId={tripId} readOnly={!isOnline} />}
           </div>
         </main>
       </div>

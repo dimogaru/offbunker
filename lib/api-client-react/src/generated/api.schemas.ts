@@ -477,6 +477,7 @@ export const BaggageItemCategory = {
 export interface BaggageItem {
   id: number;
   tripId: number;
+  userId: number;
   name: string;
   category: BaggageItemCategory;
   isChecked: boolean;

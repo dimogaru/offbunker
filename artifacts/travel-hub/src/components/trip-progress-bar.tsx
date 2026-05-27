@@ -54,7 +54,7 @@ export default function TripProgressBar({ tripId, compact }: Props) {
   }
 
   return (
-    <div className="bg-card border border-border rounded-lg px-4 pt-3 pb-3">
+    <div className="max-w-3xl bg-card border border-border rounded-lg px-4 pt-3 pb-3">
       {/* Header — always visible */}
       <button
         onClick={toggleCollapsed}

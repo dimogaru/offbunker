@@ -10,6 +10,7 @@ import {
   accommodationsTable,
   itineraryItemsTable,
   documentsTable,
+  baggageItemsTable,
 } from "@workspace/db";
 import type { Trip } from "@workspace/db";
 import {
@@ -204,30 +205,30 @@ router.get("/trips/:tripId/progress", async (req, res): Promise<void> => {
 
   const { tripId } = params.data;
 
-  const [flights, parkings, rentals, accommodations, itinerary, documents] =
+  const [flights, parkings, rentals, accommodations, itinerary, baggage] =
     await Promise.all([
       db.select().from(flightsTable).where(eq(flightsTable.tripId, tripId)),
       db.select().from(parkingTable).where(eq(parkingTable.tripId, tripId)),
       db.select().from(rentalsTable).where(eq(rentalsTable.tripId, tripId)),
       db.select().from(accommodationsTable).where(eq(accommodationsTable.tripId, tripId)),
       db.select().from(itineraryItemsTable).where(eq(itineraryItemsTable.tripId, tripId)),
-      db.select().from(documentsTable).where(eq(documentsTable.tripId, tripId)),
+      db.select().from(baggageItemsTable).where(eq(baggageItemsTable.tripId, tripId)),
     ]);
 
   const modules = [
-    { module: "flights",       label: "Logística Aérea",     count: flights.length,        docCount: documents.filter((d) => d.module === "flights").length },
-    { module: "parking",       label: "Estacionamiento",     count: parkings.length,       docCount: documents.filter((d) => d.module === "parking").length },
-    { module: "rental",        label: "Alquiler de Vehículo", count: rentals.length,       docCount: documents.filter((d) => d.module === "rental").length },
-    { module: "accommodation", label: "Alojamiento",         count: accommodations.length, docCount: documents.filter((d) => d.module === "accommodation").length },
-    { module: "itinerary",     label: "Itinerario",          count: itinerary.length,      docCount: documents.filter((d) => d.module === "itinerary").length },
-    { module: "vault",         label: "Bóveda de Docs",      count: documents.filter((d) => d.module === "vault").length, docCount: documents.filter((d) => d.module === "vault").length },
+    { module: "flights",       label: "Logística Aérea", count: flights.length },
+    { module: "parking",       label: "Estacionamiento", count: parkings.length },
+    { module: "rental",        label: "Transportes",     count: rentals.length },
+    { module: "accommodation", label: "Alojamiento",     count: accommodations.length },
+    { module: "itinerary",     label: "Itinerario",      count: itinerary.length },
+    { module: "baggage",       label: "Equipaje",        count: baggage.length },
   ];
 
   const moduleBreakdown = modules.map((m) => ({
     module: m.module,
     label: m.label,
-    hasDocuments: m.docCount > 0 || m.count > 0,
-    documentCount: m.docCount,
+    hasDocuments: m.count > 0,
+    documentCount: m.count,
   }));
 
   const completedModules = moduleBreakdown.filter((m) => m.hasDocuments).length;

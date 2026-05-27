@@ -21,6 +21,71 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 
+// ── iOS / Blob helpers ────────────────────────────────────────────────────────
+function isIOS(): boolean {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent);
+}
+
+function dataUrlToBlob(dataUrl: string): Blob {
+  const [header, b64] = dataUrl.split(",");
+  const mime = header.match(/:(.*?);/)?.[1] ?? "application/octet-stream";
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
+}
+
+/**
+ * Opens a document for viewing.
+ * iOS Safari: data: URLs and blob: popups are unreliable, so we force a
+ * download instead (Files app will open it natively).
+ * All other platforms: convert to blob: URL and open in a new tab so the
+ * browser's built-in PDF viewer handles it without data: URL restrictions.
+ */
+function openDocUrl(url: string, fileName: string): void {
+  if (url.startsWith("data:")) {
+    const blob = dataUrlToBlob(url);
+    const blobUrl = URL.createObjectURL(blob);
+    if (isIOS()) {
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } else {
+      window.open(blobUrl, "_blank", "noopener,noreferrer");
+    }
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+  } else {
+    window.open(url, "_blank", "noopener,noreferrer");
+  }
+}
+
+/**
+ * Triggers a file download on all platforms.
+ * Always converts data: URLs to blob: URLs so the download attribute is
+ * honoured (Safari ignores download on data: hrefs).
+ */
+function downloadDocUrl(url: string, fileName: string): void {
+  const triggerDownload = (href: string) => {
+    const a = document.createElement("a");
+    a.href = href;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+  if (url.startsWith("data:")) {
+    const blob = dataUrlToBlob(url);
+    const blobUrl = URL.createObjectURL(blob);
+    triggerDownload(blobUrl);
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+  } else {
+    triggerDownload(url);
+  }
+}
+
 const MODULES = [
   { value: "flights", label: "Vuelos" },
   { value: "parking", label: "Estacionamiento" },
@@ -444,23 +509,22 @@ export default function DocumentsModule({ tripId, coverImageUrl, readOnly }: Pro
                       </div>
                       {doc.fileUrl && (
                         <div className="flex items-center gap-1 flex-shrink-0">
-                          <a
-                            href={doc.fileUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title="Abrir en nueva pestaña"
+                          <button
+                            type="button"
+                            title={isIOS() ? "Descargar / Abrir" : "Abrir en nueva pestaña"}
                             className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
+                            onClick={() => openDocUrl(doc.fileUrl!, doc.name)}
                           >
                             <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
-                          <a
-                            href={doc.fileUrl}
-                            download={doc.name}
+                          </button>
+                          <button
+                            type="button"
                             title="Descargar"
                             className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
+                            onClick={() => downloadDocUrl(doc.fileUrl!, doc.name)}
                           >
                             <Download className="w-3.5 h-3.5" />
-                          </a>
+                          </button>
                         </div>
                       )}
                       {!readOnly && (

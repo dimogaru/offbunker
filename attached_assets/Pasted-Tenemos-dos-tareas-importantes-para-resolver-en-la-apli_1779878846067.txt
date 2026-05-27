@@ -1,0 +1,16 @@
+Tenemos dos tareas importantes para resolver en la aplicación: un fallo crítico en el flujo de colaboración y un problema de desbordamiento visual en la interfaz móvil al subir documentos (como se ve en la captura de pantalla del usuario).
+
+Por favor, aplica los siguientes cambios en el proyecto:
+
+1. ARREGLO DE DISEÑO (Responsividad del Modal de Subida):
+   - Al añadir las indicaciones de formato y límite de 5MB, el modal de "Subir documento" se ha descuadrado horizontalmente en pantallas móviles (se corta por la derecha).
+   - Corrige el CSS/diseño del modal para que sea completamente responsivo. Asegura que el contenedor tenga un ancho máximo adecuado (ej. max-width: 90% o un padding lateral correcto) y que ningún texto desborde la pantalla.
+   - Si el texto explicativo ("Seleccionar archivo (PDF, JPEG, PNG, WebP... máx 5MB)") es muy largo para el input o el botón en móviles, haz que se adapte con un tamaño de fuente menor, que haga salto de línea de forma limpia, o colócalo como un texto de ayuda pequeño (small text) JUSTO DEBAJO del campo de selección, en lugar de saturar el interior del botón/input.
+
+2. SINCRONIZACIÓN AUTOMÁTICA (Flujo de usuarios editores):
+   - Cuando un usuario comparte el proyecto con permisos de EDICIÓN, el nuevo usuario experimenta errores al intentar abrir documentos porque su base de datos local no está sincronizada.
+   - Modifica la lógica de inicio: en cuanto la app se abra o el usuario inicie sesión, debe ejecutarse una sincronización automática de fondo para traer todos los documentos compartidos del servidor.
+   - Elimina por completo el botón manual de "Actualizar Sincronizados" en el apartado de DOCUMENTOS.
+   - Implementa sincronización "On-Demand": Si un usuario intenta ver un documento y este no se encuentra localmente o falla, captura el error (try/catch), muestra un estado de "Cargando documento..." y fuerza una sincronización automática con el servidor en ese instante para recuperar el archivo antes de mostrar un fallo visual.
+
+Localiza los archivos de estilos (CSS), el componente del modal de subida de archivos y la lógica de sincronización en el frontend para unificar estas soluciones.

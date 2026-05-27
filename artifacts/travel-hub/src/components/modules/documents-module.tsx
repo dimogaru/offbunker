@@ -1,7 +1,7 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Trash2, FolderOpen, FileText, Paperclip, ExternalLink, Download,
-  WifiOff, CheckCircle2, Loader2, CloudDownload, RefreshCw,
+  WifiOff, CheckCircle2, Loader2,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -102,6 +102,7 @@ export default function DocumentsModule({ tripId, coverImageUrl, readOnly }: Pro
   const [uploading, setUploading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState({ done: 0, total: 0 });
+  const autoSyncedRef = useRef(false);
 
   // Persisted set of file URLs that have been successfully cached offline.
   const [syncedUrls, setSyncedUrls] = useState<Set<string>>(() => loadSyncedUrls(tripId));
@@ -139,14 +140,37 @@ export default function DocumentsModule({ tripId, coverImageUrl, readOnly }: Pro
     },
   });
 
+  const ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast({
+        title: "Formato no permitido",
+        description: "Solo se aceptan archivos PDF, JPEG, PNG o WebP.",
+        variant: "destructive",
+      });
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      toast({
+        title: "Archivo demasiado grande",
+        description: `El archivo pesa ${(file.size / 1024 / 1024).toFixed(1)} MB. El límite es 5 MB.`,
+        variant: "destructive",
+      });
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
     setSelectedFileName(file.name);
     form.setValue("name", file.name);
-    if (file.type.includes("pdf")) form.setValue("fileType", "PDF");
-    else if (file.type.includes("image")) form.setValue("fileType", "Imagen");
+    if (file.type === "application/pdf") form.setValue("fileType", "PDF");
+    else if (file.type.startsWith("image/")) form.setValue("fileType", "Imagen");
     else form.setValue("fileType", "Otro");
 
     setUploading(true);
@@ -154,13 +178,16 @@ export default function DocumentsModule({ tripId, coverImageUrl, readOnly }: Pro
       const formData = new FormData();
       formData.append("file", file);
       const res = await fetch("/api/uploads", { method: "POST", body: formData });
-      if (!res.ok) throw new Error("Upload failed");
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(body.error ?? "Error al subir el archivo");
+      }
       const { url } = await res.json() as { url: string };
       form.setValue("fileUrl", url);
-    } catch {
+    } catch (err) {
       toast({
         title: "Error al subir el archivo",
-        description: "Comprueba tu conexión e inténtalo de nuevo.",
+        description: err instanceof Error ? err.message : "Comprueba tu conexión e inténtalo de nuevo.",
         variant: "destructive",
       });
       setSelectedFileName("");
@@ -264,6 +291,18 @@ export default function DocumentsModule({ tripId, coverImageUrl, readOnly }: Pro
     });
   }
 
+  // Auto-sync: run once when documents are first loaded and there are pending server files
+  useEffect(() => {
+    if (!docs || syncing || autoSyncedRef.current) return;
+    const serverDocs = docs.filter((d) => isServerUrl(d.fileUrl));
+    const pending = serverDocs.filter((d) => !syncedUrls.has(d.fileUrl!));
+    if (pending.length > 0) {
+      autoSyncedRef.current = true;
+      handlePrepareOffline();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [docs]);
+
   // Derived sync state
   const serverDocs = docs ? docs.filter((d) => isServerUrl(d.fileUrl)) : [];
   const pendingDocs = serverDocs.filter((d) => !syncedUrls.has(d.fileUrl!));
@@ -294,54 +333,31 @@ export default function DocumentsModule({ tripId, coverImageUrl, readOnly }: Pro
         )}
       </div>
 
-      {/* ── Offline sync banner ── */}
+      {/* ── Offline sync banner (automatic — no manual controls) ── */}
       {serverDocs.length > 0 && (
         <>
           {syncing ? (
             <div className="mb-4 flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3">
               <Loader2 className="w-4 h-4 animate-spin text-primary flex-shrink-0" />
               <span className="text-sm text-muted-foreground flex-1">
-                Verificando y descargando {syncProgress.done} de {syncProgress.total} documentos…
+                Sincronizando documentos para uso offline… ({syncProgress.done}/{syncProgress.total})
               </span>
             </div>
           ) : allSynced ? (
-            /* All current docs are cached — show success state */
-            <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30 px-4 py-3">
-              <div className="flex items-center gap-2.5 text-sm text-emerald-700 dark:text-emerald-400">
-                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-                <span>
-                  <span className="font-medium">{serverDocs.length}</span>{" "}
-                  documento{serverDocs.length !== 1 ? "s" : ""} sincronizado{serverDocs.length !== 1 ? "s" : ""} para uso offline
-                </span>
-              </div>
-              <button
-                onClick={handlePrepareOffline}
-                className="flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-200 transition-colors flex-shrink-0"
-                title="Volver a sincronizar"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                Actualizar
-              </button>
+            <div className="mb-4 flex items-center gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400">
+              <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+              <span>
+                <span className="font-medium">{serverDocs.length}</span>{" "}
+                documento{serverDocs.length !== 1 ? "s" : ""} disponible{serverDocs.length !== 1 ? "s" : ""} sin conexión
+              </span>
             </div>
           ) : (
-            /* One or more docs not yet cached */
-            <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-4 py-3">
-              <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
-                <WifiOff className="w-4 h-4 flex-shrink-0" />
-                <span>
-                  <span className="font-medium text-foreground">{pendingDocs.length}</span>{" "}
-                  documento{pendingDocs.length !== 1 ? "s" : ""} pendiente{pendingDocs.length !== 1 ? "s" : ""} de sincronizar
-                </span>
-              </div>
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-1.5 flex-shrink-0 text-xs h-8"
-                onClick={handlePrepareOffline}
-              >
-                <CloudDownload className="w-3.5 h-3.5" />
-                Preparar modo offline
-              </Button>
+            <div className="mb-4 flex items-center gap-2.5 rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+              <WifiOff className="w-4 h-4 flex-shrink-0" />
+              <span>
+                <span className="font-medium text-foreground">{pendingDocs.length}</span>{" "}
+                documento{pendingDocs.length !== 1 ? "s" : ""} pendiente{pendingDocs.length !== 1 ? "s" : ""} de sincronizar offline
+              </span>
             </div>
           )}
         </>
@@ -500,7 +516,7 @@ export default function DocumentsModule({ tripId, coverImageUrl, readOnly }: Pro
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.doc,.docx"
+                  accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp"
                   className="hidden"
                   onChange={handleFileChange}
                 />

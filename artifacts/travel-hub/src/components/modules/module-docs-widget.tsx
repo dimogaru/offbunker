@@ -221,22 +221,27 @@ export default function ModuleDocsWidget({ tripId, module, moduleLabel, readOnly
 
       {/* Upload dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-sm">
           <DialogHeader>
             <DialogTitle>Subir documento — {moduleLabel}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-1">
-            <div
-              onClick={() => !uploading && fileInputRef.current?.click()}
-              className={`flex items-center gap-3 border border-border rounded-md px-3 py-2.5 bg-background transition-colors ${uploading ? "opacity-60" : "cursor-pointer hover:bg-muted/40"}`}
-            >
-              {uploading
-                ? <Loader2 className="w-4 h-4 text-primary animate-spin flex-shrink-0" />
-                : <Paperclip className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
-              <span className={`text-sm truncate flex-1 ${fileUrl || uploading ? "text-foreground" : "text-muted-foreground"}`}>
-                {uploading ? "Subiendo al servidor…" : fileUrl ? docName : "Seleccionar archivo (PDF, JPEG, PNG, WebP · máx. 5 MB)"}
-              </span>
-              {fileUrl && !uploading && <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />}
+            <div className="space-y-1">
+              <div
+                onClick={() => !uploading && fileInputRef.current?.click()}
+                className={`flex items-center gap-2 border border-border rounded-md px-3 py-2.5 bg-background transition-colors ${uploading ? "opacity-60" : "cursor-pointer hover:bg-muted/40"}`}
+              >
+                {uploading
+                  ? <Loader2 className="w-4 h-4 text-primary animate-spin flex-shrink-0" />
+                  : <Paperclip className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
+                <span className={`text-sm truncate flex-1 min-w-0 ${fileUrl || uploading ? "text-foreground" : "text-muted-foreground"}`}>
+                  {uploading ? "Subiendo…" : fileUrl ? docName : "Seleccionar archivo…"}
+                </span>
+                {fileUrl && !uploading && <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />}
+              </div>
+              <p className="text-[11px] text-muted-foreground px-0.5">
+                PDF, JPEG, PNG o WebP · máx. 5 MB
+              </p>
             </div>
             <input ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" className="hidden" onChange={handleFile} />
             <div>

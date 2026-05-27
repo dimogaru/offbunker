@@ -76,21 +76,56 @@ export default function ModuleDocsWidget({ tripId, module, moduleLabel, readOnly
     },
   });
 
+  const ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+
+  function clearFileInput() {
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast({
+        title: "Formato no permitido",
+        description: "Solo se aceptan archivos PDF, JPEG, PNG o WebP.",
+        variant: "destructive",
+      });
+      clearFileInput();
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      toast({
+        title: "Archivo demasiado grande",
+        description: `El archivo pesa ${(file.size / 1024 / 1024).toFixed(1)} MB. El límite es 5 MB.`,
+        variant: "destructive",
+      });
+      clearFileInput();
+      return;
+    }
+
     setDocName(file.name);
     setUploading(true);
     try {
       const fd = new FormData();
       fd.append("file", file);
       const res = await fetch("/api/uploads", { method: "POST", body: fd });
-      if (!res.ok) throw new Error("Upload failed");
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(body.error ?? "Error al subir el archivo");
+      }
       const { url } = (await res.json()) as { url: string };
       setFileUrl(url);
-    } catch {
-      toast({ title: "Error al subir el archivo", description: "Comprueba tu conexión.", variant: "destructive" });
-      if (fileInputRef.current) fileInputRef.current.value = "";
+    } catch (err) {
+      toast({
+        title: "Error al subir el archivo",
+        description: err instanceof Error ? err.message : "Comprueba tu conexión.",
+        variant: "destructive",
+      });
+      clearFileInput();
     } finally {
       setUploading(false);
     }
@@ -199,11 +234,11 @@ export default function ModuleDocsWidget({ tripId, module, moduleLabel, readOnly
                 ? <Loader2 className="w-4 h-4 text-primary animate-spin flex-shrink-0" />
                 : <Paperclip className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
               <span className={`text-sm truncate flex-1 ${fileUrl || uploading ? "text-foreground" : "text-muted-foreground"}`}>
-                {uploading ? "Subiendo al servidor…" : fileUrl ? docName : "Seleccionar archivo (PDF, imagen…)"}
+                {uploading ? "Subiendo al servidor…" : fileUrl ? docName : "Seleccionar archivo (PDF, JPEG, PNG, WebP · máx. 5 MB)"}
               </span>
               {fileUrl && !uploading && <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />}
             </div>
-            <input ref={fileInputRef} type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.doc,.docx" className="hidden" onChange={handleFile} />
+            <input ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" className="hidden" onChange={handleFile} />
             <div>
               <label className="text-sm font-medium">Nombre del documento</label>
               <Input className="mt-1.5" placeholder="Tarjeta de embarque, seguro…" value={docName} onChange={(e) => setDocName(e.target.value)} />

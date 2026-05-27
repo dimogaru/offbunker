@@ -1,0 +1,21 @@
+Necesito corregir y unificar la lógica de gestión de documentos en los módulos de 'Transportes' y 'Estacionamiento' para que funcionen exactamente igual que el módulo de 'Alojamientos'. Actualmente, estos apartados tienen un botón de "Subir genérico" que mezcla todos los archivos, lo cual no es funcional.
+
+Por favor, realiza las siguientes modificaciones en el código del Frontend y el Backend:
+
+1. Eliminar la Carga Genérica:
+   - Elimina por completo el botón de "Subir documento genérico" de la parte superior o de los paneles principales de las secciones 'Transportes' y 'Estacionamiento'.
+
+2. Rediseño de Tarjetas e Inyección de Archivos (Frontend):
+   - Modifica las tarjetas (Cards) individuales que renderizan cada transporte (Tren, Autobús, Coche, etc.) y cada plaza de estacionamiento.
+   - Añade a cada una de estas tarjetas un botón específico de "Añadir Documento" (o un icono estético de clip/subida).
+   - Haz que los documentos ya subidos y vinculados a esa tarjeta específica se muestren directamente dentro de ella en formato de chips interactivos (con área de clic total para abrir e icono de papelera para borrar), tal y como se hace en Alojamientos.
+
+3. Cambios en el Formulario y Base de Datos (Backend):
+   - Modifica el modal de subida de archivos para estos módulos. Al abrir el modal desde una tarjeta concreta, el formulario debe capturar de forma obligatoria el 'transporteId' o 'estacionamientoId' correspondiente.
+   - En la base de datos, los documentos subidos ya no pertenecerán solo de manera abstracta a la categoría general, sino que deben incluir de forma relacional el ID específico de la tarjeta a la que están asociados ('transporteId' o 'estacionamientoId').
+   - Al realizar la consulta (fetch/get) para pintar las tarjetas, asegúrate de que el backend devuelva cada transporte o estacionamiento con su array de documentos vinculados.
+
+4. Consistencia con el Ecosistema OffBunker:
+   - Mantén las directrices previas: tamaño máximo de 5MB, formatos restringidos (PDF, JPEG, PNG, WebP) y el parche de compatibilidad para evitar pantallas en blanco en iOS (Safari/WebKit). Todo este flujo debe seguir funcionando al 100% en el modo offline tras la sincronización automática de fondo.
+
+Localiza los componentes de vista de Transportes, Estacionamiento, sus modales de carga de archivos y las rutas de la API de adjuntos para aplicar estos cambios de manera uniforme.

@@ -161,40 +161,69 @@ export interface ParkingUpdate {
   notes?: string;
 }
 
+export type RentalTransportType =
+  (typeof RentalTransportType)[keyof typeof RentalTransportType];
+
+export const RentalTransportType = {
+  Alquiler_de_Vehículo: "Alquiler de Vehículo",
+  Tren: "Tren",
+  Autobús: "Autobús",
+  "Traslado/Transfer": "Traslado/Transfer",
+  Otro: "Otro",
+} as const;
+
 export interface Rental {
   id: number;
   tripId: number;
-  company: string;
-  pickupLocation: string;
+  transportType: RentalTransportType;
+  /** @nullable */
+  company?: string | null;
+  /** @nullable */
+  pickupLocation?: string | null;
   /** @nullable */
   returnLocation?: string | null;
-  pickupDate: string;
-  returnDate: string;
-  fuelPolicy: string;
+  /** @nullable */
+  pickupDate?: string | null;
+  /** @nullable */
+  returnDate?: string | null;
+  /** @nullable */
+  fuelPolicy?: string | null;
   /** @nullable */
   vehicleType?: string | null;
   /** @nullable */
   confirmationCode?: string | null;
   /** @nullable */
+  originStation?: string | null;
+  /** @nullable */
+  destinationStation?: string | null;
+  /** @nullable */
+  departureDateTime?: string | null;
+  /** @nullable */
+  arrivalDateTime?: string | null;
+  /** @nullable */
+  transportNumber?: string | null;
+  /** @nullable */
+  seatInfo?: string | null;
+  /** @nullable */
+  meetingPoint?: string | null;
+  /** @nullable */
   notes?: string | null;
   createdAt: string;
 }
 
-export interface RentalInput {
-  /** @minLength 1 */
-  company: string;
-  /** @minLength 1 */
-  pickupLocation: string;
-  returnLocation?: string;
-  pickupDate: string;
-  returnDate: string;
-  fuelPolicy: string;
-  vehicleType?: string;
-  confirmationCode?: string;
-  notes?: string;
-}
+export type RentalInputTransportType =
+  (typeof RentalInputTransportType)[keyof typeof RentalInputTransportType];
 
-export interface RentalUpdate {
+export const RentalInputTransportType = {
+  Alquiler_de_Vehículo: "Alquiler de Vehículo",
+  Tren: "Tren",
+  Autobús: "Autobús",
+  "Traslado/Transfer": "Traslado/Transfer",
+  Otro: "Otro",
+} as const;
+
+export interface RentalInput {
+  transportType: RentalInputTransportType;
   company?: string;
   pickupLocation?: string;
   returnLocation?: string;
@@ -203,6 +232,44 @@ export interface RentalUpdate {
   fuelPolicy?: string;
   vehicleType?: string;
   confirmationCode?: string;
+  originStation?: string;
+  destinationStation?: string;
+  departureDateTime?: string;
+  arrivalDateTime?: string;
+  transportNumber?: string;
+  seatInfo?: string;
+  meetingPoint?: string;
+  notes?: string;
+}
+
+export type RentalUpdateTransportType =
+  (typeof RentalUpdateTransportType)[keyof typeof RentalUpdateTransportType];
+
+export const RentalUpdateTransportType = {
+  Alquiler_de_Vehículo: "Alquiler de Vehículo",
+  Tren: "Tren",
+  Autobús: "Autobús",
+  "Traslado/Transfer": "Traslado/Transfer",
+  Otro: "Otro",
+} as const;
+
+export interface RentalUpdate {
+  transportType?: RentalUpdateTransportType;
+  company?: string;
+  pickupLocation?: string;
+  returnLocation?: string;
+  pickupDate?: string;
+  returnDate?: string;
+  fuelPolicy?: string;
+  vehicleType?: string;
+  confirmationCode?: string;
+  originStation?: string;
+  destinationStation?: string;
+  departureDateTime?: string;
+  arrivalDateTime?: string;
+  transportNumber?: string;
+  seatInfo?: string;
+  meetingPoint?: string;
   notes?: string;
 }
 

@@ -9,8 +9,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 /* ─── Formatters (es-ES locale) ──────────────────────────────── */
 
-function fmt(iso: string) {
-  return new Date(iso).toLocaleString("es-ES", {
+function fmt(val: Date | string | null | undefined) {
+  if (!val) return "—";
+  const d = val instanceof Date ? val : new Date(String(val));
+  return d.toLocaleString("es-ES", {
     weekday: "short", month: "short", day: "numeric",
     hour: "2-digit", minute: "2-digit",
   });
@@ -240,36 +242,79 @@ export default function SharedTrip() {
           </Section>
         )}
 
-        {/* Alquiler de Vehículo */}
+        {/* Transportes */}
         {rentals.length > 0 && (
-          <Section icon={Car} title="Alquiler de Vehículo">
+          <Section icon={Car} title="Transportes">
             <div className="space-y-3">
-              {rentals.map(r => (
-                <div key={r.id} className="border border-border rounded-xl bg-card p-4">
-                  <div className="flex items-center gap-2 flex-wrap mb-2">
-                    <span className="font-semibold">{r.company}</span>
-                    {r.vehicleType     && <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{r.vehicleType}</span>}
-                    {r.confirmationCode && <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-mono">{r.confirmationCode}</span>}
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <span className="text-xs text-muted-foreground">Recogida</span>
-                      <p className="font-medium">{r.pickupLocation}</p>
-                      <p className="text-xs text-muted-foreground">{fmt(r.pickupDate)}</p>
+              {rentals.map(r => {
+                const type = r.transportType ?? "Alquiler de Vehículo";
+                const isVehicle  = type === "Alquiler de Vehículo";
+                const isTrainBus = type === "Tren" || type === "Autobús";
+                return (
+                  <div key={r.id} className="border border-border rounded-xl bg-card p-4">
+                    <div className="flex items-center gap-2 flex-wrap mb-2">
+                      <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{type}</span>
+                      {r.confirmationCode && <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-mono">{r.confirmationCode}</span>}
                     </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Devolución</span>
-                      <p className="font-medium">{r.returnLocation || r.pickupLocation}</p>
-                      <p className="text-xs text-muted-foreground">{fmt(r.returnDate)}</p>
-                    </div>
+
+                    {isVehicle && (
+                      <>
+                        <div className="flex items-center gap-2 flex-wrap mb-2">
+                          {r.company && <span className="font-semibold">{r.company}</span>}
+                          {r.vehicleType && <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">{r.vehicleType}</span>}
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <span className="text-xs text-muted-foreground">Recogida</span>
+                            <p className="font-medium">{r.pickupLocation ?? "—"}</p>
+                            <p className="text-xs text-muted-foreground">{fmt(r.pickupDate)}</p>
+                          </div>
+                          <div>
+                            <span className="text-xs text-muted-foreground">Devolución</span>
+                            <p className="font-medium">{r.returnLocation ?? r.pickupLocation ?? "—"}</p>
+                            <p className="text-xs text-muted-foreground">{fmt(r.returnDate)}</p>
+                          </div>
+                        </div>
+                        {r.fuelPolicy && <p className="text-xs text-muted-foreground mt-2 pt-2 border-t border-border/50">Combustible: {r.fuelPolicy}</p>}
+                      </>
+                    )}
+
+                    {isTrainBus && (
+                      <>
+                        {r.transportNumber && (
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="font-semibold">{r.transportNumber}</span>
+                            {r.seatInfo && <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded-full">Asiento {r.seatInfo}</span>}
+                          </div>
+                        )}
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <span className="text-xs text-muted-foreground">Origen</span>
+                            <p className="font-medium">{r.originStation ?? "—"}</p>
+                            <p className="text-xs text-muted-foreground">{fmt(r.departureDateTime)}</p>
+                          </div>
+                          <div>
+                            <span className="text-xs text-muted-foreground">Destino</span>
+                            <p className="font-medium">{r.destinationStation ?? "—"}</p>
+                            <p className="text-xs text-muted-foreground">{fmt(r.arrivalDateTime)}</p>
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    {!isVehicle && !isTrainBus && (
+                      <>
+                        {r.company && <p className="font-semibold mb-1">{r.company}</p>}
+                        {r.meetingPoint && <p className="text-sm text-muted-foreground">Encuentro: {r.meetingPoint}</p>}
+                        {r.destinationStation && <p className="text-sm text-muted-foreground">Destino: {r.destinationStation}</p>}
+                        {r.departureDateTime && <p className="text-xs text-muted-foreground mt-1">{fmt(r.departureDateTime)}</p>}
+                      </>
+                    )}
+
+                    {r.notes && <p className="text-xs text-muted-foreground mt-2 pt-2 border-t border-border/50 italic">{r.notes}</p>}
                   </div>
-                  {r.fuelPolicy && (
-                    <p className="text-xs text-muted-foreground mt-2 pt-2 border-t border-border/50">
-                      Combustible: {r.fuelPolicy}
-                    </p>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </Section>
         )}

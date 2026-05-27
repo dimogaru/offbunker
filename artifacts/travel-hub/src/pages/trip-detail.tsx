@@ -28,7 +28,7 @@ import { useOnlineStatus } from "@/hooks/use-online-status";
 const MODULES = [
   { id: "flights",       label: "Logística Aérea",     shortLabel: "Vuelos",    icon: Plane },
   { id: "parking",       label: "Estacionamiento",     shortLabel: "Parking",   icon: ParkingCircle },
-  { id: "rental",        label: "Alquiler de Vehículo", shortLabel: "Alquiler", icon: Car },
+  { id: "rental",        label: "Transportes",           shortLabel: "Transporte", icon: Car },
   { id: "accommodation", label: "Alojamiento",          shortLabel: "Estancia", icon: Building2 },
   { id: "itinerary",     label: "Itinerario",           shortLabel: "Plan",     icon: CalendarDays },
   { id: "vault",         label: "Documentos",           shortLabel: "Docs",     icon: FolderOpen },

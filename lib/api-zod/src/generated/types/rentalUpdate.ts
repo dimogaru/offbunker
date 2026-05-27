@@ -5,8 +5,10 @@
  * TravelHub API - Comprehensive travel management platform
  * OpenAPI spec version: 0.1.0
  */
+import type { RentalUpdateTransportType } from "./rentalUpdateTransportType";
 
 export interface RentalUpdate {
+  transportType?: RentalUpdateTransportType;
   company?: string;
   pickupLocation?: string;
   returnLocation?: string;
@@ -15,5 +17,12 @@ export interface RentalUpdate {
   fuelPolicy?: string;
   vehicleType?: string;
   confirmationCode?: string;
+  originStation?: string;
+  destinationStation?: string;
+  departureDateTime?: Date;
+  arrivalDateTime?: Date;
+  transportNumber?: string;
+  seatInfo?: string;
+  meetingPoint?: string;
   notes?: string;
 }

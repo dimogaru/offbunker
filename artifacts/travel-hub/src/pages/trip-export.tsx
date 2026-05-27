@@ -11,8 +11,10 @@ import {
 } from "@workspace/api-client-react";
 import { Plane, ParkingCircle, Car, Building2, CalendarDays, FolderOpen, MapPin, Clock, FileText } from "lucide-react";
 
-function fmt(iso: string) {
-  return new Date(iso).toLocaleString("en-US", {
+function fmt(val: Date | string | null | undefined) {
+  if (!val) return "—";
+  const d = val instanceof Date ? val : new Date(String(val));
+  return d.toLocaleString("en-US", {
     weekday: "short", month: "short", day: "numeric", year: "numeric",
     hour: "2-digit", minute: "2-digit",
   });
@@ -270,32 +272,70 @@ export default function TripExport() {
           </Section>
         )}
 
-        {/* Rentals */}
+        {/* Transports */}
         {rentals.length > 0 && (
-          <Section title="Vehicle Rental" icon={Car}>
-            {rentals.map(r => (
-              <div key={r.id} className="card">
-                <div className="card-title">
-                  {r.company}
-                  {r.vehicleType && <span className="tag tag-neutral">{r.vehicleType}</span>}
-                  {r.confirmationCode && <span className="tag">{r.confirmationCode}</span>}
-                </div>
-                <div className="grid-2">
-                  <div>
-                    <div className="grid-label">Pickup</div>
-                    <div className="grid-value">{r.pickupLocation}</div>
-                    <div className="grid-sub">{fmt(r.pickupDate)}</div>
+          <Section title="Transportes" icon={Car}>
+            {rentals.map(r => {
+              const type = r.transportType ?? "Alquiler de Vehículo";
+              const isVehicle  = type === "Alquiler de Vehículo";
+              const isTrainBus = type === "Tren" || type === "Autobús";
+              return (
+                <div key={r.id} className="card">
+                  <div className="card-title">
+                    <span className="tag tag-neutral">{type}</span>
+                    {r.confirmationCode && <span className="tag">{r.confirmationCode}</span>}
                   </div>
-                  <div>
-                    <div className="grid-label">Return</div>
-                    <div className="grid-value">{r.returnLocation || r.pickupLocation}</div>
-                    <div className="grid-sub">{fmt(r.returnDate)}</div>
-                  </div>
+
+                  {isVehicle && (
+                    <>
+                      {r.company && <div className="grid-value">{r.company}{r.vehicleType ? ` · ${r.vehicleType}` : ""}</div>}
+                      <div className="grid-2">
+                        <div>
+                          <div className="grid-label">Recogida</div>
+                          <div className="grid-value">{r.pickupLocation ?? "—"}</div>
+                          <div className="grid-sub">{fmt(r.pickupDate)}</div>
+                        </div>
+                        <div>
+                          <div className="grid-label">Devolución</div>
+                          <div className="grid-value">{r.returnLocation ?? r.pickupLocation ?? "—"}</div>
+                          <div className="grid-sub">{fmt(r.returnDate)}</div>
+                        </div>
+                      </div>
+                      {r.fuelPolicy && <div className="meta" style={{ marginTop: 6 }}>Combustible: {r.fuelPolicy}</div>}
+                    </>
+                  )}
+
+                  {isTrainBus && (
+                    <>
+                      {r.transportNumber && <div className="grid-value">{r.transportNumber}{r.seatInfo ? ` · Asiento ${r.seatInfo}` : ""}</div>}
+                      <div className="grid-2">
+                        <div>
+                          <div className="grid-label">Origen</div>
+                          <div className="grid-value">{r.originStation ?? "—"}</div>
+                          <div className="grid-sub">{fmt(r.departureDateTime)}</div>
+                        </div>
+                        <div>
+                          <div className="grid-label">Destino</div>
+                          <div className="grid-value">{r.destinationStation ?? "—"}</div>
+                          <div className="grid-sub">{fmt(r.arrivalDateTime)}</div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {!isVehicle && !isTrainBus && (
+                    <>
+                      {r.company && <div className="grid-value">{r.company}</div>}
+                      {r.meetingPoint && <div className="meta">Encuentro: {r.meetingPoint}</div>}
+                      {r.destinationStation && <div className="meta">Destino: {r.destinationStation}</div>}
+                      {r.departureDateTime && <div className="grid-sub">{fmt(r.departureDateTime)}</div>}
+                    </>
+                  )}
+
+                  {r.notes && <div className="meta" style={{ fontStyle: "italic" }}>{r.notes}</div>}
                 </div>
-                <div className="meta" style={{ marginTop: 6 }}>Fuel policy: {r.fuelPolicy}</div>
-                {r.notes && <div className="meta" style={{ fontStyle: "italic" }}>{r.notes}</div>}
-              </div>
-            ))}
+              );
+            })}
           </Section>
         )}
 

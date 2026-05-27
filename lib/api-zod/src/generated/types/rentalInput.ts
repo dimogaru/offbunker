@@ -5,17 +5,24 @@
  * TravelHub API - Comprehensive travel management platform
  * OpenAPI spec version: 0.1.0
  */
+import type { RentalInputTransportType } from "./rentalInputTransportType";
 
 export interface RentalInput {
-  /** @minLength 1 */
-  company: string;
-  /** @minLength 1 */
-  pickupLocation: string;
+  transportType: RentalInputTransportType;
+  company?: string;
+  pickupLocation?: string;
   returnLocation?: string;
-  pickupDate: Date;
-  returnDate: Date;
-  fuelPolicy: string;
+  pickupDate?: Date;
+  returnDate?: Date;
+  fuelPolicy?: string;
   vehicleType?: string;
   confirmationCode?: string;
+  originStation?: string;
+  destinationStation?: string;
+  departureDateTime?: Date;
+  arrivalDateTime?: Date;
+  transportNumber?: string;
+  seatInfo?: string;
+  meetingPoint?: string;
   notes?: string;
 }

@@ -16,7 +16,7 @@ tags:
   - name: parking
     description: Airport parking
   - name: rentals
-    description: Vehicle rentals
+    description: Transports (vehicle rentals, trains, buses, transfers)
   - name: accommodations
     description: Accommodations
   - name: itinerary
@@ -1072,30 +1072,53 @@ components:
 
     Rental:
       type: object
-      required: [id, tripId, company, pickupLocation, pickupDate, returnDate, fuelPolicy, createdAt]
+      required: [id, tripId, transportType, createdAt]
       properties:
         id:
           type: integer
         tripId:
           type: integer
+        transportType:
+          type: string
+          enum: ["Alquiler de Vehículo", "Tren", "Autobús", "Traslado/Transfer", "Otro"]
+        # Vehicle rental
         company:
-          type: string
+          type: ["string", "null"]
         pickupLocation:
-          type: string
+          type: ["string", "null"]
         returnLocation:
           type: ["string", "null"]
         pickupDate:
-          type: string
+          type: ["string", "null"]
           format: date-time
         returnDate:
-          type: string
+          type: ["string", "null"]
           format: date-time
         fuelPolicy:
-          type: string
+          type: ["string", "null"]
         vehicleType:
           type: ["string", "null"]
         confirmationCode:
           type: ["string", "null"]
+        # Train / Bus
+        originStation:
+          type: ["string", "null"]
+        destinationStation:
+          type: ["string", "null"]
+        departureDateTime:
+          type: ["string", "null"]
+          format: date-time
+        arrivalDateTime:
+          type: ["string", "null"]
+          format: date-time
+        transportNumber:
+          type: ["string", "null"]
+        seatInfo:
+          type: ["string", "null"]
+        # Transfer / Other
+        meetingPoint:
+          type: ["string", "null"]
+        # Shared
         notes:
           type: ["string", "null"]
         createdAt:
@@ -1104,14 +1127,16 @@ components:
 
     RentalInput:
       type: object
-      required: [company, pickupLocation, pickupDate, returnDate, fuelPolicy]
+      required: [transportType]
       properties:
+        transportType:
+          type: string
+          enum: ["Alquiler de Vehículo", "Tren", "Autobús", "Traslado/Transfer", "Otro"]
+        # Vehicle rental
         company:
           type: string
-          minLength: 1
         pickupLocation:
           type: string
-          minLength: 1
         returnLocation:
           type: string
         pickupDate:
@@ -1126,12 +1151,35 @@ components:
           type: string
         confirmationCode:
           type: string
+        # Train / Bus
+        originStation:
+          type: string
+        destinationStation:
+          type: string
+        departureDateTime:
+          type: string
+          format: date-time
+        arrivalDateTime:
+          type: string
+          format: date-time
+        transportNumber:
+          type: string
+        seatInfo:
+          type: string
+        # Transfer / Other
+        meetingPoint:
+          type: string
+        # Shared
         notes:
           type: string
 
     RentalUpdate:
       type: object
       properties:
+        transportType:
+          type: string
+          enum: ["Alquiler de Vehículo", "Tren", "Autobús", "Traslado/Transfer", "Otro"]
+        # Vehicle rental
         company:
           type: string
         pickupLocation:
@@ -1150,6 +1198,25 @@ components:
           type: string
         confirmationCode:
           type: string
+        # Train / Bus
+        originStation:
+          type: string
+        destinationStation:
+          type: string
+        departureDateTime:
+          type: string
+          format: date-time
+        arrivalDateTime:
+          type: string
+          format: date-time
+        transportNumber:
+          type: string
+        seatInfo:
+          type: string
+        # Transfer / Other
+        meetingPoint:
+          type: string
+        # Shared
         notes:
           type: string
 

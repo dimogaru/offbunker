@@ -1,0 +1,23 @@
+Necesito realizar una reestructuración importante en la base de datos y en la interfaz de usuario. Vamos a transformar el módulo actual de 'Alquiler de vehículos' para convertirlo en un módulo genérico llamado 'Transportes'. Este nuevo módulo debe permitir gestionar alquileres de coches, billetes de tren, autobuses, traslados, etc.
+
+Por favor, aplica los siguientes cambios en todo el proyecto de forma integrada:
+
+1. Migración y Cambios en el Modelo de Datos (Backend):
+   - Renombra o adapta la entidad/colección de 'Alquiler de vehículos' a 'Transportes' (o asegura que sea compatible con los datos existentes para no romper registros anteriores).
+   - Añade un campo obligatorio llamado 'tipoTransporte' que admita los siguientes valores: "Alquiler de Vehículo", "Tren", "Autobús", "Traslado/Transfer", "Otro".
+   - Adapta los campos para que sirvan de forma genérica o condicional según el tipo:
+     * Para TREN/AUTOBÚS: Necesitamos campos como 'Estación de Origen', 'Estación de Destino', 'Fecha/Hora de Salida', 'Fecha/Hora de Llegada', 'Número de Tren/Autobús' y 'Asiento/Vagón'.
+     * Para ALQUILER DE VEHÍCULO: Mantén los campos existentes de 'Compañía', 'Lugar de Recogida', 'Fecha/Hora de Recogida', 'Lugar de Devolución', 'Fecha/Hora de Devolución' y 'Número de Reserva'.
+     * Para TRASLADOS/OTROS: Campos flexibles de 'Punto de Encuentro', 'Destino', 'Fecha/Hora' y 'Notas'.
+
+2. Rediseño de la Interfaz de Usuario (Frontend):
+   - Cambia todos los textos y menús de 'Alquiler de vehículos' por 'Transportes' (tanto en la barra lateral, títulos, como en los botones de añadir).
+   - En el formulario de creación/edición, añade un selector desplegable (Dropdown) con el 'Tipo de Transporte'. 
+   - Haz que el formulario sea dinámico: al seleccionar por ejemplo "Tren", se deben ocultar los campos de "Lugar de devolución del coche" y mostrar los campos de "Estación de Origen / Destino" y "Asiento".
+   - En las tarjetas del Dashboard, muestra un icono representativo automático según el tipo elegido (un coche 🚗, un tren 🚄, un autobús 🚌 o un ticket genérico 🎫).
+
+3. Compatibilidad con el Ecosistema OffBunker:
+   - Asegúrate de que este nuevo módulo sea completamente compatible con la Bóveda de Documentos (permitiendo adjuntar los PDFs de los billetes de tren o contratos de alquiler con el área de clic total e icono de papelera 🗑️).
+   - Garantiza que los nuevos datos de transportes se incluyan de forma transparente en la sincronización automática Web-App (tanto en el inicio de sesión como en la carga offline local de la caché).
+
+Localiza los archivos de rutas de la API, esquemas de base de datos y los componentes de vista/formulario correspondientes para aplicar esta actualización.

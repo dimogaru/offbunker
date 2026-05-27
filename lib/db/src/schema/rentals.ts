@@ -6,14 +6,32 @@ import { tripsTable } from "./trips";
 export const rentalsTable = pgTable("rentals", {
   id: serial("id").primaryKey(),
   tripId: integer("trip_id").notNull().references(() => tripsTable.id, { onDelete: "cascade" }),
-  company: text("company").notNull(),
-  pickupLocation: text("pickup_location").notNull(),
+
+  // Transport type — discriminates which group of fields is relevant
+  transportType: text("transport_type").notNull().default("Alquiler de Vehículo"),
+
+  // ── Vehicle rental fields (nullable for non-rental transport types) ─────────
+  company: text("company"),
+  pickupLocation: text("pickup_location"),
   returnLocation: text("return_location"),
-  pickupDate: timestamp("pickup_date", { withTimezone: true }).notNull(),
-  returnDate: timestamp("return_date", { withTimezone: true }).notNull(),
-  fuelPolicy: text("fuel_policy").notNull(),
+  pickupDate: timestamp("pickup_date", { withTimezone: true }),
+  returnDate: timestamp("return_date", { withTimezone: true }),
+  fuelPolicy: text("fuel_policy"),
   vehicleType: text("vehicle_type"),
   confirmationCode: text("confirmation_code"),
+
+  // ── Train / Bus fields ───────────────────────────────────────────────────────
+  originStation: text("origin_station"),
+  destinationStation: text("destination_station"),
+  departureDateTime: timestamp("departure_date_time", { withTimezone: true }),
+  arrivalDateTime: timestamp("arrival_date_time", { withTimezone: true }),
+  transportNumber: text("transport_number"),
+  seatInfo: text("seat_info"),
+
+  // ── Transfer / Other ─────────────────────────────────────────────────────────
+  meetingPoint: text("meeting_point"),
+
+  // ── Shared ───────────────────────────────────────────────────────────────────
   notes: text("notes"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

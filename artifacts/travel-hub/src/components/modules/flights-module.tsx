@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import {
   PlusCircle, Pencil, Trash2, Plane, Clock, Armchair, DoorOpen, LayoutGrid,
-  Paperclip, Loader2, CheckCircle2, Eye,
+  Paperclip, Loader2, CheckCircle2, Eye, Lock,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -24,6 +24,9 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import ModuleHeader from "@/components/modules/module-header";
+import { documentUploadDestination, LOCAL_DOCUMENT_MESSAGE, useLocalDocuments, isLocalDocument } from "@/lib/local-documents";
+import type { LocalDocument } from "@/lib/local-documents";
+type DisplayDocument = Document | LocalDocument;
 
 /* ─── Constants ──────────────────────────────────────────────── */
 
@@ -92,9 +95,9 @@ const schema = z.object({
 });
 type FormValues = z.infer<typeof schema>;
 
-interface Props { tripId: number; readOnly?: boolean }
+interface Props { tripId: number; readOnly?: boolean; localDocumentsEnabled?: boolean }
 
-export default function FlightsModule({ tripId, readOnly }: Props) {
+export default function FlightsModule({ tripId, readOnly, localDocumentsEnabled }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -108,15 +111,19 @@ export default function FlightsModule({ tripId, readOnly }: Props) {
   const [uploadingFor, setUploadingFor] = useState<Flight | null>(null);
   const [docName, setDocName] = useState("");
   const [docFileUrl, setDocFileUrl] = useState("");
+  const [pendingDocFile, setPendingDocFile] = useState<File | null>(null);
+  const [uploadIsLocal, setUploadIsLocal] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [savingLocal, setSavingLocal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   /* Doc delete state */
-  const [deletingDoc, setDeletingDoc] = useState<Document | null>(null);
+  const [deletingDoc, setDeletingDoc] = useState<DisplayDocument | null>(null);
 
   /* ── Queries ── */
   const { data: flights, isLoading } = useListFlights(tripId, { query: { queryKey: getListFlightsQueryKey(tripId) } });
   const { data: allDocs } = useListDocuments(tripId, { query: { queryKey: getListDocumentsQueryKey(tripId) } });
+  const localStore = useLocalDocuments(tripId);
 
   const invalidateFlights = () => queryClient.invalidateQueries({ queryKey: getListFlightsQueryKey(tripId) });
   const invalidateDocs    = () => queryClient.invalidateQueries({ queryKey: getListDocumentsQueryKey(tripId) });
@@ -131,7 +138,7 @@ export default function FlightsModule({ tripId, readOnly }: Props) {
 
   const createFlight = useCreateFlight({ mutation: { onSuccess: () => { invalidateFlights(); setOpen(false); form.reset(); toast({ title: "Vuelo añadido" }); }, onError: onErr("guardar el vuelo") } });
   const updateFlight = useUpdateFlight({ mutation: { onSuccess: () => { invalidateFlights(); setOpen(false); setEditing(null); form.reset(); toast({ title: "Vuelo actualizado" }); }, onError: onErr("actualizar el vuelo") } });
-  const deleteFlight = useDeleteFlight({ mutation: { onSuccess: () => { invalidateFlights(); setDeleting(null); toast({ title: "Vuelo eliminado" }); }, onError: onErr("eliminar el vuelo") } });
+  const deleteFlight = useDeleteFlight({ mutation: { onSuccess: () => { if (deleting) void localStore.removeByAssociation("flights", `flightId:${deleting.id}`); invalidateFlights(); setDeleting(null); toast({ title: "Vuelo eliminado" }); }, onError: onErr("eliminar el vuelo") } });
 
   const createDoc = useCreateDocument({
     mutation: {
@@ -149,7 +156,7 @@ export default function FlightsModule({ tripId, readOnly }: Props) {
 
   /* ── Derived ── */
   function getFlightDocs(flightId: number) {
-    return allDocs?.filter(d => d.module === "flights" && d.notes === `flightId:${flightId}`) ?? [];
+    return [...(allDocs?.filter(d => d.module === "flights" && d.notes === `flightId:${flightId}`) ?? []), ...localStore.documents.filter(d => d.module === "flights" && d.notes === `flightId:${flightId}`)] as DisplayDocument[];
   }
 
   /* ── Handlers ── */
@@ -184,6 +191,17 @@ export default function FlightsModule({ tripId, readOnly }: Props) {
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (uploadIsLocal) {
+      const allowed = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
+      if (!allowed.includes(file.type) || file.size > 5 * 1024 * 1024) {
+        toast({ title: "Formato o tamaño no permitido", description: "Solo PDF, JPEG, PNG o WebP; máximo 5 MB.", variant: "destructive" });
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
+      setPendingDocFile(file);
+      setDocName(file.name);
+      return;
+    }
     setDocName(file.name);
     setUploading(true);
     try {
@@ -201,8 +219,31 @@ export default function FlightsModule({ tripId, readOnly }: Props) {
     }
   }
 
-  function handleSaveDoc() {
-    if (!uploadingFor || !docName.trim() || createDoc.isPending) return;
+  async function handleSaveDoc() {
+    if (!uploadingFor || !docName.trim() || createDoc.isPending || savingLocal) return;
+    if (uploadIsLocal && !pendingDocFile) { toast({ title: "Selecciona un archivo", variant: "destructive" }); return; }
+    if (uploadIsLocal && pendingDocFile) {
+      setSavingLocal(true);
+      try {
+        await localStore.save({ tripId, module: "flights", name: docName.trim(), fileType: pendingDocFile.type === "application/pdf" ? "PDF" : "Imagen", notes: `flightId:${uploadingFor.id}`, blob: pendingDocFile });
+        setUploadingFor(null);
+        setPendingDocFile(null);
+        setDocName("");
+        setDocFileUrl("");
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        toast({ title: "Documento guardado", description: LOCAL_DOCUMENT_MESSAGE });
+      } catch (error) {
+        setPendingDocFile(null);
+        setDocName("");
+        setDocFileUrl("");
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        toast({ title: "Error al guardar", description: error instanceof Error ? error.message : "IndexedDB no disponible.", variant: "destructive" });
+      } finally {
+        setSavingLocal(false);
+      }
+      return;
+    }
+    if (!docFileUrl) { toast({ title: "Selecciona un archivo", variant: "destructive" }); return; }
     const fileType = docFileUrl ? fileTypeFrom(docFileUrl) : "Otro";
     createDoc.mutate({
       tripId,
@@ -219,6 +260,7 @@ export default function FlightsModule({ tripId, readOnly }: Props) {
   function openUpload(f: Flight) {
     setUploadingFor(f);
     setDocName(""); setDocFileUrl("");
+    setPendingDocFile(null); setUploadIsLocal(Boolean(localDocumentsEnabled) || documentUploadDestination() === "soloDispositivo");
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -288,21 +330,22 @@ export default function FlightsModule({ tripId, readOnly }: Props) {
                         <span className={`font-bold px-1 py-0.5 rounded-full text-[9px] uppercase tracking-wide flex-shrink-0 ${FILE_CHIP_COLORS[doc.fileType] ?? FILE_CHIP_COLORS["Otro"]}`}>
                           {doc.fileType?.slice(0, 3)}
                         </span>
-                        {doc.fileUrl ? (
-                          <button type="button" onClick={() => openDocUrl(doc.fileUrl!)} className="font-medium max-w-[110px] truncate text-foreground/80 hover:text-primary transition-colors text-left">
+                         {doc.fileUrl || isLocalDocument(doc) ? (
+                           <button type="button" onClick={() => isLocalDocument(doc) ? localStore.open(doc) : openDocUrl(doc.fileUrl!)} className="font-medium max-w-[110px] truncate text-foreground/80 hover:text-primary transition-colors text-left">
                             {doc.name}
                           </button>
                         ) : (
                           <span className="font-medium max-w-[110px] truncate text-foreground/80">{doc.name}</span>
                         )}
-                        {!readOnly && (
-                          <button onClick={() => setDeletingDoc(doc)} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 p-0.5" title="Eliminar documento">
+                         {isLocalDocument(doc) && <span title={LOCAL_DOCUMENT_MESSAGE} aria-label={LOCAL_DOCUMENT_MESSAGE}><Lock className="w-3 h-3" /><span className="sr-only">{LOCAL_DOCUMENT_MESSAGE}</span></span>}
+                         {(!readOnly || (localDocumentsEnabled && isLocalDocument(doc))) && (
+                           <button onClick={() => setDeletingDoc(doc)} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 p-0.5" title="Eliminar documento">
                             <Trash2 className="w-3 h-3" />
                           </button>
                         )}
                       </div>
                     ))}
-                    {!readOnly && (
+                    {(!readOnly || localDocumentsEnabled) && (
                       <button
                         onClick={() => openUpload(f)}
                         className="flex items-center gap-1 rounded-full border border-dashed border-border px-2 py-1 text-xs text-muted-foreground hover:text-primary hover:border-primary/50 transition-colors"
@@ -368,8 +411,8 @@ export default function FlightsModule({ tripId, readOnly }: Props) {
                             <span className={`font-bold px-1 py-0.5 rounded-full text-[9px] uppercase tracking-wide flex-shrink-0 ${FILE_CHIP_COLORS[doc.fileType] ?? FILE_CHIP_COLORS["Otro"]}`}>
                               {doc.fileType?.slice(0, 3)}
                             </span>
-                            {doc.fileUrl ? (
-                              <button type="button" onClick={() => openDocUrl(doc.fileUrl!)} className="font-medium max-w-[110px] truncate text-foreground/80 hover:text-primary transition-colors text-left">
+                             {doc.fileUrl || isLocalDocument(doc) ? (
+                               <button type="button" onClick={() => isLocalDocument(doc) ? localStore.open(doc) : openDocUrl(doc.fileUrl!)} className="font-medium max-w-[110px] truncate text-foreground/80 hover:text-primary transition-colors text-left">
                                 {doc.name}
                               </button>
                             ) : (
@@ -405,7 +448,7 @@ export default function FlightsModule({ tripId, readOnly }: Props) {
       </AlertDialog>
 
       {/* ── Upload doc dialog ── */}
-      <Dialog open={!!uploadingFor} onOpenChange={(v) => { if (!v) { setUploadingFor(null); setDocName(""); setDocFileUrl(""); } }}>
+      <Dialog open={!!uploadingFor} onOpenChange={(v) => { if (!v && !savingLocal) { setUploadingFor(null); setDocName(""); setDocFileUrl(""); setPendingDocFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; } }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Añadir documento</DialogTitle>
@@ -429,8 +472,8 @@ export default function FlightsModule({ tripId, readOnly }: Props) {
             </div>
           </div>
           <DialogFooter>
-            <Button onClick={handleSaveDoc} disabled={!docName.trim() || uploading || createDoc.isPending}>
-              {createDoc.isPending ? "Guardando…" : "Guardar"}
+            <Button onClick={handleSaveDoc} disabled={!docName.trim() || uploading || createDoc.isPending || savingLocal}>
+              {createDoc.isPending || savingLocal ? "Guardando…" : "Guardar"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -442,7 +485,7 @@ export default function FlightsModule({ tripId, readOnly }: Props) {
           <AlertDialogHeader><AlertDialogTitle>¿Eliminar documento?</AlertDialogTitle><AlertDialogDescription>Se eliminará "{deletingDoc?.name}" de este vuelo.</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => deletingDoc && deleteDoc.mutate({ tripId, documentId: deletingDoc.id })} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
+            <AlertDialogAction onClick={() => deletingDoc && (isLocalDocument(deletingDoc) ? localStore.remove(String(deletingDoc.id)).then(() => { setDeletingDoc(null); }) : deleteDoc.mutate({ tripId, documentId: Number(deletingDoc.id) }))} className="bg-destructive hover:bg-destructive/90">Eliminar</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

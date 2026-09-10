@@ -1,0 +1,20 @@
+Necesitamos implementar una regla estricta de seguridad y privacidad en la sincronización de documentos adjuntos. 
+
+Regla de Negocio:
+1. Web -> Móvil: Los documentos que se suban desde la versión WEB deben seguir sincronizándose hacia la APP móvil (comportamiento actual).
+2. Móvil -> Web: Los documentos que se adjunten LOCALMENTE desde la APP Móvil (PWA) NO deben subirse al servidor ni sincronizarse con la versión Web. Deben permanecer almacenados de forma 100% privada y local en el dispositivo del usuario (ej. IndexedDB / LocalStorage).
+
+Por favor, aplica los siguientes cambios en la lógica de sincronización y subida:
+
+1. Detección del Entorno de Carga (Frontend):
+   - En la función que maneja la subida de documentos (adjuntar en tarjetas o secciones), detecta si el usuario está interactuando desde la PWA/dispositivo móvil.
+   - Si la subida se realiza desde MÓVIL: guarda el documento/imagen directamente en la base de datos local del dispositivo (IndexedDB) asignándole un flag `esLocal: true` o `soloDispositivo: true`. NO envíes la petición POST de subida al servidor backend.
+   - Si la subida se realiza desde WEB (escritorio): ejecuta el flujo habitual de subida al servidor para que esté disponible en la nube y se sincronice en todos los dispositivos.
+
+2. Filtrado en la Sincronización de Fondo (Sync Engine):
+   - Modifica el motor de sincronización automática. Al sincronizar datos entre la App y la API, asegúrate de que el motor IGNORE los archivos marcados como `esLocal: true` para que nunca se transmitan al servidor.
+
+3. Interfaz de Usuario (Indicador de Privacidad Local):
+   - En los chips/enlaces de documentos dentro de las tarjetas del móvil, si un archivo es de almacenamiento local exclusivo, añade un pequeño icono de escudo o candado (ej. 🔒 o 🛡️) junto al nombre del archivo para indicarle visualmente al usuario que "Este documento solo está guardado en este teléfono".
+
+Por favor, localiza los controladores de subida del frontend, el script de sincronización offline (IndexedDB/ServiceWorker) y los componentes de visualización de adjuntos para implementar este aislamiento local.

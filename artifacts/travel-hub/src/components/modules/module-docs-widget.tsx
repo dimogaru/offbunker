@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import {
   Paperclip, FileText, ExternalLink, Trash2,
-  Loader2, CheckCircle2, X,
+  Loader2, CheckCircle2, X, Lock,
 } from "lucide-react";
 
 function dataUrlToBlob(dataUrl: string): Blob {
@@ -52,6 +52,8 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { documentUploadDestination, LOCAL_DOCUMENT_MESSAGE, useLocalDocuments, isLocalDocument } from "@/lib/local-documents";
+import type { LocalDocument } from "@/lib/local-documents";
 
 type ModuleKey = "flights" | "parking" | "rental" | "accommodation" | "itinerary";
 
@@ -60,6 +62,7 @@ interface Props {
   module: ModuleKey;
   moduleLabel: string;
   readOnly?: boolean;
+  localDocumentsEnabled?: boolean;
 }
 
 const FILE_CHIP_COLORS: Record<string, string> = {
@@ -69,20 +72,25 @@ const FILE_CHIP_COLORS: Record<string, string> = {
   Otro:   "bg-slate-500/15 text-slate-400",
 };
 
-export default function ModuleDocsWidget({ tripId, module, moduleLabel, readOnly }: Props) {
+export default function ModuleDocsWidget({ tripId, module, moduleLabel, readOnly, localDocumentsEnabled }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [deleting, setDeleting] = useState<Document | null>(null);
+  const [deleting, setDeleting] = useState<Document | LocalDocument | null>(null);
   const [docName, setDocName] = useState("");
   const [fileUrl, setFileUrl] = useState("");
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [uploadIsLocal, setUploadIsLocal] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [savingLocal, setSavingLocal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: allDocs } = useListDocuments(tripId, {
     query: { queryKey: getListDocumentsQueryKey(tripId) },
   });
   const moduleDocs = allDocs?.filter((d) => d.module === module) ?? [];
+  const localStore = useLocalDocuments(tripId);
+  const localModuleDocs = localStore.documents.filter((d) => d.module === module);
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: getListDocumentsQueryKey(tripId) });
@@ -141,6 +149,8 @@ export default function ModuleDocsWidget({ tripId, module, moduleLabel, readOnly
     }
 
     setDocName(file.name);
+    setPendingFile(file);
+    if (uploadIsLocal) return;
     setUploading(true);
     try {
       const fd = new FormData();
@@ -164,8 +174,31 @@ export default function ModuleDocsWidget({ tripId, module, moduleLabel, readOnly
     }
   }
 
-  function handleSubmit() {
-    if (!docName.trim() || createDoc.isPending) return;
+  async function handleSubmit() {
+    if (!docName.trim() || createDoc.isPending || savingLocal) return;
+    if (uploadIsLocal) {
+      if (!pendingFile) { toast({ title: "Selecciona un archivo", variant: "destructive" }); return; }
+      setSavingLocal(true);
+      try {
+        await localStore.save({ tripId, module, name: docName.trim(), fileType: pendingFile.type === "application/pdf" ? "PDF" : "Imagen", blob: pendingFile });
+        setOpen(false);
+        setPendingFile(null);
+        setDocName("");
+        setFileUrl("");
+        clearFileInput();
+        toast({ title: "Documento guardado", description: LOCAL_DOCUMENT_MESSAGE });
+      } catch (error) {
+        setPendingFile(null);
+        setDocName("");
+        setFileUrl("");
+        clearFileInput();
+        toast({ title: "No se pudo guardar el documento", description: error instanceof Error ? error.message : "Error en IndexedDB.", variant: "destructive" });
+      } finally {
+        setSavingLocal(false);
+      }
+      return;
+    }
+    if (!fileUrl) { toast({ title: "Selecciona un archivo", variant: "destructive" }); return; }
     const fileType = fileUrl ? fileTypeFromDataUrl(fileUrl, docName) : "Otro";
     createDoc.mutate({ tripId, data: { module, name: docName.trim(), fileType, fileUrl: fileUrl || undefined } });
   }
@@ -173,6 +206,8 @@ export default function ModuleDocsWidget({ tripId, module, moduleLabel, readOnly
   function openDialog() {
     setDocName("");
     setFileUrl("");
+    setPendingFile(null);
+    setUploadIsLocal(Boolean(localDocumentsEnabled) || documentUploadDestination() === "soloDispositivo");
     if (fileInputRef.current) fileInputRef.current.value = "";
     setOpen(true);
   }
@@ -184,13 +219,13 @@ export default function ModuleDocsWidget({ tripId, module, moduleLabel, readOnly
         <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           <Paperclip className="w-3.5 h-3.5" />
           Documentos
-          {moduleDocs.length > 0 && (
+          {moduleDocs.length + localModuleDocs.length > 0 && (
             <span className="ml-0.5 bg-primary/10 text-primary rounded-full px-1.5 py-0.5 text-[10px] font-bold">
               {moduleDocs.length}
             </span>
           )}
         </div>
-        {!readOnly && (
+        {(!readOnly || localDocumentsEnabled) && (
           <button
             onClick={openDialog}
             className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/70 transition-colors"
@@ -202,9 +237,9 @@ export default function ModuleDocsWidget({ tripId, module, moduleLabel, readOnly
       </div>
 
       {/* File Chips */}
-      {moduleDocs.length > 0 ? (
+      {moduleDocs.length + localModuleDocs.length > 0 ? (
         <div className="flex flex-wrap gap-2">
-          {moduleDocs.map((doc) => (
+          {[...moduleDocs, ...localModuleDocs].map((doc) => (
             <div
               key={doc.id}
               className="group flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1.5 text-xs hover:border-primary/40 transition-colors"
@@ -213,6 +248,7 @@ export default function ModuleDocsWidget({ tripId, module, moduleLabel, readOnly
               <span className={`font-bold px-1.5 py-0.5 rounded-full text-[9px] uppercase tracking-wide flex-shrink-0 ${FILE_CHIP_COLORS[doc.fileType] ?? FILE_CHIP_COLORS["Otro"]}`}>
                 {doc.fileType?.slice(0, 3)}
               </span>
+              {String(doc.id).startsWith("local-") && <><Lock className="w-3 h-3 text-muted-foreground" aria-label={LOCAL_DOCUMENT_MESSAGE} /><span className="sr-only">{LOCAL_DOCUMENT_MESSAGE}</span></>}
 
               {/* Filename */}
               <span className="font-medium max-w-[130px] truncate text-foreground/80">
@@ -220,11 +256,11 @@ export default function ModuleDocsWidget({ tripId, module, moduleLabel, readOnly
               </span>
 
               {/* Open link */}
-              {doc.fileUrl && (
+              {(doc.fileUrl || isLocalDocument(doc)) && (
                 <button
                   type="button"
                   title="Abrir documento"
-                  onClick={() => openDocUrl(doc.fileUrl!)}
+                  onClick={() => String(doc.id).startsWith("local-") ? localStore.open(String(doc.id)) : openDocUrl(doc.fileUrl!)}
                   className="text-muted-foreground hover:text-primary transition-colors flex-shrink-0"
                 >
                   <ExternalLink className="w-3 h-3" />
@@ -232,9 +268,9 @@ export default function ModuleDocsWidget({ tripId, module, moduleLabel, readOnly
               )}
 
               {/* Delete */}
-              {!readOnly && (
+              {(!readOnly || (localDocumentsEnabled && isLocalDocument(doc))) && (
                 <button
-                  onClick={() => setDeleting(doc)}
+                   onClick={() => setDeleting(doc)}
                   title="Eliminar"
                   className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100"
                 >
@@ -284,8 +320,8 @@ export default function ModuleDocsWidget({ tripId, module, moduleLabel, readOnly
             </p>
           </div>
           <DialogFooter>
-            <Button onClick={handleSubmit} disabled={!docName.trim() || uploading || createDoc.isPending}>
-              {createDoc.isPending ? "Guardando…" : "Guardar documento"}
+            <Button onClick={handleSubmit} disabled={!docName.trim() || uploading || createDoc.isPending || savingLocal}>
+              {createDoc.isPending || savingLocal ? "Guardando…" : "Guardar documento"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -303,7 +339,11 @@ export default function ModuleDocsWidget({ tripId, module, moduleLabel, readOnly
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => deleting && deleteDoc.mutate({ tripId, documentId: deleting.id })}
+              onClick={() => {
+                if (!deleting) return;
+                if (String(deleting.id).startsWith("local-")) localStore.remove(String(deleting.id)).then(() => { setDeleting(null); toast({ title: "Documento eliminado localmente" }); });
+                else deleteDoc.mutate({ tripId, documentId: Number(deleting.id) });
+              }}
               className="bg-destructive hover:bg-destructive/90"
             >
               Eliminar

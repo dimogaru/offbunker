@@ -24,6 +24,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useOnlineStatus } from "@/hooks/use-online-status";
+import { clearPersistedQueryCacheForUser } from "@/lib/query-cache";
 
 const MODULES = [
   { id: "flights",       label: "Logística Aérea",     shortLabel: "Vuelos",    icon: Plane },
@@ -254,8 +255,9 @@ export default function TripDetail() {
   const queryClient = useQueryClient();
 
   async function handleLogout() {
-    await logout();
+    if (user) clearPersistedQueryCacheForUser(String(user.id));
     queryClient.clear();
+    await logout();
     window.location.replace("/login");
   }
 
@@ -433,12 +435,12 @@ export default function TripDetail() {
           </div>
 
           <div key={activeModule} className="max-w-3xl animate-in fade-in slide-in-from-bottom-2 duration-300">
-            {activeModule === "flights"       && <FlightsModule tripId={tripId} readOnly={readOnly || !isOnline} />}
-            {activeModule === "parking"       && <ParkingModule tripId={tripId} readOnly={readOnly || !isOnline} />}
-            {activeModule === "rental"        && <RentalsModule tripId={tripId} readOnly={readOnly || !isOnline} />}
-            {activeModule === "accommodation" && <AccommodationsModule tripId={tripId} readOnly={readOnly || !isOnline} />}
-            {activeModule === "itinerary"     && <ItineraryModule tripId={tripId} readOnly={readOnly || !isOnline} />}
-            {activeModule === "vault"         && <DocumentsModule tripId={tripId} coverImageUrl={trip.coverImage} readOnly={readOnly || !isOnline} />}
+            {activeModule === "flights"       && <FlightsModule tripId={tripId} readOnly={readOnly || !isOnline} localDocumentsEnabled={!readOnly && !isOnline} />}
+            {activeModule === "parking"       && <ParkingModule tripId={tripId} readOnly={readOnly || !isOnline} localDocumentsEnabled={!readOnly && !isOnline} />}
+            {activeModule === "rental"        && <RentalsModule tripId={tripId} readOnly={readOnly || !isOnline} localDocumentsEnabled={!readOnly && !isOnline} />}
+            {activeModule === "accommodation" && <AccommodationsModule tripId={tripId} readOnly={readOnly || !isOnline} localDocumentsEnabled={!readOnly && !isOnline} />}
+            {activeModule === "itinerary"     && <ItineraryModule tripId={tripId} readOnly={readOnly || !isOnline} localDocumentsEnabled={!readOnly && !isOnline} />}
+            {activeModule === "vault"         && <DocumentsModule tripId={tripId} coverImageUrl={trip.coverImage} readOnly={readOnly || !isOnline} localDocumentsEnabled={!readOnly && !isOnline} />}
             {activeModule === "baggage"       && <BaggageModule tripId={tripId} readOnly={!isOnline} />}
           </div>
         </main>

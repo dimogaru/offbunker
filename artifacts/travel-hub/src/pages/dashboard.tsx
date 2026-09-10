@@ -21,6 +21,8 @@ import { useToast } from "@/hooks/use-toast";
 import { SavedLocallyBadge } from "@/components/offline-indicator";
 import { useAuth } from "@/hooks/use-auth";
 import { useOnlineStatus } from "@/hooks/use-online-status";
+import { removeLocalDocumentsForTrip } from "@/lib/local-documents";
+import { clearPersistedQueryCacheForUser } from "@/lib/query-cache";
 
 interface Trip {
   id: number;
@@ -60,6 +62,7 @@ export default function Dashboard() {
   const deleteTrip = useDeleteTrip({
     mutation: {
       onSuccess: () => {
+        if (deletingTrip && user) void removeLocalDocumentsForTrip(String(user.id), deletingTrip.id);
         queryClient.invalidateQueries({ queryKey: getListTripsQueryKey() });
         toast({ title: "Viaje eliminado", description: `${deletingTrip?.name} ha sido eliminado.` });
         setDeletingTrip(null);
@@ -71,8 +74,9 @@ export default function Dashboard() {
   });
 
   async function handleLogout() {
-    await logout();
+    if (user) clearPersistedQueryCacheForUser(String(user.id));
     queryClient.clear();
+    await logout();
     window.location.replace("/login");
   }
 

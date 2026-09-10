@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -14,8 +14,8 @@ import AdminPage from "@/pages/admin";
 import OfflineIndicator from "@/components/offline-indicator";
 import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { Plane } from "lucide-react";
+import { persistedQueryCacheKey } from "@/lib/query-cache";
 
-const CACHE_KEY = "travelhub-cache-v1";
 const CACHE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 
 const queryClient = new QueryClient({
@@ -35,29 +35,28 @@ const queryClient = new QueryClient({
   },
 });
 
-function restoreCacheFromStorage() {
+function restoreCacheFromStorage(ownerId: string) {
+  const cacheKey = persistedQueryCacheKey(ownerId);
   try {
-    const raw = localStorage.getItem(CACHE_KEY);
+    const raw = localStorage.getItem(cacheKey);
     if (!raw) return;
     const { queries, savedAt } = JSON.parse(raw) as {
       queries: Array<{ queryKey: unknown[]; data: unknown }>;
       savedAt: number;
     };
     if (Date.now() - savedAt > CACHE_MAX_AGE) {
-      localStorage.removeItem(CACHE_KEY);
+      localStorage.removeItem(cacheKey);
       return;
     }
     for (const { queryKey, data } of queries) {
       queryClient.setQueryData(queryKey, data);
     }
   } catch {
-    localStorage.removeItem(CACHE_KEY);
+    localStorage.removeItem(cacheKey);
   }
 }
 
-restoreCacheFromStorage();
-
-function QueryCachePersister() {
+function QueryCachePersister({ ownerId }: { ownerId: string }) {
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -70,7 +69,7 @@ function QueryCachePersister() {
             .getAll()
             .filter((q) => q.state.status === "success" && q.state.data !== undefined)
             .map((q) => ({ queryKey: q.queryKey, data: q.state.data }));
-          localStorage.setItem(CACHE_KEY, JSON.stringify({ queries, savedAt: Date.now() }));
+          localStorage.setItem(persistedQueryCacheKey(ownerId), JSON.stringify({ ownerId, queries, savedAt: Date.now() }));
         } catch {
           // Silently fail (quota exceeded)
         }
@@ -80,9 +79,31 @@ function QueryCachePersister() {
       unsubscribe();
       if (saveTimer.current) clearTimeout(saveTimer.current);
     };
-  }, []);
+  }, [ownerId]);
 
   return null;
+}
+
+function UserScopedCacheBoundary({ children }: { children: ReactNode }) {
+  const { user, isLoading } = useAuth();
+  const ownerId = user?.id != null ? String(user.id) : null;
+  const [readyOwnerId, setReadyOwnerId] = useState<string | null | undefined>(undefined);
+
+  useEffect(() => {
+    if (isLoading) return;
+    queryClient.clear();
+    if (ownerId) restoreCacheFromStorage(ownerId);
+    setReadyOwnerId(ownerId);
+  }, [isLoading, ownerId]);
+
+  if (isLoading || readyOwnerId !== ownerId) return <LoadingScreen />;
+
+  return (
+    <>
+      {ownerId && <QueryCachePersister ownerId={ownerId} />}
+      {children}
+    </>
+  );
 }
 
 function VisibilitySync() {
@@ -154,16 +175,17 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <QueryCachePersister />
-      <VisibilitySync />
       <AuthProvider>
-        <TooltipProvider>
-          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <Router />
-          </WouterRouter>
-          <Toaster />
-          <OfflineIndicator />
-        </TooltipProvider>
+        <UserScopedCacheBoundary>
+          <VisibilitySync />
+          <TooltipProvider>
+            <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+              <Router />
+            </WouterRouter>
+            <Toaster />
+            <OfflineIndicator />
+          </TooltipProvider>
+        </UserScopedCacheBoundary>
       </AuthProvider>
     </QueryClientProvider>
   );

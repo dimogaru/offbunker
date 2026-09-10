@@ -1,7 +1,7 @@
 import { useState, useRef } from "react";
 import {
   Pencil, Trash2, ParkingCircle, Clock, MapPin, Hash, Euro, Eye,
-  Paperclip, CheckCircle2, Loader2, X,
+  Paperclip, CheckCircle2, Loader2, X, Lock,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,6 +21,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import ModuleHeader from "@/components/modules/module-header";
+import { documentUploadDestination, LOCAL_DOCUMENT_MESSAGE, useLocalDocuments, isLocalDocument } from "@/lib/local-documents";
+import type { LocalDocument } from "@/lib/local-documents";
+type DisplayDocument = Document | LocalDocument;
 
 // ── Doc helpers ──────────────────────────────────────────────────────────────
 
@@ -83,9 +86,9 @@ function fmt(iso: string) { return new Date(iso).toLocaleString("es-ES", { weekd
 
 // ── Module ───────────────────────────────────────────────────────────────────
 
-interface Props { tripId: number; readOnly?: boolean }
+interface Props { tripId: number; readOnly?: boolean; localDocumentsEnabled?: boolean }
 
-export default function ParkingModule({ tripId, readOnly }: Props) {
+export default function ParkingModule({ tripId, readOnly, localDocumentsEnabled }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -99,15 +102,19 @@ export default function ParkingModule({ tripId, readOnly }: Props) {
   const [uploadingFor, setUploadingFor] = useState<Parking | null>(null);
   const [docName, setDocName]           = useState("");
   const [docFileUrl, setDocFileUrl]     = useState("");
+  const [pendingDocFile, setPendingDocFile] = useState<File | null>(null);
+  const [uploadIsLocal, setUploadIsLocal] = useState(false);
   const [uploading, setUploading]       = useState(false);
+  const [savingLocal, setSavingLocal]   = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   /* Doc delete state */
-  const [deletingDoc, setDeletingDoc] = useState<Document | null>(null);
+  const [deletingDoc, setDeletingDoc] = useState<DisplayDocument | null>(null);
 
   /* ── Queries ── */
   const { data: parkings, isLoading } = useListParkings(tripId, { query: { queryKey: getListParkingsQueryKey(tripId) } });
   const { data: allDocs } = useListDocuments(tripId, { query: { queryKey: getListDocumentsQueryKey(tripId) } });
+  const localStore = useLocalDocuments(tripId);
 
   const invalidate     = () => queryClient.invalidateQueries({ queryKey: getListParkingsQueryKey(tripId) });
   const invalidateDocs = () => queryClient.invalidateQueries({ queryKey: getListDocumentsQueryKey(tripId) });
@@ -120,7 +127,7 @@ export default function ParkingModule({ tripId, readOnly }: Props) {
 
   const createParking = useCreateParking({ mutation: { onSuccess: () => { invalidate(); setOpen(false); form.reset(); toast({ title: "Estacionamiento añadido" }); } } });
   const updateParking = useUpdateParking({ mutation: { onSuccess: () => { invalidate(); setOpen(false); setEditing(null); form.reset(); toast({ title: "Estacionamiento actualizado" }); } } });
-  const deleteParking = useDeleteParking({ mutation: { onSuccess: () => { invalidate(); setDeleting(null); toast({ title: "Estacionamiento eliminado" }); } } });
+  const deleteParking = useDeleteParking({ mutation: { onSuccess: () => { if (deleting) void localStore.removeByAssociation("parking", `parkingId:${deleting.id}`); invalidate(); setDeleting(null); toast({ title: "Estacionamiento eliminado" }); } } });
 
   const createDoc = useCreateDocument({
     mutation: {
@@ -140,8 +147,8 @@ export default function ParkingModule({ tripId, readOnly }: Props) {
   });
 
   /* ── Derived ── */
-  function getParkingDocs(parkingId: number): Document[] {
-    return allDocs?.filter(d => d.module === "parking" && d.notes === `parkingId:${parkingId}`) ?? [];
+  function getParkingDocs(parkingId: number): DisplayDocument[] {
+    return [...(allDocs?.filter(d => d.module === "parking" && d.notes === `parkingId:${parkingId}`) ?? []), ...localStore.documents.filter(d => d.module === "parking" && d.notes === `parkingId:${parkingId}`)] as DisplayDocument[];
   }
 
   /* ── Handlers ── */
@@ -162,12 +169,21 @@ export default function ParkingModule({ tripId, readOnly }: Props) {
   function openUpload(p: Parking) {
     setUploadingFor(p);
     setDocName(""); setDocFileUrl("");
+    setPendingDocFile(null); setUploadIsLocal(Boolean(localDocumentsEnabled) || documentUploadDestination() === "soloDispositivo");
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (uploadIsLocal) {
+      if (!["application/pdf", "image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) {
+        toast({ title: "Formato o tamaño no permitido", description: "Solo PDF, JPEG, PNG o WebP; máximo 5 MB.", variant: "destructive" });
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
+      setPendingDocFile(file); setDocName(file.name); return;
+    }
     const ALLOWED = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
     if (!ALLOWED.includes(file.type)) {
       toast({ title: "Formato no permitido", description: "Solo PDF, JPEG, PNG o WebP.", variant: "destructive" });
@@ -196,8 +212,31 @@ export default function ParkingModule({ tripId, readOnly }: Props) {
     }
   }
 
-  function handleSaveDoc() {
-    if (!uploadingFor || !docName.trim() || createDoc.isPending) return;
+  async function handleSaveDoc() {
+    if (!uploadingFor || !docName.trim() || createDoc.isPending || savingLocal) return;
+    if (uploadIsLocal && !pendingDocFile) { toast({ title: "Selecciona un archivo", variant: "destructive" }); return; }
+    if (uploadIsLocal && pendingDocFile) {
+      setSavingLocal(true);
+      try {
+        await localStore.save({ tripId, module: "parking", name: docName.trim(), fileType: pendingDocFile.type === "application/pdf" ? "PDF" : "Imagen", notes: `parkingId:${uploadingFor.id}`, blob: pendingDocFile });
+        setUploadingFor(null);
+        setPendingDocFile(null);
+        setDocName("");
+        setDocFileUrl("");
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        toast({ title: "Documento guardado", description: LOCAL_DOCUMENT_MESSAGE });
+      } catch (error) {
+        setPendingDocFile(null);
+        setDocName("");
+        setDocFileUrl("");
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        toast({ title: "Error al guardar", description: error instanceof Error ? error.message : "IndexedDB no disponible.", variant: "destructive" });
+      } finally {
+        setSavingLocal(false);
+      }
+      return;
+    }
+    if (!docFileUrl) { toast({ title: "Selecciona un archivo", variant: "destructive" }); return; }
     const fileType = docFileUrl ? fileTypeFrom(docFileUrl) : "Otro";
     createDoc.mutate({
       tripId,
@@ -282,7 +321,7 @@ export default function ParkingModule({ tripId, readOnly }: Props) {
                 </div>
 
                 {/* ── Documents section ── */}
-                {(!readOnly || docs.length > 0) && (
+                {(!readOnly || localDocumentsEnabled || docs.length > 0) && (
                   <div className="mt-3 pt-3 border-t border-border/60">
                     {docs.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mb-2">
@@ -291,14 +330,15 @@ export default function ParkingModule({ tripId, readOnly }: Props) {
                             <span className={`font-bold px-1 py-0.5 rounded-full text-[9px] uppercase tracking-wide flex-shrink-0 ${FILE_CHIP_COLORS[doc.fileType] ?? FILE_CHIP_COLORS["Otro"]}`}>
                               {doc.fileType?.slice(0, 3)}
                             </span>
-                            {doc.fileUrl ? (
-                              <button type="button" onClick={() => openDocUrl(doc.fileUrl!)} className="font-medium max-w-[110px] truncate text-foreground/80 hover:text-primary transition-colors text-left">
+                            {doc.fileUrl || isLocalDocument(doc) ? (
+                              <button type="button" onClick={() => isLocalDocument(doc) ? localStore.open(doc) : openDocUrl(doc.fileUrl!)} className="font-medium max-w-[110px] truncate text-foreground/80 hover:text-primary transition-colors text-left">
                                 {doc.name}
                               </button>
                             ) : (
                               <span className="font-medium max-w-[110px] truncate text-foreground/80">{doc.name}</span>
                             )}
-                            {!readOnly && (
+                            {isLocalDocument(doc) && <span title={LOCAL_DOCUMENT_MESSAGE} aria-label={LOCAL_DOCUMENT_MESSAGE}><Lock className="w-3 h-3" /><span className="sr-only">{LOCAL_DOCUMENT_MESSAGE}</span></span>}
+                            {(!readOnly || (localDocumentsEnabled && isLocalDocument(doc))) && (
                               <button onClick={() => setDeletingDoc(doc)} title="Eliminar" className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100 p-0.5">
                                 <X className="w-3 h-3" />
                               </button>
@@ -307,7 +347,7 @@ export default function ParkingModule({ tripId, readOnly }: Props) {
                         ))}
                       </div>
                     )}
-                    {!readOnly && (
+                    {(!readOnly || localDocumentsEnabled) && (
                       <button onClick={() => openUpload(p)} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors">
                         <Paperclip className="w-3.5 h-3.5" />
                         {docs.length > 0 ? "Añadir otro documento" : "Añadir documento"}
@@ -353,7 +393,7 @@ export default function ParkingModule({ tripId, readOnly }: Props) {
       </Dialog>
 
       {/* ── Upload document dialog ── */}
-      <Dialog open={!!uploadingFor} onOpenChange={(v) => { if (!v) { setUploadingFor(null); setDocName(""); setDocFileUrl(""); } }}>
+      <Dialog open={!!uploadingFor} onOpenChange={(v) => { if (!v && !savingLocal) { setUploadingFor(null); setDocName(""); setDocFileUrl(""); setPendingDocFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; } }}>
         <DialogContent className="w-[calc(100vw-2rem)] max-w-sm">
           <DialogHeader>
             <DialogTitle>Subir documento — Estacionamiento</DialogTitle>
@@ -391,8 +431,8 @@ export default function ParkingModule({ tripId, readOnly }: Props) {
             </p>
           </div>
           <DialogFooter>
-            <Button onClick={handleSaveDoc} disabled={!docName.trim() || uploading || createDoc.isPending}>
-              {createDoc.isPending ? "Guardando…" : "Guardar documento"}
+            <Button onClick={handleSaveDoc} disabled={!docName.trim() || uploading || createDoc.isPending || savingLocal}>
+              {createDoc.isPending || savingLocal ? "Guardando…" : "Guardar documento"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -419,7 +459,7 @@ export default function ParkingModule({ tripId, readOnly }: Props) {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => deletingDoc && deleteDoc.mutate({ tripId, documentId: deletingDoc.id })}
+              onClick={() => deletingDoc && (isLocalDocument(deletingDoc) ? localStore.remove(String(deletingDoc.id)).then(() => setDeletingDoc(null)) : deleteDoc.mutate({ tripId, documentId: Number(deletingDoc.id) }))}
               className="bg-destructive hover:bg-destructive/90"
             >
               Eliminar

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import {
   Trash2, FolderOpen, FileText, Paperclip, ExternalLink, Download,
   WifiOff, CheckCircle2, Loader2,
+  Lock,
 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,6 +12,7 @@ import {
   useListDocuments, useCreateDocument, useDeleteDocument, getListDocumentsQueryKey,
 } from "@workspace/api-client-react";
 import type { Document } from "@workspace/api-client-react";
+import { documentUploadDestination, useLocalDocuments, LOCAL_DOCUMENT_MESSAGE, isLocalDocument } from "@/lib/local-documents";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -155,16 +157,20 @@ interface Props {
    *  is available without internet. */
   coverImageUrl?: string | null;
   readOnly?: boolean;
+  localDocumentsEnabled?: boolean;
 }
 
-export default function DocumentsModule({ tripId, coverImageUrl, readOnly }: Props) {
+export default function DocumentsModule({ tripId, coverImageUrl, readOnly, localDocumentsEnabled }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [deleting, setDeleting] = useState<Document | null>(null);
   const [filterModule, setFilterModule] = useState<string>("all");
   const [selectedFileName, setSelectedFileName] = useState<string>("");
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [uploadIsLocal, setUploadIsLocal] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [savingLocal, setSavingLocal] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncProgress, setSyncProgress] = useState({ done: 0, total: 0 });
   const autoSyncedRef = useRef(false);
@@ -177,6 +183,7 @@ export default function DocumentsModule({ tripId, coverImageUrl, readOnly }: Pro
   const { data: docs, isLoading } = useListDocuments(tripId, {
     query: { queryKey: getListDocumentsQueryKey(tripId) },
   });
+  const localStore = useLocalDocuments(tripId);
   const invalidate = () => queryClient.invalidateQueries({ queryKey: getListDocumentsQueryKey(tripId) });
 
   const form = useForm<FormValues>({
@@ -238,6 +245,10 @@ export default function DocumentsModule({ tripId, coverImageUrl, readOnly }: Pro
     else if (file.type.startsWith("image/")) form.setValue("fileType", "Imagen");
     else form.setValue("fileType", "Otro");
 
+    setPendingFile(file);
+    if (uploadIsLocal) {
+      return;
+    }
     setUploading(true);
     try {
       const formData = new FormData();
@@ -346,10 +357,39 @@ export default function DocumentsModule({ tripId, coverImageUrl, readOnly }: Pro
   function onOpenDialog() {
     form.reset({ module: "vault", name: "", fileType: "PDF", fileUrl: "", notes: "" });
     setSelectedFileName("");
+    setPendingFile(null);
+    setUploadIsLocal(Boolean(localDocumentsEnabled) || documentUploadDestination() === "soloDispositivo");
     setOpen(true);
   }
 
-  function onSubmit(values: FormValues) {
+  async function onSubmit(values: FormValues) {
+    if (savingLocal) return;
+    if (uploadIsLocal) {
+      if (!pendingFile) { toast({ title: "Selecciona un archivo", variant: "destructive" }); return; }
+      setSavingLocal(true);
+      try {
+        await localStore.save({
+          tripId, module: values.module, name: values.name.trim(), fileType: values.fileType,
+          notes: values.notes || undefined, blob: pendingFile,
+        });
+        setOpen(false);
+        form.reset();
+        setSelectedFileName("");
+        setPendingFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        toast({ title: "Documento guardado", description: LOCAL_DOCUMENT_MESSAGE });
+      } catch (error) {
+        form.reset();
+        setSelectedFileName("");
+        setPendingFile(null);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        toast({ title: "No se pudo guardar el documento", description: error instanceof Error ? error.message : "Error en IndexedDB.", variant: "destructive" });
+      } finally {
+        setSavingLocal(false);
+      }
+      return;
+    }
+    if (!values.fileUrl) { toast({ title: "Selecciona un archivo", variant: "destructive" }); return; }
     createDocument.mutate({
       tripId,
       data: { ...values, fileUrl: values.fileUrl || undefined, notes: values.notes || undefined },
@@ -373,9 +413,10 @@ export default function DocumentsModule({ tripId, coverImageUrl, readOnly }: Pro
   const pendingDocs = serverDocs.filter((d) => !syncedUrls.has(d.fileUrl!));
   const allSynced = serverDocs.length > 0 && pendingDocs.length === 0;
 
-  const filteredDocs = docs
-    ? filterModule === "all" ? docs : docs.filter((d) => d.module === filterModule)
-    : [];
+  const allDocuments = [...(docs ?? []), ...localStore.documents as unknown as Document[]];
+  const filteredDocs = filterModule === "all"
+    ? allDocuments
+    : allDocuments.filter((document) => document.module === filterModule);
 
   const grouped = filteredDocs.reduce((acc, d) => {
     if (!acc[d.module]) acc[d.module] = [];
@@ -390,7 +431,7 @@ export default function DocumentsModule({ tripId, coverImageUrl, readOnly }: Pro
           <h2 className="text-lg font-bold">Bóveda de Documentos</h2>
           <p className="text-muted-foreground text-sm mt-0.5">Guarda tarjetas de embarque, seguros, visados y más</p>
         </div>
-        {!readOnly && (
+        {(!readOnly || localDocumentsEnabled) && (
           <Button onClick={onOpenDialog} className="gap-2 flex-shrink-0" data-testid="button-add">
             <Paperclip className="w-4 h-4" />
             Subir
@@ -493,7 +534,14 @@ export default function DocumentsModule({ tripId, coverImageUrl, readOnly }: Pro
                           <span className={`text-xs px-1.5 py-0.5 rounded-full ${MODULE_COLORS[doc.module]}`}>
                             {MODULES.find((m) => m.value === doc.module)?.label}
                           </span>
-                          {isCached && (
+                          {String(doc.id).startsWith("local-") && (
+                            <span className="flex items-center gap-0.5 text-xs text-muted-foreground" title={LOCAL_DOCUMENT_MESSAGE}>
+                              <Lock className="w-3 h-3" aria-hidden="true" />
+                              <span className="sr-only">{LOCAL_DOCUMENT_MESSAGE}</span>
+                              Solo dispositivo
+                            </span>
+                          )}
+                          {isCached && !String(doc.id).startsWith("local-") && (
                             <span className="flex items-center gap-0.5 text-xs text-emerald-600">
                               <CheckCircle2 className="w-3 h-3" />
                               Offline
@@ -507,13 +555,13 @@ export default function DocumentsModule({ tripId, coverImageUrl, readOnly }: Pro
                           )}
                         </div>
                       </div>
-                      {doc.fileUrl && (
+                      {(doc.fileUrl || String(doc.id).startsWith("local-")) && (
                         <div className="flex items-center gap-1 flex-shrink-0">
                           <button
                             type="button"
                             title={isIOS() ? "Descargar / Abrir" : "Abrir en nueva pestaña"}
                             className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
-                            onClick={() => openDocUrl(doc.fileUrl!, doc.name)}
+                             onClick={() => String(doc.id).startsWith("local-") ? localStore.open(String(doc.id)) : openDocUrl(doc.fileUrl!, doc.name)}
                           >
                             <ExternalLink className="w-3.5 h-3.5" />
                           </button>
@@ -521,13 +569,13 @@ export default function DocumentsModule({ tripId, coverImageUrl, readOnly }: Pro
                             type="button"
                             title="Descargar"
                             className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
-                            onClick={() => downloadDocUrl(doc.fileUrl!, doc.name)}
+                             onClick={() => String(doc.id).startsWith("local-") ? localStore.download(String(doc.id)) : downloadDocUrl(doc.fileUrl!, doc.name)}
                           >
                             <Download className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       )}
-                      {!readOnly && (
+                      {(!readOnly || (localDocumentsEnabled && isLocalDocument(doc))) && (
                         <Button
                           size="icon"
                           variant="ghost"
@@ -553,7 +601,7 @@ export default function DocumentsModule({ tripId, coverImageUrl, readOnly }: Pro
       )}
 
       {/* Upload dialog */}
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(value) => { if (!value && savingLocal) return; setOpen(value); if (!value) { form.reset(); setSelectedFileName(""); setPendingFile(null); if (fileInputRef.current) fileInputRef.current.value = ""; } }}>
         <DialogContent className="max-w-md">
           <DialogHeader><DialogTitle>Subir Documento</DialogTitle></DialogHeader>
           <Form {...form}>
@@ -587,7 +635,7 @@ export default function DocumentsModule({ tripId, coverImageUrl, readOnly }: Pro
                 {selectedFileName && !uploading && (
                   <p className="text-xs text-emerald-600 flex items-center gap-1">
                     <CheckCircle2 className="w-3 h-3" />
-                    Archivo subido al servidor — disponible desde cualquier dispositivo
+                    {uploadIsLocal ? LOCAL_DOCUMENT_MESSAGE : "Archivo subido al servidor — disponible desde cualquier dispositivo"}
                   </p>
                 )}
               </div>
@@ -639,8 +687,8 @@ export default function DocumentsModule({ tripId, coverImageUrl, readOnly }: Pro
               )} />
 
               <DialogFooter>
-                <Button type="submit" disabled={createDocument.isPending || uploading}>
-                  {createDocument.isPending ? "Guardando..." : "Guardar Documento"}
+                <Button type="submit" disabled={createDocument.isPending || uploading || savingLocal}>
+                  {createDocument.isPending || savingLocal ? "Guardando..." : "Guardar Documento"}
                 </Button>
               </DialogFooter>
             </form>
@@ -660,7 +708,12 @@ export default function DocumentsModule({ tripId, coverImageUrl, readOnly }: Pro
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => deleting && deleteDocument.mutate({ tripId, documentId: deleting.id })}
+              onClick={() => {
+                if (!deleting) return;
+                if (String(deleting.id).startsWith("local-")) {
+                  localStore.remove(String(deleting.id)).then(() => { setDeleting(null); toast({ title: "Documento eliminado localmente" }); });
+                } else deleteDocument.mutate({ tripId, documentId: deleting.id });
+              }}
               className="bg-destructive hover:bg-destructive/90"
             >
               Eliminar

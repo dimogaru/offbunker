@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import {
-  Shield, PlusCircle, Pencil, Trash2, LogOut, ShieldCheck,
+  Shield, PlusCircle, Pencil, Trash2, LogOut, ShieldCheck, KeyRound,
 } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
@@ -47,10 +47,12 @@ export default function AdminPage() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editUser, setEditUser] = useState<UserRow | null>(null);
+  const [passwordUser, setPasswordUser] = useState<UserRow | null>(null);
   const [deleteUser, setDeleteUser] = useState<UserRow | null>(null);
 
   const [formUsername, setFormUsername] = useState("");
   const [formPassword, setFormPassword] = useState("");
+  const [passwordValue, setPasswordValue] = useState("");
   const [formRole, setFormRole] = useState("user");
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["admin-users"] });
@@ -83,6 +85,22 @@ export default function AdminPage() {
       setEditUser(null);
       resetForm();
       toast({ title: "Usuario actualizado" });
+    },
+    onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
+  });
+
+  const passwordMut = useMutation({
+    mutationFn: ({ id, password }: { id: number; password: string }) =>
+      apiFetch(`/api/users/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      }),
+    onSuccess: () => {
+      invalidate();
+      setPasswordUser(null);
+      setPasswordValue("");
+      toast({ title: "Contraseña actualizada" });
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
@@ -160,14 +178,15 @@ export default function AdminPage() {
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Cargando usuarios…</p>
         ) : (
-          <div className="rounded-xl border border-border overflow-hidden">
-            <table className="w-full text-sm">
+           <div className="rounded-xl border border-border overflow-x-auto">
+             <table className="w-full min-w-[680px] text-sm">
               <thead>
                 <tr className="bg-muted/40 text-muted-foreground border-b border-border">
                   <th className="text-left px-4 py-3 font-medium">Usuario</th>
                   <th className="text-left px-4 py-3 font-medium">Rol</th>
+                   <th className="text-left px-4 py-3 font-medium">Contraseña</th>
                   <th className="text-left px-4 py-3 font-medium hidden sm:table-cell">Creado</th>
-                  <th className="px-4 py-3 w-20" />
+                   <th className="px-4 py-3 w-28" />
                 </tr>
               </thead>
               <tbody>
@@ -188,6 +207,24 @@ export default function AdminPage() {
                         {u.role === "superadmin" ? "Admin" : "Usuario"}
                       </span>
                     </td>
+                     <td className="px-4 py-3">
+                       <div className="flex items-center gap-2">
+                         <span className="text-muted-foreground tracking-widest" aria-label="Contraseña protegida">
+                           ••••••••
+                         </span>
+                         <button
+                           onClick={() => {
+                             setPasswordValue("");
+                             setPasswordUser(u);
+                           }}
+                           className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+                           title={`Cambiar contraseña de ${u.username}`}
+                         >
+                           <KeyRound className="w-3.5 h-3.5" />
+                           Cambiar
+                         </button>
+                       </div>
+                     </td>
                     <td className="px-4 py-3 text-muted-foreground hidden sm:table-cell">
                       {new Date(u.createdAt).toLocaleDateString("es-ES")}
                     </td>
@@ -214,7 +251,7 @@ export default function AdminPage() {
                 ))}
                 {users.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground text-sm">
+                    <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground text-sm">
                       No hay usuarios registrados
                     </td>
                   </tr>
@@ -332,6 +369,62 @@ export default function AdminPage() {
               }
             >
               {updateMut.isPending ? "Guardando…" : "Guardar cambios"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Password dialog */}
+      <Dialog
+        open={!!passwordUser}
+        onOpenChange={(o) => {
+          if (!o) {
+            setPasswordUser(null);
+            setPasswordValue("");
+          }
+        }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Cambiar contraseña</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-1">
+            <p className="text-sm text-muted-foreground">
+              Nueva contraseña para{" "}
+              <span className="font-medium text-foreground">{passwordUser?.username}</span>.
+              La contraseña actual no se puede mostrar porque está protegida.
+            </p>
+            <div>
+              <Label htmlFor="new-user-password">Nueva contraseña</Label>
+              <Input
+                id="new-user-password"
+                className="mt-1.5"
+                type="password"
+                placeholder="••••••••"
+                value={passwordValue}
+                onChange={(e) => setPasswordValue(e.target.value)}
+                autoComplete="new-password"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setPasswordUser(null);
+                setPasswordValue("");
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => {
+                if (!passwordUser || !passwordValue) return;
+                passwordMut.mutate({ id: passwordUser.id, password: passwordValue });
+              }}
+              disabled={!passwordValue || passwordMut.isPending}
+            >
+              {passwordMut.isPending ? "Guardando…" : "Cambiar contraseña"}
             </Button>
           </DialogFooter>
         </DialogContent>

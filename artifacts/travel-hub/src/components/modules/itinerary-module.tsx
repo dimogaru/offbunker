@@ -31,6 +31,7 @@ import { useLocalDocuments, isLocalDocument } from "@/lib/local-documents";
 import type { LocalDocument } from "@/lib/local-documents";
 type DisplayDocument = Document | LocalDocument;
 import { documentUploadDestination, LOCAL_DOCUMENT_MESSAGE } from "@/lib/local-documents";
+import { Checkbox } from "@/components/ui/checkbox";
 
 /* ─────────────────── Constants ─────────────────────────────── */
 
@@ -228,33 +229,16 @@ export default function ItineraryModule({ tripId, readOnly, localDocumentsEnable
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (uploadIsLocal) {
-      if (!["application/pdf", "image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) {
-        toast({ title: "Formato o tamaño no permitido", description: "Solo PDF, JPEG, PNG o WebP; máximo 5 MB.", variant: "destructive" });
-        if (fileInputRef.current) fileInputRef.current.value = "";
-        return;
-      }
-      setPendingDocFile(file); setDocName(file.name); return;
-    }
-    setDocName(file.name);
-    setUploading(true);
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/uploads", { method: "POST", body: fd });
-      if (!res.ok) throw new Error();
-      const { url } = (await res.json()) as { url: string };
-      setDocFileUrl(url);
-    } catch {
-      toast({ title: "Error al subir el archivo", variant: "destructive" });
+    if (!["application/pdf", "image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) {
+      toast({ title: "Formato o tamaño no permitido", description: "Solo PDF, JPEG, PNG o WebP; máximo 5 MB.", variant: "destructive" });
       if (fileInputRef.current) fileInputRef.current.value = "";
-    } finally {
-      setUploading(false);
+      return;
     }
+    setPendingDocFile(file); setDocName(file.name);
   }
 
   async function handleSaveDoc() {
-    if (!uploadingFor || !docName.trim() || createDoc.isPending || savingLocal) return;
+    if (!uploadingFor || !docName.trim() || createDoc.isPending || savingLocal || uploading) return;
     if (uploadIsLocal && !pendingDocFile) { toast({ title: "Selecciona un archivo", variant: "destructive" }); return; }
     if (uploadIsLocal && pendingDocFile) {
       setSavingLocal(true);
@@ -277,24 +261,36 @@ export default function ItineraryModule({ tripId, readOnly, localDocumentsEnable
       }
       return;
     }
-    if (!docFileUrl) { toast({ title: "Selecciona un archivo", variant: "destructive" }); return; }
-    const fileType = docFileUrl ? fileTypeFrom(docFileUrl) : "Otro";
+    if (!pendingDocFile) { toast({ title: "Selecciona un archivo", variant: "destructive" }); return; }
+    setUploading(true);
+    try {
+    const fd = new FormData();
+    fd.append("file", pendingDocFile);
+    const res = await fetch("/api/uploads", { method: "POST", body: fd });
+    if (!res.ok) throw new Error("Error al subir el archivo");
+    const { url } = (await res.json()) as { url: string };
+    const fileType = fileTypeFrom(url);
     createDoc.mutate({
       tripId,
       data: {
         module: "itinerary",
         name: docName.trim(),
         fileType,
-        fileUrl: docFileUrl || undefined,
+        fileUrl: url,
         notes: `activityId:${uploadingFor.id}`,
       },
     });
+    } catch (error) {
+      toast({ title: "Error al subir el archivo", description: error instanceof Error ? error.message : "Comprueba tu conexión.", variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
   }
 
   function openUpload(item: ItineraryItem) {
     setUploadingFor(item);
     setDocName(""); setDocFileUrl("");
-    setPendingDocFile(null); setUploadIsLocal(Boolean(localDocumentsEnabled) || documentUploadDestination() === "soloDispositivo");
+    setPendingDocFile(null); setUploadIsLocal(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -365,7 +361,7 @@ export default function ItineraryModule({ tripId, readOnly, localDocumentsEnable
                   ) : (
                     <span className="font-medium max-w-[100px] truncate text-foreground/80">{doc.name}</span>
                   )}
-                  {isLocalDocument(doc) && <span title={LOCAL_DOCUMENT_MESSAGE} aria-label={LOCAL_DOCUMENT_MESSAGE}><Lock className="w-3 h-3" /><span className="sr-only">{LOCAL_DOCUMENT_MESSAGE}</span></span>}
+                  {isLocalDocument(doc) && <span title={LOCAL_DOCUMENT_MESSAGE} aria-label={LOCAL_DOCUMENT_MESSAGE} className="flex items-center gap-0.5"><Lock className="w-3 h-3" /><span className="text-muted-foreground">Local</span><span className="sr-only">{LOCAL_DOCUMENT_MESSAGE}</span></span>}
                   {(!readOnly || (localDocumentsEnabled && isLocalDocument(doc))) && (
                     <button onClick={() => setDeletingDoc(doc)} className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 p-0.5" title="Eliminar documento">
                       <Trash2 className="w-3 h-3" />
@@ -555,12 +551,18 @@ export default function ItineraryModule({ tripId, readOnly, localDocumentsEnable
               {uploading
                 ? <Loader2 className="w-4 h-4 text-primary animate-spin flex-shrink-0" />
                 : <Paperclip className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
-              <span className={`text-sm truncate flex-1 ${docFileUrl || uploading ? "text-foreground" : "text-muted-foreground"}`}>
-                {uploading ? "Subiendo…" : docFileUrl ? docName : "Seleccionar archivo (PDF, imagen…)"}
+              <span className={`text-sm truncate flex-1 ${pendingDocFile || docFileUrl || uploading ? "text-foreground" : "text-muted-foreground"}`}>
+                {uploading ? "Subiendo…" : pendingDocFile || docFileUrl ? docName : "Seleccionar archivo (PDF, imagen…)"}
               </span>
-              {docFileUrl && !uploading && <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />}
+              {(pendingDocFile || docFileUrl) && !uploading && <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />}
             </div>
             <input ref={fileInputRef} type="file" accept=".pdf,.png,.jpg,.jpeg,.webp,.gif,.doc,.docx" className="hidden" onChange={handleFileChange} />
+            {documentUploadDestination() === "soloDispositivo" && (
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Checkbox checked={uploadIsLocal} onCheckedChange={(checked) => setUploadIsLocal(checked === true)} />
+                Personal (Guardar solo en este móvil)
+              </label>
+            )}
             <div>
               <label className="text-sm font-medium">Nombre del documento</label>
               <Input className="mt-1.5" placeholder="Entrada, ticket, reserva…" value={docName} onChange={(e) => setDocName(e.target.value)} />

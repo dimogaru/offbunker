@@ -12,7 +12,7 @@ import {
   useListDocuments, useCreateDocument, useDeleteDocument, getListDocumentsQueryKey,
 } from "@workspace/api-client-react";
 import type { Document } from "@workspace/api-client-react";
-import { documentUploadDestination, useLocalDocuments, LOCAL_DOCUMENT_MESSAGE, isLocalDocument } from "@/lib/local-documents";
+import { documentUploadDestination, useLocalDocuments, LOCAL_DOCUMENT_MESSAGE, isLocalDocument, isPersonalDocument } from "@/lib/local-documents";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -22,6 +22,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { Checkbox } from "@/components/ui/checkbox";
 
 // ── iOS / Blob helpers ────────────────────────────────────────────────────────
 function isIOS(): boolean {
@@ -246,36 +247,11 @@ export default function DocumentsModule({ tripId, coverImageUrl, readOnly, local
     else form.setValue("fileType", "Otro");
 
     setPendingFile(file);
-    if (uploadIsLocal) {
-      return;
-    }
-    setUploading(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      const res = await fetch("/api/uploads", { method: "POST", body: formData });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as { error?: string };
-        throw new Error(body.error ?? "Error al subir el archivo");
-      }
-      const { url } = await res.json() as { url: string };
-      form.setValue("fileUrl", url);
-    } catch (err) {
-      toast({
-        title: "Error al subir el archivo",
-        description: err instanceof Error ? err.message : "Comprueba tu conexión e inténtalo de nuevo.",
-        variant: "destructive",
-      });
-      setSelectedFileName("");
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    } finally {
-      setUploading(false);
-    }
   }
 
   async function handlePrepareOffline() {
     if (!docs) return;
-    const serverDocs = docs.filter((d) => isServerUrl(d.fileUrl));
+    const serverDocs = docs.filter((d) => isServerUrl(d.fileUrl) && !isPersonalDocument(d));
 
     // Also include the trip's cover image if it is a local server URL.
     const coverEntry = coverImageUrl && isServerUrl(coverImageUrl)
@@ -358,13 +334,14 @@ export default function DocumentsModule({ tripId, coverImageUrl, readOnly, local
     form.reset({ module: "vault", name: "", fileType: "PDF", fileUrl: "", notes: "" });
     setSelectedFileName("");
     setPendingFile(null);
-    setUploadIsLocal(Boolean(localDocumentsEnabled) || documentUploadDestination() === "soloDispositivo");
+    setUploadIsLocal(false);
     setOpen(true);
   }
 
   async function onSubmit(values: FormValues) {
-    if (savingLocal) return;
-    if (uploadIsLocal) {
+    if (savingLocal || uploading || createDocument.isPending) return;
+    const personal = uploadIsLocal;
+    if (personal) {
       if (!pendingFile) { toast({ title: "Selecciona un archivo", variant: "destructive" }); return; }
       setSavingLocal(true);
       try {
@@ -389,17 +366,33 @@ export default function DocumentsModule({ tripId, coverImageUrl, readOnly, local
       }
       return;
     }
-    if (!values.fileUrl) { toast({ title: "Selecciona un archivo", variant: "destructive" }); return; }
-    createDocument.mutate({
+    if (!pendingFile) { toast({ title: "Selecciona un archivo", variant: "destructive" }); return; }
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", pendingFile);
+      const res = await fetch("/api/uploads", { method: "POST", body: formData });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(body.error ?? "Error al subir el archivo");
+      }
+      const { url } = await res.json() as { url: string };
+      form.setValue("fileUrl", url);
+      createDocument.mutate({
       tripId,
-      data: { ...values, fileUrl: values.fileUrl || undefined, notes: values.notes || undefined },
-    });
+      data: { ...values, fileUrl: url, notes: values.notes || undefined },
+      });
+    } catch (err) {
+      toast({ title: "Error al subir el archivo", description: err instanceof Error ? err.message : "Comprueba tu conexión e inténtalo de nuevo.", variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
   }
 
   // Auto-sync: run once when documents are first loaded and there are pending server files
   useEffect(() => {
     if (!docs || syncing || autoSyncedRef.current) return;
-    const serverDocs = docs.filter((d) => isServerUrl(d.fileUrl));
+    const serverDocs = docs.filter((d) => isServerUrl(d.fileUrl) && !isPersonalDocument(d));
     const pending = serverDocs.filter((d) => !syncedUrls.has(d.fileUrl!));
     if (pending.length > 0) {
       autoSyncedRef.current = true;
@@ -409,7 +402,7 @@ export default function DocumentsModule({ tripId, coverImageUrl, readOnly, local
   }, [docs]);
 
   // Derived sync state
-  const serverDocs = docs ? docs.filter((d) => isServerUrl(d.fileUrl)) : [];
+  const serverDocs = docs ? docs.filter((d) => isServerUrl(d.fileUrl) && !isPersonalDocument(d)) : [];
   const pendingDocs = serverDocs.filter((d) => !syncedUrls.has(d.fileUrl!));
   const allSynced = serverDocs.length > 0 && pendingDocs.length === 0;
 
@@ -538,7 +531,7 @@ export default function DocumentsModule({ tripId, coverImageUrl, readOnly, local
                             <span className="flex items-center gap-0.5 text-xs text-muted-foreground" title={LOCAL_DOCUMENT_MESSAGE}>
                               <Lock className="w-3 h-3" aria-hidden="true" />
                               <span className="sr-only">{LOCAL_DOCUMENT_MESSAGE}</span>
-                              Solo dispositivo
+                               Local
                             </span>
                           )}
                           {isCached && !String(doc.id).startsWith("local-") && (
@@ -632,6 +625,12 @@ export default function DocumentsModule({ tripId, coverImageUrl, readOnly, local
                   className="hidden"
                   onChange={handleFileChange}
                 />
+                {documentUploadDestination() === "soloDispositivo" && (
+                  <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Checkbox checked={uploadIsLocal} onCheckedChange={(checked) => setUploadIsLocal(checked === true)} />
+                    Personal (Guardar solo en este móvil)
+                  </label>
+                )}
                 {selectedFileName && !uploading && (
                   <p className="text-xs text-emerald-600 flex items-center gap-1">
                     <CheckCircle2 className="w-3 h-3" />

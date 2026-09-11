@@ -23,6 +23,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import ModuleHeader from "@/components/modules/module-header";
+import { Checkbox } from "@/components/ui/checkbox";
 import { documentUploadDestination, LOCAL_DOCUMENT_MESSAGE, useLocalDocuments, isLocalDocument } from "@/lib/local-documents";
 import type { LocalDocument } from "@/lib/local-documents";
 type DisplayDocument = Document | LocalDocument;
@@ -287,7 +288,7 @@ function TransportCard({ r, readOnly, localDocumentsEnabled, docs, onView, onEdi
                       ) : (
                         <span className="font-medium max-w-[110px] truncate text-foreground/80">{doc.name}</span>
                       )}
-                       {isLocalDocument(doc) && <span title={LOCAL_DOCUMENT_MESSAGE} aria-label={LOCAL_DOCUMENT_MESSAGE}><Lock className="w-3 h-3" /><span className="sr-only">{LOCAL_DOCUMENT_MESSAGE}</span></span>}
+                       {isLocalDocument(doc) && <span title={LOCAL_DOCUMENT_MESSAGE} aria-label={LOCAL_DOCUMENT_MESSAGE} className="flex items-center gap-0.5"><Lock className="w-3 h-3" /><span className="text-muted-foreground">Local</span><span className="sr-only">{LOCAL_DOCUMENT_MESSAGE}</span></span>}
                        {(!readOnly || (localDocumentsEnabled && isLocalDocument(doc))) && (
                         <button onClick={() => onDeleteDoc(doc)} title="Eliminar" className="text-muted-foreground hover:text-destructive transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100 p-0.5">
                           <X className="w-3 h-3" />
@@ -404,51 +405,25 @@ export default function TransportsModule({ tripId, readOnly, localDocumentsEnabl
   function openUpload(r: Rental) {
     setUploadingFor(r);
     setDocName(""); setDocFileUrl("");
-    setPendingDocFile(null); setUploadIsLocal(Boolean(localDocumentsEnabled) || documentUploadDestination() === "soloDispositivo");
+    setPendingDocFile(null); setUploadIsLocal(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (uploadIsLocal) {
-      if (!["application/pdf", "image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) {
-        toast({ title: "Formato o tamaño no permitido", description: "Solo PDF, JPEG, PNG o WebP; máximo 5 MB.", variant: "destructive" });
-        if (fileInputRef.current) fileInputRef.current.value = "";
-        return;
-      }
-      setPendingDocFile(file); setDocName(file.name); return;
-    }
     const ALLOWED = ["application/pdf", "image/jpeg", "image/png", "image/webp"];
-    if (!ALLOWED.includes(file.type)) {
+    if (!ALLOWED.includes(file.type) || file.size > 5 * 1024 * 1024) {
       toast({ title: "Formato no permitido", description: "Solo PDF, JPEG, PNG o WebP.", variant: "destructive" });
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      toast({ title: "Archivo demasiado grande", description: "El límite es 5 MB.", variant: "destructive" });
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      return;
-    }
+    setPendingDocFile(file);
     setDocName(file.name);
-    setUploading(true);
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/uploads", { method: "POST", body: fd });
-      if (!res.ok) throw new Error();
-      const { url } = (await res.json()) as { url: string };
-      setDocFileUrl(url);
-    } catch {
-      toast({ title: "Error al subir el archivo", variant: "destructive" });
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    } finally {
-      setUploading(false);
-    }
   }
 
   async function handleSaveDoc() {
-    if (!uploadingFor || !docName.trim() || createDoc.isPending || savingLocal) return;
+    if (!uploadingFor || !docName.trim() || createDoc.isPending || savingLocal || uploading) return;
     if (uploadIsLocal && !pendingDocFile) { toast({ title: "Selecciona un archivo", variant: "destructive" }); return; }
     if (uploadIsLocal && pendingDocFile) {
       setSavingLocal(true);
@@ -471,18 +446,30 @@ export default function TransportsModule({ tripId, readOnly, localDocumentsEnabl
       }
       return;
     }
-    if (!docFileUrl) { toast({ title: "Selecciona un archivo", variant: "destructive" }); return; }
-    const fileType = docFileUrl ? fileTypeFrom(docFileUrl) : "Otro";
+    if (!pendingDocFile) { toast({ title: "Selecciona un archivo", variant: "destructive" }); return; }
+    setUploading(true);
+    try {
+    const fd = new FormData();
+    fd.append("file", pendingDocFile);
+    const res = await fetch("/api/uploads", { method: "POST", body: fd });
+    if (!res.ok) throw new Error("Error al subir el archivo");
+    const { url } = (await res.json()) as { url: string };
+    const fileType = fileTypeFrom(url);
     createDoc.mutate({
       tripId,
       data: {
         module: "rental",
         name: docName.trim(),
         fileType,
-        fileUrl: docFileUrl || undefined,
+        fileUrl: url,
         notes: `rentalId:${uploadingFor.id}`,
       },
     });
+    } catch (error) {
+      toast({ title: "Error al subir el archivo", description: error instanceof Error ? error.message : "Comprueba tu conexión.", variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
   }
 
   function onSubmit(values: FormValues) {
@@ -714,10 +701,10 @@ export default function TransportsModule({ tripId, readOnly, localDocumentsEnabl
                 {uploading
                   ? <Loader2 className="w-4 h-4 text-primary animate-spin flex-shrink-0" />
                   : <Paperclip className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
-                <span className={`text-sm truncate flex-1 min-w-0 ${docFileUrl || uploading ? "text-foreground" : "text-muted-foreground"}`}>
-                  {uploading ? "Subiendo…" : docFileUrl ? docName : "Seleccionar archivo…"}
+                <span className={`text-sm truncate flex-1 min-w-0 ${pendingDocFile || docFileUrl || uploading ? "text-foreground" : "text-muted-foreground"}`}>
+                  {uploading ? "Subiendo…" : pendingDocFile || docFileUrl ? docName : "Seleccionar archivo…"}
                 </span>
-                {docFileUrl && !uploading && <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />}
+                {(pendingDocFile || docFileUrl) && !uploading && <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />}
               </div>
               <p className="text-[11px] text-muted-foreground px-0.5">PDF, JPEG, PNG o WebP · máx. 5 MB</p>
             </div>
@@ -728,6 +715,12 @@ export default function TransportsModule({ tripId, readOnly, localDocumentsEnabl
               className="hidden"
               onChange={handleFileChange}
             />
+            {documentUploadDestination() === "soloDispositivo" && (
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Checkbox checked={uploadIsLocal} onCheckedChange={(checked) => setUploadIsLocal(checked === true)} />
+                Personal (Guardar solo en este móvil)
+              </label>
+            )}
             <div>
               <label className="text-sm font-medium">Nombre del documento</label>
               <Input className="mt-1.5" placeholder="Billete, confirmación, contrato…" value={docName} onChange={(e) => setDocName(e.target.value)} />

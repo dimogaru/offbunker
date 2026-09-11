@@ -52,6 +52,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { Checkbox } from "@/components/ui/checkbox";
 import { documentUploadDestination, LOCAL_DOCUMENT_MESSAGE, useLocalDocuments, isLocalDocument } from "@/lib/local-documents";
 import type { LocalDocument } from "@/lib/local-documents";
 
@@ -150,32 +151,10 @@ export default function ModuleDocsWidget({ tripId, module, moduleLabel, readOnly
 
     setDocName(file.name);
     setPendingFile(file);
-    if (uploadIsLocal) return;
-    setUploading(true);
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch("/api/uploads", { method: "POST", body: fd });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({})) as { error?: string };
-        throw new Error(body.error ?? "Error al subir el archivo");
-      }
-      const { url } = (await res.json()) as { url: string };
-      setFileUrl(url);
-    } catch (err) {
-      toast({
-        title: "Error al subir el archivo",
-        description: err instanceof Error ? err.message : "Comprueba tu conexión.",
-        variant: "destructive",
-      });
-      clearFileInput();
-    } finally {
-      setUploading(false);
-    }
   }
 
   async function handleSubmit() {
-    if (!docName.trim() || createDoc.isPending || savingLocal) return;
+    if (!docName.trim() || createDoc.isPending || savingLocal || uploading) return;
     if (uploadIsLocal) {
       if (!pendingFile) { toast({ title: "Selecciona un archivo", variant: "destructive" }); return; }
       setSavingLocal(true);
@@ -198,16 +177,28 @@ export default function ModuleDocsWidget({ tripId, module, moduleLabel, readOnly
       }
       return;
     }
-    if (!fileUrl) { toast({ title: "Selecciona un archivo", variant: "destructive" }); return; }
-    const fileType = fileUrl ? fileTypeFromDataUrl(fileUrl, docName) : "Otro";
-    createDoc.mutate({ tripId, data: { module, name: docName.trim(), fileType, fileUrl: fileUrl || undefined } });
+    if (!pendingFile) { toast({ title: "Selecciona un archivo", variant: "destructive" }); return; }
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", pendingFile);
+      const res = await fetch("/api/uploads", { method: "POST", body: fd });
+      if (!res.ok) throw new Error("Error al subir el archivo");
+      const { url } = (await res.json()) as { url: string };
+      const fileType = fileTypeFromDataUrl(url, docName);
+      createDoc.mutate({ tripId, data: { module, name: docName.trim(), fileType, fileUrl: url } });
+    } catch (err) {
+      toast({ title: "Error al subir el archivo", description: err instanceof Error ? err.message : "Comprueba tu conexión.", variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
   }
 
   function openDialog() {
     setDocName("");
     setFileUrl("");
     setPendingFile(null);
-    setUploadIsLocal(Boolean(localDocumentsEnabled) || documentUploadDestination() === "soloDispositivo");
+    setUploadIsLocal(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
     setOpen(true);
   }
@@ -248,7 +239,7 @@ export default function ModuleDocsWidget({ tripId, module, moduleLabel, readOnly
               <span className={`font-bold px-1.5 py-0.5 rounded-full text-[9px] uppercase tracking-wide flex-shrink-0 ${FILE_CHIP_COLORS[doc.fileType] ?? FILE_CHIP_COLORS["Otro"]}`}>
                 {doc.fileType?.slice(0, 3)}
               </span>
-              {String(doc.id).startsWith("local-") && <><Lock className="w-3 h-3 text-muted-foreground" aria-label={LOCAL_DOCUMENT_MESSAGE} /><span className="sr-only">{LOCAL_DOCUMENT_MESSAGE}</span></>}
+              {isLocalDocument(doc) && <><Lock className="w-3 h-3 text-muted-foreground" aria-label={LOCAL_DOCUMENT_MESSAGE} /><span className="text-muted-foreground">Local</span><span className="sr-only">{LOCAL_DOCUMENT_MESSAGE}</span></>}
 
               {/* Filename */}
               <span className="font-medium max-w-[130px] truncate text-foreground/80">
@@ -301,16 +292,22 @@ export default function ModuleDocsWidget({ tripId, module, moduleLabel, readOnly
                 {uploading
                   ? <Loader2 className="w-4 h-4 text-primary animate-spin flex-shrink-0" />
                   : <Paperclip className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
-                <span className={`text-sm truncate flex-1 min-w-0 ${fileUrl || uploading ? "text-foreground" : "text-muted-foreground"}`}>
-                  {uploading ? "Subiendo…" : fileUrl ? docName : "Seleccionar archivo…"}
+                <span className={`text-sm truncate flex-1 min-w-0 ${pendingFile || fileUrl || uploading ? "text-foreground" : "text-muted-foreground"}`}>
+                  {uploading ? "Subiendo…" : pendingFile || fileUrl ? docName : "Seleccionar archivo…"}
                 </span>
-                {fileUrl && !uploading && <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />}
+                {(pendingFile || fileUrl) && !uploading && <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" />}
               </div>
               <p className="text-[11px] text-muted-foreground px-0.5">
                 PDF, JPEG, PNG o WebP · máx. 5 MB
               </p>
             </div>
             <input ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" className="hidden" onChange={handleFile} />
+            {documentUploadDestination() === "soloDispositivo" && (
+              <label className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Checkbox checked={uploadIsLocal} onCheckedChange={(checked) => setUploadIsLocal(checked === true)} />
+                Personal (Guardar solo en este móvil)
+              </label>
+            )}
             <div>
               <label className="text-sm font-medium">Nombre del documento</label>
               <Input className="mt-1.5" placeholder="Tarjeta de embarque, seguro…" value={docName} onChange={(e) => setDocName(e.target.value)} />

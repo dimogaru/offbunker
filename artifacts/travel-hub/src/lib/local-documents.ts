@@ -13,6 +13,8 @@ export interface LocalDocument {
   fileUrl?: undefined;
   uploadedAt: string;
   esLocal: true;
+  /** Personal documents are never candidates for remote synchronization. */
+  esPersonal: true;
   soloDispositivo: true;
   blob: Blob;
 }
@@ -20,6 +22,10 @@ export interface LocalDocument {
 export type DocumentRecord = LocalDocument;
 export function isLocalDocument(document: { id: number | string; esLocal?: boolean }): document is LocalDocument {
   return document.esLocal === true || String(document.id).startsWith("local-");
+}
+
+export function isPersonalDocument(document: { id: number | string; esPersonal?: boolean; esLocal?: boolean }): boolean {
+  return document.esPersonal === true || document.esLocal === true || String(document.id).startsWith("local-");
 }
 
 const DB_NAME = "travelhub-local-documents";
@@ -90,7 +96,13 @@ export async function listLocalDocuments(ownerId: string, tripId: number): Promi
     const request = transaction.objectStore(STORE).index("ownerTrip").getAll([ownerId, tripId]);
     let result: LocalDocument[] = [];
     request.onerror = () => reject(request.error ?? new Error("No se pudieron leer los documentos locales."));
-    request.onsuccess = () => { result = (request.result as LocalDocument[]).sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt)); };
+    request.onsuccess = () => {
+      // Legacy local records predate esPersonal; normalize them in memory without
+      // changing their stored shape so they remain readable across app versions.
+      result = (request.result as LocalDocument[])
+        .map((document): LocalDocument => ({ ...document, esPersonal: true }))
+        .sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt));
+    };
     transaction.oncomplete = () => resolve(result);
     transaction.onabort = () => reject(transaction.error ?? new Error("No se pudieron leer los documentos locales."));
   });
@@ -111,6 +123,7 @@ export async function saveLocalDocument(ownerId: string, input: {
     id: uuid(),
     uploadedAt: new Date().toISOString(),
     esLocal: true,
+    esPersonal: true,
     soloDispositivo: true,
   };
   const db = await openDatabase();
@@ -242,7 +255,7 @@ export function useLocalDocuments(tripId: number) {
     };
   }, [refresh]);
 
-  const save = useCallback(async (input: Omit<LocalDocument, "id" | "ownerId" | "uploadedAt" | "esLocal" | "soloDispositivo">) => {
+  const save = useCallback(async (input: Omit<LocalDocument, "id" | "ownerId" | "uploadedAt" | "esLocal" | "esPersonal" | "soloDispositivo">) => {
     if (!ownerId) throw new Error("No hay un usuario autenticado para guardar documentos locales.");
     const result = await saveLocalDocument(ownerId, input);
     refresh();

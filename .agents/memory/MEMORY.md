@@ -1,0 +1,1 @@
+- [Privacidad de adjuntos móviles](mobile-document-privacy.md) — en móvil/PWA, “Personal” es opt-in; solo los marcados quedan locales y fuera de toda sincronización.

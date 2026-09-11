@@ -95,7 +95,7 @@ const MODULES = [
   { value: "rental", label: "Transporte" },
   { value: "accommodation", label: "Alojamiento" },
   { value: "itinerary", label: "Itinerario" },
-  { value: "vault", label: "General" },
+  { value: "vault", label: "Personal" },
 ] as const;
 
 const MODULE_COLORS: Record<string, string> = {

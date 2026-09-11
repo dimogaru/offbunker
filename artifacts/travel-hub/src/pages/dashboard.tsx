@@ -36,10 +36,30 @@ interface Trip {
   ownerId?: number | null;
 }
 
-function statusLabel(status: string) {
-  if (status === "upcoming") return { label: "Próximo", className: "bg-sky-100 text-sky-700 border-sky-200" };
-  if (status === "ongoing") return { label: "En curso", className: "bg-emerald-100 text-emerald-700 border-emerald-200" };
-  return { label: "Completado", className: "bg-slate-100 text-slate-500 border-slate-200" };
+function localCalendarDate(value: string) {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return null;
+  const [, year, month, day] = match;
+  const date = new Date(Number(year), Number(month) - 1, Number(day));
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function statusLabel(trip: Trip) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const startDate = localCalendarDate(trip.startDate);
+  const endDate = localCalendarDate(trip.endDate);
+
+  if (endDate && endDate < today) {
+    return { label: "Finalizado", className: "bg-slate-100 text-slate-500 border-slate-200" };
+  }
+  if (startDate && startDate <= today) {
+    return { label: "En curso", className: "bg-emerald-100 text-emerald-700 border-emerald-200" };
+  }
+  if (trip.status === "ongoing") {
+    return { label: "En curso", className: "bg-emerald-100 text-emerald-700 border-emerald-200" };
+  }
+  return { label: "Próximo", className: "bg-sky-100 text-sky-700 border-sky-200" };
 }
 
 function formatDateRange(start: string, end: string) {
@@ -146,7 +166,7 @@ export default function Dashboard() {
         ) : trips && trips.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {(trips as Trip[]).map((trip) => {
-              const { label, className } = statusLabel(trip.status);
+              const { label, className } = statusLabel(trip);
               const isOwner = !trip.ownerId || trip.ownerId === user?.id;
               return (
                 <div

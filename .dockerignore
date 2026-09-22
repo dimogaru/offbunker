@@ -1,0 +1,13 @@
+.git
+.local
+.agents
+attached_assets
+node_modules
+**/node_modules
+**/dist
+**/.cache
+**/*.log
+.env
+.env.*
+artifacts/mockup-sandbox
+artifacts/api-server/uploads

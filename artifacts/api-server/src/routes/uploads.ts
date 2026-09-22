@@ -1,5 +1,8 @@
 import { Router } from "express";
 import multer from "multer";
+import path from "node:path";
+import { randomUUID } from "node:crypto";
+import { uploadsDir } from "../lib/storage-paths";
 
 const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
 
@@ -10,10 +13,23 @@ const ALLOWED_MIME_TYPES = new Set([
   "image/webp",
 ]);
 
-// Use memory storage — files are converted to base64 data URLs and stored in
-// the database, so they survive server restarts and redeployments.
+function safeBaseName(fileName: string): string {
+  const extension = path.extname(fileName).toLowerCase();
+  const baseName = path
+    .basename(fileName, extension)
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+  return `${baseName || "archivo"}-${randomUUID()}${extension}`;
+}
+
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage: multer.diskStorage({
+    destination: uploadsDir,
+    filename: (_req, file, cb) => cb(null, safeBaseName(file.originalname)),
+  }),
   limits: { fileSize: MAX_SIZE },
   fileFilter: (_req, file, cb) => {
     if (ALLOWED_MIME_TYPES.has(file.mimetype)) {
@@ -48,10 +64,7 @@ router.post("/uploads", (req, res): void => {
       res.status(400).json({ error: "No se recibió ningún archivo." });
       return;
     }
-    const mimeType = req.file.mimetype;
-    const base64   = req.file.buffer.toString("base64");
-    const dataUrl  = `data:${mimeType};base64,${base64}`;
-    res.json({ url: dataUrl });
+    res.json({ url: `/api/uploads/${encodeURIComponent(req.file.filename)}` });
   });
 });
 

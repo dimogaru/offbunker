@@ -1,0 +1,20 @@
+Vamos a preparar la aplicación de OffBunker para su despliegue en producción en nuestro propio servidor (Hetzner con Coolify) usando el repositorio de GitHub. 
+
+ES IMPORTANTE: NO debes modificar los esquemas de la base de datos de manera que se pierdan o limpien los datos existentes, ni resetear las tablas/colecciones. Todo debe mantenerse 100% retrocompatible.
+
+Por favor, realiza las siguientes adaptaciones en la arquitectura del servidor y servidor de archivos estáticos:
+
+1. Adaptación del punto de entrada (index.ts / server.ts):
+   - Asegúrate de que el servidor lea la variable de entorno PORT (process.env.PORT) y valide de forma estricta su existencia y valor numérico.
+   - Configura la entrega de archivos estáticos del frontend (Single Page Application) sirviendo la carpeta compilada (dist/public o la correspondiente al entorno de build).
+   - Añade el fallback de rutas para la SPA (SPA Redirection) para que cualquier ruta que NO empiece por '/api' entregue el archivo 'index.html' (usando la sintaxis adecuada para Express, ej: app.get("/{*splat}", ...)).
+
+2. Configuración de Límites y Archivos Adjuntos (Uploads):
+   - Configura los parsers de Express en app.ts para soportar payloads de hasta 5MB (express.json({ limit: '5mb' }) y express.urlencoded({ limit: '5mb', extended: true })).
+   - Asegúrate de que la ruta donde se guardan los archivos físicamente (directorio de uploads) esté centralizada en una constante o variable de entorno (ej: process.env.UPLOADS_DIR || path.join(process.cwd(), 'uploads')) para poder mapear fácilmente un volumen persistente en Docker/Coolify.
+   - Crea automáticamente el directorio de subidas al arrancar la app si no existe (fs.mkdirSync(..., { recursive: true })).
+
+3. Compatibilidad con Producción:
+   - Revisa que las referencias a localhost o puertos fijos en el código del frontend utilicen rutas relativas (/api/...) para que funcionen bajo cualquier dominio o proxy inverso de Coolify sin dar errores de CORS.
+
+Revisa el archivo de entrada del servidor (index.ts), app.ts y la configuración de build para aplicar estas mejoras manteniendo intacta la lógica de datos actual.

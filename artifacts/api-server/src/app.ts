@@ -1,6 +1,6 @@
 import express, { type Express } from "express";
 import cors from "cors";
-import path from "path";
+import path from "node:path";
 import pinoHttp from "pino-http";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
@@ -8,6 +8,11 @@ import { pool } from "@workspace/db";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { seedSuperAdmin } from "./lib/seed";
+import {
+  ensureStorageDirectories,
+  publicDir,
+  uploadsDir,
+} from "./lib/storage-paths";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const PgStore = (connectPgSimple as unknown as (s: typeof session) => new (o: Record<string, unknown>) => session.Store)(session);
@@ -18,6 +23,7 @@ if (!sessionSecret) {
 }
 
 const app: Express = express();
+ensureStorageDirectories();
 
 // Trust the Replit reverse proxy so secure cookies and IP headers work
 app.set("trust proxy", 1);
@@ -61,11 +67,10 @@ app.use(
   })
 );
 
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "5mb" }));
+app.use(express.urlencoded({ limit: "5mb", extended: true }));
 
 // Serve uploaded files under /api/uploads/ (GET/HEAD only — no auth needed)
-const uploadsDir = path.join(process.cwd(), "uploads");
 app.use("/api/uploads", express.static(uploadsDir));
 
 // Cache-control headers for all API responses
@@ -93,6 +98,19 @@ app.use("/api", (req, res, next) => {
 });
 
 app.use("/api", router);
+
+// In production the API process also serves the compiled frontend. API paths
+// are deliberately excluded so missing API routes never receive index.html.
+app.use(express.static(publicDir));
+app.get("/{*splat}", (req, res, next) => {
+  if (req.path.startsWith("/api")) {
+    next();
+    return;
+  }
+  res.sendFile(path.join(publicDir, "index.html"), (err) => {
+    if (err) next(err);
+  });
+});
 
 // Seed superadmin on startup (idempotent)
 seedSuperAdmin().catch((err: unknown) => {

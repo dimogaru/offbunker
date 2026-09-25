@@ -1,0 +1,30 @@
+IMPLEMENTACIÓN DE PLAN GRATUITO (LIMITACIONES DE LÓGICA Y ACTUALIZACIÓN DE LANDING PAGE)
+
+OBJETIVO:
+Configurar las limitaciones del Plan Gratuito en la lógica del sistema (backend/frontend) y reflejarlas claramente en la Landing Page / Pantalla de inicio de sesión.
+
+REGLAS DEL PLAN GRATUITO:
+1. Viajes activos: Máximo 2 viajes creados por usuario.
+2. Colaboración / Compartir: Cada viaje puede compartirse con un máximo de 2 personas adicionales (3 personas en total incluyendo al creador/owner).
+3. Documentos compartidos (Servidor/Nube): Almacenamiento limitado a un máximo de 50 MB por usuario para archivos en el servidor.
+4. Documentos personales (Móvil local): Sin límite de almacenamiento para subidas personales en el dispositivo móvil.
+
+INSTRUCCIONES DE DESARROLLO (OPTIMIZACIÓN DE COSTE):
+
+1. ACTUALIZACIÓN DE LANDING PAGE (FRONTEND):
+   - Actualiza el texto de la sección "Plan Gratuito" en la pantalla inicial/login para que detalle de forma clara estas 4 reglas.
+   - Resalta el valor de seguridad: "Comparte tus viajes de forma segura con hasta 2 acompañantes sin coste adicional".
+
+2. LÓGICA Y VALIDACIONES EN BACKEND / API:
+   - CREACIÓN DE VIAJES (POST /api/trips o equivalente):
+     * Antes de insertar un nuevo viaje, consulta cuántos viajes activos pertenecen al usuario creador. Si ya tiene 2 o más, devuelve un error 403 con el mensaje: "Has alcanzado el límite de 2 viajes en el Plan Gratuito."
+   
+   - COMPARTIR VIAJES (POST /api/trips/:id/share o equivalente):
+     * Antes de añadir un nuevo colaborador a un viaje, cuenta cuántos registros existen en 'trip_shares' para ese viaje. Si ya hay 2 colaboradores registrados (o 3 miembros en total), rechaza la petición con un error 403: "El Plan Gratuito solo permite compartir cada viaje con un máximo de 2 personas más."
+
+   - SUBIDA DE ARCHIVOS COMPARTIDOS (POST /api/documents/upload o equivalente):
+     * Calcula la suma total del tamaño de los archivos subidos por el usuario en el servidor. Si la suma supera los 50 MB, bloquea la subida en el servidor indicando: "Límite de almacenamiento compartido alcanzado (50 MB)."
+
+3. REQUISITOS TÉCNICOS:
+   - Reutiliza la estructura de tablas existente (users, trips, trip_shares, documents). No crees tablas ni migraciones nuevas.
+   - Muestra notificaciones limpias (Toast o mensajes de error) en el frontend cuando el usuario intente superar cualquiera de estos 3 límites.

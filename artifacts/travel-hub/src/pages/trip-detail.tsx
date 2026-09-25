@@ -19,12 +19,13 @@ import ItineraryModule from "@/components/modules/itinerary-module";
 import DocumentsModule from "@/components/modules/documents-module";
 import BaggageModule from "@/components/modules/baggage-module";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle,
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { clearPersistedQueryCacheForUser } from "@/lib/query-cache";
+import { DEMO_PUBLIC_SHARE_PATH } from "@/data/demo-public-trip";
 
 const MODULES = [
   { id: "flights",       label: "Logística Aérea",     shortLabel: "Vuelos",    icon: Plane },
@@ -46,10 +47,12 @@ interface UserShare { id: number; userId: number; username: string; permission: 
 
 function ShareModal({
   tripId,
+  isDemo,
   open,
   onOpenChange,
 }: {
   tripId: number;
+  isDemo: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
@@ -67,11 +70,12 @@ function ShareModal({
       if (!res.ok) throw new Error("Error al obtener colaboradores");
       return res.json() as Promise<UserShare[]>;
     },
-    enabled: open,
+    enabled: open && !isDemo,
   });
   const atCollaboratorLimit = shares.length >= 2;
 
   useEffect(() => {
+    if (isDemo || !open) return;
     const q = searchQuery.trim();
     if (!q) { setSearchResults([]); return; }
     const timer = setTimeout(async () => {
@@ -84,7 +88,7 @@ function ShareModal({
       }
     }, 300);
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, isDemo, open]);
 
   const generateLink = useGenerateShareLink({
     mutation: {
@@ -99,6 +103,23 @@ function ShareModal({
       onError: () => toast({ title: "Error", description: "No se pudo generar el enlace.", variant: "destructive" }),
     },
   });
+
+  const demoUrl = `${window.location.origin}${import.meta.env.BASE_URL}${DEMO_PUBLIC_SHARE_PATH.slice(1)}`;
+
+  async function copyLink() {
+    if (!isDemo) {
+      generateLink.mutate({ tripId });
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(demoUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+      toast({ title: "¡Enlace copiado!", description: "Vista de muestra pública de solo lectura." });
+    } catch {
+      toast({ title: "No se pudo copiar", description: "Puedes abrir la vista pública desde el enlace de abajo.", variant: "destructive" });
+    }
+  }
 
   async function addShare(userId: number) {
     if (atCollaboratorLimit) {
@@ -139,6 +160,11 @@ function ShareModal({
             <Share2 className="w-4 h-4" />
             Compartir viaje
           </DialogTitle>
+          <DialogDescription>
+            {isDemo
+              ? "Abre o copia la vista pública de muestra de Tokio, sin guardar cambios."
+              : "Comparte una vista pública de solo lectura o gestiona los colaboradores del viaje."}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 mt-1">
@@ -146,12 +172,14 @@ function ShareModal({
           <div className="border border-border rounded-lg p-4 space-y-2">
             <h3 className="text-sm font-semibold">Enlace de solo lectura</h3>
             <p className="text-xs text-muted-foreground">
-              Cualquier persona con este enlace puede ver el viaje sin poder editarlo.
+              {isDemo
+                ? "Vista pública de muestra: no muestra datos de tu sesión ni guarda cambios."
+                : "Cualquier persona con este enlace puede ver el viaje sin poder editarlo."}
             </p>
             <Button
               size="sm"
               variant="outline"
-              onClick={() => generateLink.mutate({ tripId })}
+              onClick={copyLink}
               disabled={generateLink.isPending}
               className="gap-2"
             >
@@ -160,10 +188,15 @@ function ShareModal({
                 : <Link2 className="w-3.5 h-3.5" />}
               {copied ? "¡Enlace copiado!" : "Copiar enlace público"}
             </Button>
+            {isDemo && (
+              <a href={demoUrl} target="_blank" rel="noopener noreferrer" className="block w-fit text-sm font-medium text-primary underline underline-offset-2">
+                Abrir vista pública de Tokio
+              </a>
+            )}
           </div>
 
           {/* User sharing */}
-          <div className="border border-border rounded-lg p-4 space-y-3">
+          {!isDemo && <div className="border border-border rounded-lg p-4 space-y-3">
             <h3 className="text-sm font-semibold flex items-center gap-1.5">
               <Users className="w-4 h-4" />
               Colaboradores con cuenta
@@ -245,7 +278,7 @@ function ShareModal({
                 Sin colaboradores aún. Busca un usuario por su nombre de usuario.
               </p>
             )}
-          </div>
+          </div>}
         </div>
       </DialogContent>
     </Dialog>
@@ -299,6 +332,9 @@ export default function TripDetail() {
     | undefined;
   const isOwner = permission === "owner";
   const readOnly = permission === "view";
+  const canShare = isOwner && (user?.role !== "demo" || (
+    trip?.name === "Exploración de Tokio" && trip.destination === "Tokio, Japón"
+  ));
 
   if (isLoading) {
     return (
@@ -371,7 +407,7 @@ export default function TripDetail() {
           {/* Owner-only actions */}
           {isOwner && (
             <>
-              {user?.role !== "demo" && (
+              {canShare && (
                 <button
                   onClick={() => setShareOpen(true)}
                   className="p-2 rounded-md text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors flex-shrink-0 flex items-center gap-1.5"
@@ -487,8 +523,8 @@ export default function TripDetail() {
 
       {/* Dialogs */}
       <EditTripDialog trip={trip} open={editOpen} onOpenChange={setEditOpen} />
-      {isOwner && (
-        <ShareModal tripId={tripId} open={shareOpen} onOpenChange={setShareOpen} />
+      {canShare && (
+        <ShareModal tripId={tripId} isDemo={user?.role === "demo"} open={shareOpen} onOpenChange={setShareOpen} />
       )}
     </div>
   );

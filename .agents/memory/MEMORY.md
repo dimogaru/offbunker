@@ -4,3 +4,4 @@
 - [Límite de colaboradores del plan gratuito](free-plan-sharing.md) — los enlaces públicos de solo lectura siguen disponibles; solo cuentan invitados con cuenta.
 - [Mensajes públicos sobre la PWA](pwa-claims.md) — instalación y ventana independiente sí; no prometer equivalencia nativa, offline total ni cifrado local.
 - [Cookies de sesión en pruebas locales](secure-cookie-preview.md) — las pruebas de alta que necesitan cookie deben pasar por HTTPS del dominio de desarrollo, no HTTP de localhost.
+- [Vista pública demo](demo-public-preview.md) — el enlace público de Tokio muestra una muestra fija, no publica datos editados en la sesión invitada ni genera tokens persistentes.

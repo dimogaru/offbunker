@@ -1,4 +1,4 @@
-import { useRoute } from "wouter";
+import { Link, useRoute } from "wouter";
 import { useGetSharedTrip, getGetSharedTripQueryKey } from "@workspace/api-client-react";
 import {
   Plane, ParkingCircle, Car, Building2, CalendarDays,
@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import MapsLink from "@/components/maps-link";
 import { Skeleton } from "@/components/ui/skeleton";
+import { DEMO_PUBLIC_SHARE_TOKEN, getDemoPublicTrip } from "@/data/demo-public-trip";
 
 /* ─── Formatters (es-ES locale) ──────────────────────────────── */
 
@@ -82,13 +83,15 @@ function Section({ icon: Icon, title, children }: { icon: React.ElementType; tit
 export default function SharedTrip() {
   const [, params] = useRoute("/share/:token");
   const token = params?.token ?? "";
+  const isDemo = token === DEMO_PUBLIC_SHARE_TOKEN;
 
-  const { data, isLoading, isError } = useGetSharedTrip(token, {
-    query: { enabled: !!token, queryKey: getGetSharedTripQueryKey(token) },
+  const shared = useGetSharedTrip(token, {
+    query: { enabled: !!token && !isDemo, queryKey: getGetSharedTripQueryKey(token) },
   });
+  const data = isDemo ? getDemoPublicTrip() : shared.data;
 
   /* Loading */
-  if (isLoading) {
+  if (!isDemo && shared.isLoading) {
     return (
       <div className="min-h-screen bg-background">
         <div className="max-w-3xl mx-auto px-4 py-12 space-y-6">
@@ -102,7 +105,7 @@ export default function SharedTrip() {
   }
 
   /* Error */
-  if (isError || !data) {
+  if ((!isDemo && shared.isError) || !data) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center px-6">
@@ -162,7 +165,9 @@ export default function SharedTrip() {
         <div className="flex items-center gap-2">
           <Plane className="w-4 h-4 text-primary" />
           <span className="text-xs font-semibold text-primary">OffBunker</span>
-          <span className="text-xs text-muted-foreground">— viaje compartido (solo lectura)</span>
+          <span className="text-xs text-muted-foreground">
+            {isDemo ? "— ejemplo de viaje (solo lectura)" : "— viaje compartido (solo lectura)"}
+          </span>
         </div>
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
           <Calendar className="w-3.5 h-3.5" />
@@ -406,6 +411,23 @@ export default function SharedTrip() {
           </Section>
         )}
 
+        {isDemo && (
+          <Section icon={MapPin} title="Mapa de Tokio">
+            <div className="overflow-hidden rounded-xl border border-border bg-card">
+              <iframe
+                title="Mapa de Tokio"
+                src={`https://www.google.com/maps?q=${encodeURIComponent(trip.destination)}&output=embed`}
+                className="h-64 w-full border-0"
+                loading="lazy"
+                referrerPolicy="no-referrer"
+              />
+            </div>
+            <div className="mt-2">
+              <MapsLink query={trip.destination} label="Abrir mapa" />
+            </div>
+          </Section>
+        )}
+
         {/* ── Footer ── */}
         <div className="mt-12 pt-6 border-t border-border text-center">
           <div className="flex items-center justify-center gap-2 text-muted-foreground">
@@ -413,6 +435,9 @@ export default function SharedTrip() {
             <span className="text-sm font-semibold text-primary">OffBunker</span>
             <span className="text-xs">— gestión de viajes offline</span>
           </div>
+          <Link href="/login" className="mt-5 inline-flex items-center justify-center rounded-md bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90">
+            Crea tu propio viaje gratis con OffBunker
+          </Link>
         </div>
       </div>
     </div>

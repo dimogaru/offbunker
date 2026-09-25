@@ -257,10 +257,11 @@ export function useLocalDocuments(tripId: number) {
 
   const save = useCallback(async (input: Omit<LocalDocument, "id" | "ownerId" | "uploadedAt" | "esLocal" | "esPersonal" | "soloDispositivo">) => {
     if (!ownerId) throw new Error("No hay un usuario autenticado para guardar documentos locales.");
+    if (user?.role === "demo") throw new Error("Las subidas de archivos no están disponibles en Modo Demo.");
     const result = await saveLocalDocument(ownerId, input);
     refresh();
     return result;
-  }, [ownerId, refresh]);
+  }, [ownerId, refresh, user?.role]);
   const remove = useCallback(async (id: string) => {
     if (!ownerId) throw new Error("No hay un usuario autenticado.");
     await deleteLocalDocument(ownerId, id);

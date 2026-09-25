@@ -13,6 +13,7 @@ import {
   publicDir,
   uploadsDir,
 } from "./lib/storage-paths";
+import { SESSION_COOKIE_NAME } from "./lib/session";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const PgStore = (connectPgSimple as unknown as (s: typeof session) => new (o: Record<string, unknown>) => session.Store)(session);
@@ -57,7 +58,7 @@ app.use(
     secret: sessionSecret,
     resave: false,
     saveUninitialized: false,
-    name: "travelhub.sid",
+    name: SESSION_COOKIE_NAME,
     cookie: {
       maxAge: 7 * 24 * 60 * 60 * 1000,
       httpOnly: true,
@@ -69,6 +70,15 @@ app.use(
 
 app.use(express.json({ limit: "5mb" }));
 app.use(express.urlencoded({ limit: "5mb", extended: true }));
+
+// Guest demos cannot access upload files, including the static file handler.
+app.use("/api/uploads", (req, res, next) => {
+  if (req.session?.role === "demo") {
+    res.status(403).json({ error: "Los usuarios demo no pueden acceder a archivos" });
+    return;
+  }
+  next();
+});
 
 // Serve uploaded files under /api/uploads/ (GET/HEAD only — no auth needed)
 app.use("/api/uploads", express.static(uploadsDir));
@@ -92,6 +102,19 @@ app.use("/api", (req, res, next) => {
   }
   if (!req.session?.userId) {
     res.status(401).json({ error: "No autenticado. Inicia sesión." });
+    return;
+  }
+  if (req.session.role === "demo" &&
+    (!req.session.demoExpiresAt || req.session.demoExpiresAt <= Date.now())) {
+    res.status(401).json({ error: "La sesión demo ha expirado" });
+    return;
+  }
+  if (req.session.role === "demo" && (
+    p === "/users" ||
+    p.startsWith("/users/") ||
+    /^\/trips\/[^/]+\/shares?(?:\/|$)/.test(p)
+  )) {
+    res.status(403).json({ error: "Esta función no está disponible en modo demo" });
     return;
   }
   next();

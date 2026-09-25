@@ -114,7 +114,7 @@ export default function Dashboard() {
             </div>
             <div className="hidden sm:flex items-center gap-1.5 text-sm text-muted-foreground">
               <User className="w-3.5 h-3.5" />
-              <span>{user?.username}</span>
+              <span>{user?.role === "demo" ? "Invitado" : user?.username}</span>
             </div>
             {/* Mobile: first (order-1); desktop: last (sm:order-2) */}
             <div className="order-1 sm:order-2">

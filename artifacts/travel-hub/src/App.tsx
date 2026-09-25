@@ -92,15 +92,19 @@ function UserScopedCacheBoundary({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (isLoading) return;
     queryClient.clear();
-    if (ownerId) restoreCacheFromStorage(ownerId);
+    if (ownerId && user?.role === "demo") {
+      localStorage.removeItem(persistedQueryCacheKey(ownerId));
+    } else if (ownerId) {
+      restoreCacheFromStorage(ownerId);
+    }
     setReadyOwnerId(ownerId);
-  }, [isLoading, ownerId]);
+  }, [isLoading, ownerId, user?.role]);
 
   if (isLoading || readyOwnerId !== ownerId) return <LoadingScreen />;
 
   return (
     <>
-      {ownerId && <QueryCachePersister ownerId={ownerId} />}
+      {ownerId && user?.role !== "demo" && <QueryCachePersister ownerId={ownerId} />}
       {children}
     </>
   );
@@ -151,14 +155,21 @@ function ProtectedApp() {
   }
 
   return (
-    <Switch>
-      <Route path="/" component={Dashboard} />
-      <Route path="/trips/new" component={NewTrip} />
-      <Route path="/trips/:tripId/export" component={TripExport} />
-      <Route path="/trips/:tripId/:module" component={TripDetail} />
-      <Route path="/trips/:tripId" component={TripDetail} />
-      <Route component={NotFound} />
-    </Switch>
+    <>
+      {user.role === "demo" && (
+        <div role="status" className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-center text-sm text-amber-950">
+          Estás explorando en Modo Demo/Invitado. Los cambios son temporales y no se permiten subidas de archivos.
+        </div>
+      )}
+      <Switch>
+        <Route path="/" component={Dashboard} />
+        <Route path="/trips/new" component={NewTrip} />
+        <Route path="/trips/:tripId/export" component={TripExport} />
+        <Route path="/trips/:tripId/:module" component={TripDetail} />
+        <Route path="/trips/:tripId" component={TripDetail} />
+        <Route component={NotFound} />
+      </Switch>
+    </>
   );
 }
 

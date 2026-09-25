@@ -9,13 +9,14 @@ import {
 export interface AuthUser {
   id: number;
   username: string;
-  role: "user" | "superadmin";
+  role: "user" | "superadmin" | "demo";
 }
 
 interface AuthContextValue {
   user: AuthUser | null;
   isLoading: boolean;
   login: (username: string, password: string) => Promise<AuthUser>;
+  loginDemo: () => Promise<AuthUser>;
   logout: () => Promise<void>;
 }
 
@@ -49,7 +50,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (res.ok) {
           const data = (await res.json()) as AuthUser;
           setUser(data);
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+          if (data.role === "demo") localStorage.removeItem(STORAGE_KEY);
+          else localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
         } else {
           setUser(null);
           localStorage.removeItem(STORAGE_KEY);
@@ -103,6 +105,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return data;
   }
 
+  async function loginDemo(): Promise<AuthUser> {
+    const res = await fetch("/api/auth/demo", {
+      method: "POST",
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(err.error ?? "No se pudo iniciar el modo invitado");
+    }
+    const data = (await res.json()) as AuthUser;
+    setUser(data);
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(CREDS_KEY);
+    return data;
+  }
+
   async function logout(): Promise<void> {
     await fetch("/api/auth/logout", {
       method: "POST",
@@ -110,12 +128,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }).catch(() => undefined);
     setUser(null);
     localStorage.removeItem(STORAGE_KEY);
+    if (user?.role === "demo") localStorage.removeItem(CREDS_KEY);
     // Keep CREDS_KEY so offline re-login is possible after a manual logout
     try { sessionStorage.clear(); } catch { /* ignore */ }
   }
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, loginDemo, logout }}>
       {children}
     </AuthContext.Provider>
   );

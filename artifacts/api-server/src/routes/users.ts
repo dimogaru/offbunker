@@ -19,7 +19,8 @@ router.get("/users/search", requireAuth, async (req, res): Promise<void> => {
     .where(
       and(
         ilike(usersTable.username, `%${q}%`),
-        ne(usersTable.id, req.session.userId!)
+        ne(usersTable.id, req.session.userId!),
+        ne(usersTable.role, "demo")
       )
     );
 

@@ -359,15 +359,17 @@ export default function TripDetail() {
           {/* Owner-only actions */}
           {isOwner && (
             <>
-              <button
-                onClick={() => setShareOpen(true)}
-                className="p-2 rounded-md text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors flex-shrink-0 flex items-center gap-1.5"
-                data-testid="button-share-trip"
-                title="Compartir viaje"
-              >
-                <Share2 className="w-4 h-4" />
-                <span className="hidden sm:inline text-xs font-medium">Compartir</span>
-              </button>
+              {user?.role !== "demo" && (
+                <button
+                  onClick={() => setShareOpen(true)}
+                  className="p-2 rounded-md text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors flex-shrink-0 flex items-center gap-1.5"
+                  data-testid="button-share-trip"
+                  title="Compartir viaje"
+                >
+                  <Share2 className="w-4 h-4" />
+                  <span className="hidden sm:inline text-xs font-medium">Compartir</span>
+                </button>
+              )}
 
               <button
                 onClick={() => setEditOpen(true)}
@@ -418,7 +420,7 @@ export default function TripDetail() {
           {/* Divider + logout */}
           <hr className="my-3 border-sidebar-border" />
           <div className="px-1 mb-1 text-[10px] font-medium text-sidebar-foreground/40 uppercase tracking-wide">
-            {user?.username}
+            {user?.role === "demo" ? "Invitado" : user?.username}
           </div>
           <button
             onClick={handleLogout}

@@ -100,6 +100,11 @@ router.post("/trips/:tripId/shares", async (req, res): Promise<void> => {
   }
   try {
     const result = await withPlanLock(2, access.trip.id, async (tx) => {
+    const [recipient] = await tx.select({ role: usersTable.role }).from(usersTable)
+      .where(eq(usersTable.id, userId));
+    if (recipient?.role === "demo") {
+      return "demo-recipient" as const;
+    }
     const shares = await tx.select({ userId: tripSharesTable.userId }).from(tripSharesTable)
       .where(eq(tripSharesTable.tripId, access.trip.id));
     if (shares.some((share) => share.userId === userId)) {
@@ -118,6 +123,10 @@ router.post("/trips/:tripId/shares", async (req, res): Promise<void> => {
     }
     if (result === "limit") {
       res.status(403).json({ error: SHARE_LIMIT_ERROR });
+      return;
+    }
+    if (result === "demo-recipient") {
+      res.status(400).json({ error: "No se pueden añadir usuarios demo como colaboradores" });
       return;
     }
     res.status(201).json(result);

@@ -30,13 +30,14 @@ import { useToast } from "@/hooks/use-toast";
 import "./login-landing.css";
 
 export default function LoginPage() {
-  const { login } = useAuth();
+  const { login, loginDemo } = useAuth();
   const isOnline = useOnlineStatus();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
 
   useEffect(() => {
     document.title = "OffBunker — Tu Búnker Digital de Viajes y Documentación Segura";
@@ -70,6 +71,23 @@ export default function LoginPage() {
     }
   }
 
+  async function handleDemo() {
+    if (loading || demoLoading) return;
+    setDemoLoading(true);
+    try {
+      await loginDemo();
+      navigate("/");
+    } catch (err) {
+      toast({
+        title: "No se pudo iniciar el Modo Demo",
+        description: err instanceof Error ? err.message : "Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setDemoLoading(false);
+    }
+  }
+
   return (
     <div className="ob-landing">
       <header className="ob-header">
@@ -84,7 +102,6 @@ export default function LoginPage() {
             <a href="#instalar">Instalar</a>
             <a href="#privacidad">Privacidad</a>
             <a href="#planes">Planes</a>
-            <a className="ob-nav-cta" href="#acceso">Acceder <ArrowUpRight size={14} aria-hidden="true" /></a>
           </nav>
         </div>
       </header>
@@ -104,7 +121,7 @@ export default function LoginPage() {
               </p>
               <div className="ob-hero-actions">
                 <a className="ob-primary-link" href="#acceso">
-                  Entrar a mi espacio <ArrowRight size={17} aria-hidden="true" />
+                  <span>Entrar a mi espacio</span><ArrowRight size={17} aria-hidden="true" />
                 </a>
                 <a className="ob-text-link" href="#funciones">
                   Descubrir OffBunker <ArrowUpRight size={15} aria-hidden="true" />
@@ -166,7 +183,7 @@ export default function LoginPage() {
                         required
                       />
                     </div>
-                    <Button type="submit" className="ob-login-submit w-full gap-2" disabled={loading}>
+                    <Button type="submit" className="ob-login-submit w-full gap-2" disabled={loading || demoLoading}>
                       {loading ? (
                         "Iniciando sesión…"
                       ) : (
@@ -177,10 +194,18 @@ export default function LoginPage() {
                       )}
                     </Button>
                   </form>
+                  <div className="mt-6 border-t border-[#d4e5db] pt-5">
+                    <p className="mb-3 text-center text-xs text-[#587274]">¿Aún no tienes cuenta? Explora un viaje de ejemplo.</p>
+                    <Button type="button" variant="outline" className="h-12 w-full gap-2 border-[#246c70] bg-[#eaf3ec] font-semibold text-[#113f46] hover:bg-[#dcebe2]" onClick={handleDemo} disabled={!isOnline || loading || demoLoading}>
+                      <UsersRound className="h-4 w-4" aria-hidden="true" />
+                      {demoLoading ? "Preparando tu demo…" : "Probar como Invitado"}
+                    </Button>
+                    <p className="mt-2 text-center text-xs text-[#69817e]">Sesión temporal con datos de ejemplo. Requiere conexión.</p>
+                  </div>
                 </div>
                 <div className="ob-login-card-foot">
                   <KeyRound size={14} aria-hidden="true" />
-                  <span>Acceso con tu cuenta existente de OffBunker.</span>
+                  <span>Accede con tu cuenta o prueba OffBunker sin registrarte.</span>
                 </div>
               </div>
             </div>
@@ -329,7 +354,7 @@ export default function LoginPage() {
                 </div>
                 <div className="flex gap-4">
                   <HardDrive className="mt-1 shrink-0 text-[#d9e6ba]" size={23} aria-hidden="true" />
-                  <div><h3 className="font-semibold">Búnker privado local</h3><p className="mt-1 text-sm leading-relaxed text-[#b9d1cc]">Las subidas marcadas Personal permanecen solo en este dispositivo y no se sincronizan. La app no cifra actualmente estos archivos.</p></div>
+                  <div><h3 className="font-semibold">Búnker privado local</h3><p className="mt-1 text-sm leading-relaxed text-[#b9d1cc]">Las subidas marcadas Personal permanecen solo en este dispositivo y no se sincronizan con el servidor ni con otros móviles.</p></div>
                 </div>
               </div>
             </div>
@@ -379,7 +404,7 @@ export default function LoginPage() {
               </div>
               <div className="ob-privacy-row">
                 <ShieldCheck size={23} aria-hidden="true" />
-                <div><h3>Conexión y protección</h3><p>Cuando OffBunker se aloja bajo HTTPS, la conexión usa HTTPS. Esto no implica cifrado de extremo a extremo ni cifrado de archivos por la aplicación.</p></div>
+                <div><h3>Conexión segura y privacidad</h3><p>Al usar OffBunker bajo HTTPS, la comunicación entre tu dispositivo y el servidor viaja cifrada durante el tránsito. Tus viajes se gestionan desde tu cuenta; tú eliges a qué colaboradores invitas y qué resumen compartes mediante un enlace público de solo lectura. Los documentos marcados Personal se quedan en tu dispositivo.</p></div>
               </div>
               <div className="ob-privacy-row">
                 <Shield size={23} aria-hidden="true" />
@@ -433,7 +458,6 @@ export default function LoginPage() {
             <span className="ob-section-tag ob-mono">Todo empieza antes de despegar</span>
             <h2 id="ob-end-title">Tu próxima salida, con la cabeza en el viaje.</h2>
             <p>Vuelve a lo esencial: saber dónde está cada cosa, incluso cuando necesitas consultarla deprisa.</p>
-            <a className="ob-primary-link" href="#acceso">Acceder a OffBunker <ArrowRight size={17} aria-hidden="true" /></a>
           </div>
         </section>
       </main>
@@ -453,7 +477,6 @@ export default function LoginPage() {
             <a href="#privacidad">Privacidad</a>
             <a href="#compartir">Formas de compartir</a>
             <a href="#planes">Planes</a>
-            <a href="#acceso">Acceder</a>
           </nav>
         </div>
       </footer>

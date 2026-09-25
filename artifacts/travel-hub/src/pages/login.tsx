@@ -30,7 +30,7 @@ import { useToast } from "@/hooks/use-toast";
 import "./login-landing.css";
 
 export default function LoginPage() {
-  const { login, loginDemo } = useAuth();
+  const { login, register, loginDemo } = useAuth();
   const isOnline = useOnlineStatus();
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -38,6 +38,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [demoLoading, setDemoLoading] = useState(false);
+  const [creatingAccount, setCreatingAccount] = useState(false);
 
   useEffect(() => {
     document.title = "OffBunker — Tu Búnker Digital de Viajes y Documentación Segura";
@@ -53,7 +54,9 @@ export default function LoginPage() {
     if (!username.trim() || !password) return;
     setLoading(true);
     try {
-      const user = await login(username.trim(), password);
+      const user = creatingAccount
+        ? await register(username.trim(), password)
+        : await login(username.trim(), password);
       if (user.role === "superadmin") {
         navigate("/admin");
       } else {
@@ -61,7 +64,7 @@ export default function LoginPage() {
       }
     } catch (err) {
       toast({
-        title: isOnline ? "Error de inicio de sesión" : "Error de acceso offline",
+        title: creatingAccount ? "No se pudo crear la cuenta" : isOnline ? "Error de inicio de sesión" : "Error de acceso offline",
         description:
           err instanceof Error ? err.message : "Credenciales incorrectas",
         variant: "destructive",
@@ -141,9 +144,11 @@ export default function LoginPage() {
                 </div>
                 <div className="ob-login-body">
                   <span className="ob-login-symbol"><LockKeyhole size={21} strokeWidth={1.8} aria-hidden="true" /></span>
-                  <h2>Bienvenido de nuevo.</h2>
+                  <h2>{creatingAccount ? "Crea tu espacio gratuito." : "Bienvenido de nuevo."}</h2>
                   <p className="ob-login-description">
-                    {isOnline
+                    {creatingAccount
+                      ? "Solo necesitas un nombre de usuario y una contraseña. Tu Plan Gratuito estará activo al entrar."
+                      : isOnline
                       ? "Introduce tus credenciales para continuar"
                       : "Verificación local — solo el último usuario registrado puede acceder"}
                   </p>
@@ -166,6 +171,8 @@ export default function LoginPage() {
                         type="text"
                         placeholder="nombre de usuario"
                         autoComplete="username"
+                        minLength={creatingAccount ? 3 : undefined}
+                        maxLength={creatingAccount ? 32 : undefined}
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
                         required
@@ -176,26 +183,39 @@ export default function LoginPage() {
                       <Input
                         id="password"
                         type="password"
-                        placeholder="••••••••"
-                        autoComplete="current-password"
+                        placeholder={creatingAccount ? "Mínimo 8 caracteres" : "••••••••"}
+                        autoComplete={creatingAccount ? "new-password" : "current-password"}
+                        minLength={creatingAccount ? 8 : undefined}
+                        maxLength={creatingAccount ? 128 : undefined}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         required
                       />
                     </div>
-                    <Button type="submit" className="ob-login-submit w-full gap-2" disabled={loading || demoLoading}>
+                    <Button type="submit" className="ob-login-submit w-full gap-2" disabled={loading || demoLoading || (creatingAccount && !isOnline)}>
                       {loading ? (
-                        "Iniciando sesión…"
+                        creatingAccount ? "Creando cuenta…" : "Iniciando sesión…"
                       ) : (
                         <>
                           <LogIn size={17} aria-hidden="true" />
-                          {isOnline ? "Iniciar sesión" : "Acceder sin conexión"}
+                          {creatingAccount ? "Crear cuenta gratuita" : isOnline ? "Iniciar sesión" : "Acceder sin conexión"}
                         </>
                       )}
                     </Button>
                   </form>
+                  <button
+                    type="button"
+                    className="mt-4 w-full text-center text-sm font-semibold text-[#246c70] underline underline-offset-4 hover:text-[#113f46] disabled:opacity-50"
+                    disabled={loading || demoLoading || (!creatingAccount && !isOnline)}
+                    onClick={() => {
+                      setCreatingAccount(!creatingAccount);
+                      setPassword("");
+                    }}
+                  >
+                    {creatingAccount ? "¿Ya tienes cuenta? Iniciar sesión" : "¿Aún no tienes cuenta? Crear cuenta gratuita"}
+                  </button>
                   <div className="mt-6 border-t border-[#d4e5db] pt-5">
-                    <p className="mb-3 text-center text-xs text-[#587274]">¿Aún no tienes cuenta? Explora un viaje de ejemplo.</p>
+                    <p className="mb-3 text-center text-xs text-[#587274]">O explora un viaje de ejemplo sin registrarte.</p>
                     <Button type="button" variant="outline" className="h-12 w-full gap-2 border-[#246c70] bg-[#eaf3ec] font-semibold text-[#113f46] hover:bg-[#dcebe2]" onClick={handleDemo} disabled={!isOnline || loading || demoLoading}>
                       <UsersRound className="h-4 w-4" aria-hidden="true" />
                       {demoLoading ? "Preparando tu demo…" : "Probar como Invitado"}
@@ -205,7 +225,7 @@ export default function LoginPage() {
                 </div>
                 <div className="ob-login-card-foot">
                   <KeyRound size={14} aria-hidden="true" />
-                  <span>Accede con tu cuenta o prueba OffBunker sin registrarte.</span>
+                  <span>Crea tu cuenta gratuita, entra en tu espacio o prueba OffBunker sin registrarte.</span>
                 </div>
               </div>
             </div>
@@ -404,7 +424,7 @@ export default function LoginPage() {
               </div>
               <div className="ob-privacy-row">
                 <ShieldCheck size={23} aria-hidden="true" />
-                <div><h3>Conexión segura y privacidad</h3><p>Al usar OffBunker bajo HTTPS, la comunicación entre tu dispositivo y el servidor viaja cifrada durante el tránsito. Tus viajes se gestionan desde tu cuenta; tú eliges a qué colaboradores invitas y qué resumen compartes mediante un enlace público de solo lectura. Los documentos marcados Personal se quedan en tu dispositivo.</p></div>
+                <div><h3>Conexión segura y acceso bajo tu control</h3><p>Al usar OffBunker bajo HTTPS, la comunicación entre tu dispositivo y el servidor viaja cifrada durante el tránsito. Solo el creador de un viaje puede invitar colaboradores; también puede crear un enlace público de solo lectura que permite consultar el viaje a cualquiera que lo tenga. Los documentos marcados Personal se quedan en tu dispositivo.</p></div>
               </div>
               <div className="ob-privacy-row">
                 <Shield size={23} aria-hidden="true" />

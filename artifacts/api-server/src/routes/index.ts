@@ -47,7 +47,9 @@ router.use("/trips/:tripId", async (req, res, next) => {
   if (
     ["POST", "PATCH", "DELETE"].includes(req.method) &&
     access.permission === "view" &&
-    !req.path.startsWith("/baggage")   // baggage is personal per-user; always writable
+    !req.path.startsWith("/baggage") &&   // baggage is personal per-user; always writable
+    req.path !== "/share" &&
+    !req.path.startsWith("/shares")       // share router returns the specific owner-only error
   ) {
     res.status(403).json({
       error: "Solo lectura: no tienes permisos de edición en este viaje",

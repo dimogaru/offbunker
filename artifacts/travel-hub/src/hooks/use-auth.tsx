@@ -16,6 +16,7 @@ interface AuthContextValue {
   user: AuthUser | null;
   isLoading: boolean;
   login: (username: string, password: string) => Promise<AuthUser>;
+  register: (username: string, password: string) => Promise<AuthUser>;
   loginDemo: () => Promise<AuthUser>;
   logout: () => Promise<void>;
 }
@@ -121,6 +122,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return data;
   }
 
+  async function register(username: string, password: string): Promise<AuthUser> {
+    if (!navigator.onLine) throw new Error("Necesitas conexión para crear una cuenta.");
+    const res = await fetch("/api/auth/register", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ username, password }),
+    });
+    if (!res.ok) {
+      const err = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(err.error ?? "No se pudo crear la cuenta");
+    }
+    const data = (await res.json()) as AuthUser;
+    if (data.role !== "user") throw new Error("El servidor devolvió un tipo de cuenta inesperado");
+    setUser(data);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    localStorage.removeItem(CREDS_KEY);
+    try {
+      const hash = await hashCredentials(username, password);
+      localStorage.setItem(CREDS_KEY, JSON.stringify({ hash, user: data }));
+    } catch {
+      // Online registration still succeeds when offline-login storage is unavailable.
+    }
+    return data;
+  }
+
   async function logout(): Promise<void> {
     await fetch("/api/auth/logout", {
       method: "POST",
@@ -134,7 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, loginDemo, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, register, loginDemo, logout }}>
       {children}
     </AuthContext.Provider>
   );

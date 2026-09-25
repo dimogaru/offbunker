@@ -26,7 +26,7 @@ router.post("/trips/:tripId/share", async (req, res): Promise<void> => {
     | undefined;
 
   if (!access || access.permission !== "owner") {
-    res.status(403).json({ error: "Solo el propietario puede generar un enlace de compartir" });
+    res.status(403).json({ error: "Solo el creador original del viaje puede invitar a nuevos colaboradores." });
     return;
   }
 
@@ -55,7 +55,7 @@ router.get("/trips/:tripId/shares", async (req, res): Promise<void> => {
     | undefined;
 
   if (!access || access.permission !== "owner") {
-    res.status(403).json({ error: "Solo el propietario puede ver los colaboradores" });
+    res.status(403).json({ error: "Solo el creador original del viaje puede invitar a nuevos colaboradores." });
     return;
   }
 
@@ -80,7 +80,7 @@ router.post("/trips/:tripId/shares", async (req, res): Promise<void> => {
     | undefined;
 
   if (!access || access.permission !== "owner") {
-    res.status(403).json({ error: "Solo el propietario puede compartir el viaje" });
+    res.status(403).json({ error: "Solo el creador original del viaje puede invitar a nuevos colaboradores." });
     return;
   }
 
@@ -100,9 +100,12 @@ router.post("/trips/:tripId/shares", async (req, res): Promise<void> => {
   }
   try {
     const result = await withPlanLock(2, access.trip.id, async (tx) => {
-    const [recipient] = await tx.select({ role: usersTable.role }).from(usersTable)
+    const [recipient] = await tx.select({ id: usersTable.id, role: usersTable.role }).from(usersTable)
       .where(eq(usersTable.id, userId));
-    if (recipient?.role === "demo") {
+    if (!recipient) {
+      return "recipient-not-found" as const;
+    }
+    if (recipient.role === "demo") {
       return "demo-recipient" as const;
     }
     const shares = await tx.select({ userId: tripSharesTable.userId }).from(tripSharesTable)
@@ -123,6 +126,10 @@ router.post("/trips/:tripId/shares", async (req, res): Promise<void> => {
     }
     if (result === "limit") {
       res.status(403).json({ error: SHARE_LIMIT_ERROR });
+      return;
+    }
+    if (result === "recipient-not-found") {
+      res.status(404).json({ error: "Usuario no encontrado" });
       return;
     }
     if (result === "demo-recipient") {
@@ -148,7 +155,7 @@ router.delete("/trips/:tripId/shares/:shareId", async (req, res): Promise<void> 
     | undefined;
 
   if (!access || access.permission !== "owner") {
-    res.status(403).json({ error: "Solo el propietario puede eliminar colaboradores" });
+    res.status(403).json({ error: "Solo el creador original del viaje puede invitar a nuevos colaboradores." });
     return;
   }
 

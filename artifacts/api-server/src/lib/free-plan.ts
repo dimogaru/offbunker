@@ -8,7 +8,7 @@ export const MAX_ACTIVE_TRIPS = 2;
 export const MAX_COLLABORATORS = 2;
 export const MAX_SHARED_BYTES = 50 * 1024 * 1024;
 export const TRIP_LIMIT_ERROR = "Has alcanzado el límite de 2 viajes en el Plan Gratuito.";
-export const SHARE_LIMIT_ERROR = "El Plan Gratuito solo permite compartir cada viaje con un máximo de 2 personas más.";
+export const SHARE_LIMIT_ERROR = "El Plan Gratuito permite colaborar con un máximo de 2 personas por viaje.";
 export const STORAGE_LIMIT_ERROR = "Límite de almacenamiento compartido alcanzado (50 MB).";
 
 type PlanTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];

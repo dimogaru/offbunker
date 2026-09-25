@@ -146,7 +146,14 @@ export default function Dashboard() {
 
       <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold">Mis Viajes</h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-bold">Mis Viajes</h1>
+            {user?.role === "user" && (
+              <span className="rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-950">
+                Plan Gratuito activo
+              </span>
+            )}
+          </div>
           <p className="text-muted-foreground mt-1 text-sm">Todos tus planes de viaje en un lugar</p>
         </div>
 

@@ -1,0 +1,26 @@
+IMPLEMENTACIÓN DE REGISTRO GRATUITO Y CONTROL STRICTO DE COMPARTICIÓN (OFFBUNKER)
+
+OBJETIVO:
+Permitir el registro gratuito con usuario/contraseña e implementar un control estricto de permisos y límites de compartición en el Plan Gratuito.
+
+1. REGISTRO RÁPIDO DE USUARIO GRATUITO:
+   - Añade en la pantalla inicial la opción "Crear cuenta gratuita" solicitando únicamente: Nombre de usuario y Contraseña.
+   - Tras el registro, el usuario accede directamente a la aplicación con el Plan Gratuito activo.
+
+2. REGLAS ESTRICTAS DE COMPARTICIÓN (BACKEND Y FRONTEND):
+
+   A) LÍMITE DE COMPARTICIÓN (MÁXIMO 2 COLABORADORES POR VIAJE):
+      - Cada viaje creado en el Plan Gratuito puede compartirse para EDITAR/COLABORAR con un máximo de 2 usuarios adicionales (3 personas en total contando al creador).
+      - Antes de invitar a un nuevo colaborador (POST /api/trips/:id/share), valida en la base de datos que la lista de colaboradores actuales no supere los 2 usuarios. Si se alcanza el límite, muestra una alerta: "El Plan Gratuito permite colaborar con un máximo de 2 personas por viaje."
+
+   B) PERMISO EXCLUSIVO DEL CREADOR (OWNER ONLY):
+      - SOLO el creador original del viaje (trip.owner_id) tiene permisos para invitar a otros colaboradores o gestionar quién accede al viaje.
+      - Si un usuario invitado (colaborador al que le han compartido el viaje) intenta invitar a un tercero, el sistema debe bloquear el botón/endpoint y responder: "Solo el creador original del viaje puede invitar a nuevos colaboradores."
+      - Cada usuario registrado puede crear y compartir libremente sus propios viajes.
+
+3. CORRECCIONES DE TEXTOS Y DISEÑO (FRONTEND):
+   - Elimina la frase: "La app no cifra actualmente estos archivos."
+   - Ajusta las flechas en botones para que aparezcan alineadas en la misma línea ("Entrar a mi espacio →").
+   - Sustituye la explicación de seguridad por este texto positivo:
+     "Conexión Segura y Protección Garantizada
+     OffBunker opera mediante protocolos de comunicación cifrada HTTPS de extremo a extremo, asegurando la confidencialidad de tus datos durante el tránsito. Tu almacenamiento está diseñado con arquitectura aislada para que solo tú y tus colaboradores autorizados accedáis a vuestros itinerarios."

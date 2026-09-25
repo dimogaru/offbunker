@@ -20,22 +20,28 @@ const DEMO_STALE_MARGIN_MS = 30 * 60 * 1000;
 const DEMO_RATE_WINDOW_MS = 10 * 60 * 1000;
 const DEMO_RATE_LIMIT = 5;
 const DEMO_RATE_BUCKET_LIMIT = 4096;
-const demoCreationBuckets = new Map<string, { count: number; resetAt: number }>();
+const accountCreationBuckets = new Map<string, { count: number; resetAt: number }>();
 
-function allowDemoCreation(ipAddress: string): boolean {
+function allowAccountCreation(
+  endpoint: "demo" | "register",
+  ipAddress: string,
+  limit = DEMO_RATE_LIMIT,
+  windowMs = DEMO_RATE_WINDOW_MS,
+): boolean {
   const now = Date.now();
-  for (const [ip, bucket] of demoCreationBuckets) {
-    if (bucket.resetAt <= now) demoCreationBuckets.delete(ip);
+  for (const [key, bucket] of accountCreationBuckets) {
+    if (bucket.resetAt <= now) accountCreationBuckets.delete(key);
   }
 
-  let bucket = demoCreationBuckets.get(ipAddress);
+  const key = `${endpoint}:${ipAddress}`;
+  let bucket = accountCreationBuckets.get(key);
   if (!bucket) {
-    if (demoCreationBuckets.size >= DEMO_RATE_BUCKET_LIMIT) return false;
-    bucket = { count: 0, resetAt: now + DEMO_RATE_WINDOW_MS };
-    demoCreationBuckets.set(ipAddress, bucket);
+    if (accountCreationBuckets.size >= DEMO_RATE_BUCKET_LIMIT) return false;
+    bucket = { count: 0, resetAt: now + windowMs };
+    accountCreationBuckets.set(key, bucket);
   }
 
-  if (bucket.count >= DEMO_RATE_LIMIT) return false;
+  if (bucket.count >= limit) return false;
   bucket.count += 1;
   return true;
 }
@@ -133,7 +139,7 @@ router.post("/auth/demo", async (req, res): Promise<void> => {
   }
 
   const ipAddress = req.ip || req.socket.remoteAddress || "unknown";
-  if (!allowDemoCreation(ipAddress)) {
+  if (!allowAccountCreation("demo", ipAddress)) {
     res.status(429).json({ error: "Demasiados intentos de acceso demo. Inténtalo más tarde." });
     return;
   }
@@ -253,6 +259,92 @@ router.post("/auth/demo", async (req, res): Promise<void> => {
   }
 
   res.status(201).json({ id: demoUser.id, username: demoUser.username, role: "demo" });
+});
+
+router.post("/auth/register", async (req, res): Promise<void> => {
+  const body: unknown = req.body;
+  if (
+    body == null ||
+    typeof body !== "object" ||
+    Array.isArray(body) ||
+    Object.keys(body).some((key) => key !== "username" && key !== "password")
+  ) {
+    res.status(400).json({ error: "Solo se admiten los campos usuario y contraseña" });
+    return;
+  }
+
+  if (req.session?.userId && req.session.role !== "demo") {
+    res.status(409).json({ error: "Ya has iniciado sesión con una cuenta" });
+    return;
+  }
+
+  const input = body as { username?: unknown; password?: unknown };
+  if (typeof input.username !== "string" || typeof input.password !== "string") {
+    res.status(400).json({ error: "Usuario y contraseña son obligatorios" });
+    return;
+  }
+
+  const username = input.username.trim();
+  if (username.length < 3 || username.length > 32) {
+    res.status(400).json({ error: "El usuario debe tener entre 3 y 32 caracteres" });
+    return;
+  }
+  if (input.password.length < 8 || input.password.length > 128) {
+    res.status(400).json({ error: "La contraseña debe tener entre 8 y 128 caracteres" });
+    return;
+  }
+
+  const ipAddress = req.ip || req.socket.remoteAddress || "unknown";
+  if (!allowAccountCreation("register", ipAddress, 5, 60 * 60 * 1000)) {
+    res.status(429).json({ error: "Has alcanzado el límite de registros. Inténtalo más tarde." });
+    return;
+  }
+
+  const passwordHash = await bcrypt.hash(input.password, 12);
+  let account: { id: number; username: string };
+  try {
+    const [created] = await db.insert(usersTable).values({
+      username,
+      passwordHash,
+      role: "user",
+    }).returning({ id: usersTable.id, username: usersTable.username });
+    account = created;
+  } catch (error) {
+    if ((error as { code?: string }).code === "23505") {
+      res.status(409).json({ error: "Ese nombre de usuario ya está en uso" });
+      return;
+    }
+    throw error;
+  }
+
+  const previousDemoId = req.session?.role === "demo" ? req.session.userId : undefined;
+  let sessionRegenerated = false;
+  try {
+    await regenerateSession(req);
+    sessionRegenerated = true;
+    req.session.userId = account.id;
+    req.session.username = account.username;
+    req.session.role = "user";
+    delete req.session.demoExpiresAt;
+    await saveSession(req);
+  } catch (error) {
+    if (sessionRegenerated) await destroySession(req).catch(() => undefined);
+    await db.delete(usersTable)
+      .where(and(eq(usersTable.id, account.id), eq(usersTable.role, "user")))
+      .catch((cleanupError: unknown) => {
+        req.log.error({ error: cleanupError, userId: account.id }, "Unable to roll back failed registration");
+      });
+    req.log.error({ error }, "Unable to create registered user session");
+    res.status(500).json({ error: "No se pudo iniciar la sesión de la nueva cuenta" });
+    return;
+  }
+
+  if (previousDemoId) {
+    await removeDemoUser(previousDemoId, req).catch((error: unknown) => {
+      req.log.error({ error }, "Unable to remove demo account after registration");
+    });
+  }
+  res.status(201).json({ id: account.id, username: account.username, role: "user" });
 });
 
 router.post("/auth/login", async (req, res): Promise<void> => {

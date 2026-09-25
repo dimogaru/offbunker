@@ -163,10 +163,14 @@ function ProtectedApp() {
 }
 
 function Router() {
+  const { user, isLoading } = useAuth();
   return (
     <Switch>
       <Route path="/login" component={LoginPage} />
       <Route path="/share/:token" component={SharedTrip} />
+      <Route path="/">
+        {isLoading ? <LoadingScreen /> : user ? <ProtectedApp /> : <LoginPage />}
+      </Route>
       <Route component={ProtectedApp} />
     </Switch>
   );

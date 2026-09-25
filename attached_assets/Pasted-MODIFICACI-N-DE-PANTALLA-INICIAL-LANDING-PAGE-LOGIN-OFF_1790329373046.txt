@@ -1,0 +1,37 @@
+MODIFICACIÓN DE PANTALLA INICIAL (LANDING PAGE + LOGIN) - OFFBUNKER
+
+OBJETIVO:
+Transformar la pantalla actual de /login en una Landing Page completa y profesional que sirva como presentación del producto, manteniendo el formulario de inicio de sesión integrado y sin romper la autenticación existente.
+
+REQUISITOS DE DISEÑO Y ESTRUCTURA:
+
+1. RUTA Y NAVEGACIÓN:
+   - Configura la ruta raíz (/) para mostrar esta nueva pantalla de bienvenida.
+   - El formulario de login o botón "Acceder a mi Búnker" debe estar visible y funcional desde esta misma vista sin redirigir a URLs externas.
+
+2. SECCIONES DE LA PANTALLA INICIAL:
+   - HERO SECTION: 
+     * Título principal: "OffBunker — Tu Búnker Digital de Viajes y Documentación Segura"
+     * Subtítulo explicativo con la propuesta de valor.
+     * Tarjeta/Formulario de Inicio de Sesión (Login) integrado a la derecha o al centro.
+
+   - SECCIÓN DE SEGURIDAD Y PRIVACIDAD (Puntos clave):
+     * "Privacidad Garantizada": Explicación clara de las Subidas Personales en la App Móvil. Los documentos marcados como privados se almacenan únicamente en la memoria local del dispositivo móvil de forma encriptada, SIN subirse a la nube ni sincronizarse con el servidor web.
+     * "Seguridad de Nivel Empresarial": Tráfico cifrado HTTPS de extremo a extremo y aislamiento total de datos de usuario.
+     * "Cero Anuncios": Compromiso explícito de no vender datos a terceros ni mostrar publicidad molesta.
+
+   - SECCIÓN DE CARACTERÍSTICAS Y BONDADES (Features):
+     * Sincronización Web/Móvil para documentos compartidos (vuelos, reservas, visados).
+     * Gestor completo de itinerarios día a día y reservas.
+     * Módulo de equipaje y listas de control.
+     * Acceso offline en el dispositivo móvil para viajes sin cobertura/roaming.
+
+   - SECCIÓN DE PLANES Y MONETIZACIÓN (Modelo Freemium + Pass):
+     * Plan Gratuito: 1 viaje activo, almacenamiento esencial en la nube para documentos comunes, subidas privadas en móvil ilimitadas.
+     * Plan Pro (Suscripción): Viajes ilimitados, mayor almacenamiento en nube, digitalización inteligente y alertas de caducidad.
+     * Pase de Viaje (Pago Único): Desbloqueo puntual de funciones Pro durante 30 días para un viaje específico sin atarse a suscripciones.
+
+INSTRUCCIONES DE CÓDIGO (OPTIMIZACIÓN DE COSTE):
+- Reutiliza los componentes UI de Tailwind / shadcn / CSS ya existentes en el proyecto. No instales librerías de diseño adicionales.
+- Modifica únicamente las vistas/componentes frontend necesarios (ej. Auth/Login page o Landing page). No toques la lógica del backend del API ni esquemas de base de datos.
+- Mantén exactamente los mismos nombres de inputs y hooks de envío de formulario de Login actuales (`username`/`password` o equivalentes) para no alterar el funcionamiento del login.

@@ -9,12 +9,15 @@ import {
   HardDrive,
   KeyRound,
   LockKeyhole,
+  Link2,
   Luggage,
   MapPinned,
   Plane,
   Shield,
   ShieldCheck,
   Smartphone,
+  UsersRound,
+  Check,
   WifiOff,
   LogIn,
 } from "lucide-react";
@@ -77,6 +80,7 @@ export default function LoginPage() {
           </a>
           <nav className="ob-nav" aria-label="Navegación principal">
             <a href="#funciones">Cómo funciona</a>
+            <a href="#compartir">Compartir</a>
             <a href="#privacidad">Privacidad</a>
             <a href="#planes">Planes</a>
             <a className="ob-nav-cta" href="#acceso">Acceder <ArrowUpRight size={14} aria-hidden="true" /></a>
@@ -93,7 +97,8 @@ export default function LoginPage() {
               <p className="ob-lead">
                 Reservas, rutas y documentos, sin tener que buscarlos entre correos.
                 Organiza lo importante antes de salir y consulta lo que ya está disponible
-                en tu dispositivo cuando la conexión falle.
+                en tu dispositivo cuando la conexión falle. Invita a tus acompañantes a
+                planificar contigo o comparte un enlace público para consultar el viaje sin registro.
               </p>
               <div className="ob-hero-actions">
                 <a className="ob-primary-link" href="#acceso">
@@ -240,10 +245,51 @@ export default function LoginPage() {
           </div>
         </section>
 
+        <section className="border-y border-[#cadbd6] bg-[#edf3ec] py-20 md:py-28" id="compartir" aria-labelledby="ob-sharing-title">
+          <div className="ob-container">
+            <div className="mb-10 max-w-3xl md:mb-12">
+              <span className="ob-section-tag ob-mono">02 / Comparte a tu manera</span>
+              <h2 className="ob-display ob-section-title" id="ob-sharing-title">Juntos para planificar. Un enlace para estar al día.</h2>
+              <p className="ob-body mt-5">
+                Elige quién puede colaborar dentro de tu viaje y quién solo necesita consultar el plan. Son dos formas distintas de compartir.
+              </p>
+            </div>
+            <div className="grid gap-5 md:grid-cols-2">
+              <article className="flex h-full flex-col rounded-lg border border-[#bad2ca] bg-[#fafbf6] p-6 shadow-sm sm:p-8">
+                <div className="mb-7 flex items-center justify-between gap-4">
+                  <span className="grid h-12 w-12 place-items-center rounded-xl bg-[#e0eee6] text-[#246c70]"><UsersRound size={24} aria-hidden="true" /></span>
+                  <span className="ob-mono text-[#246c70]">Participan y editan</span>
+                </div>
+                <h3 className="ob-display text-2xl sm:text-3xl">Colaboración en Grupo</h3>
+                <p className="ob-body mt-4">Invita a tus acompañantes a entrar al Búnker y planificad juntos el itinerario.</p>
+                <ul className="mt-6 space-y-3 text-sm leading-relaxed text-[#47676a]">
+                  <li className="flex gap-3"><Check className="mt-0.5 shrink-0 text-[#246c70]" size={18} aria-hidden="true" /><span>Con permiso de edición, cada invitado puede añadir y gestionar sus billetes, reservas y documentos compartidos del viaje.</span></li>
+                  <li className="flex gap-3"><Check className="mt-0.5 shrink-0 text-[#246c70]" size={18} aria-hidden="true" /><span>Hasta <strong>2 colaboradores invitados</strong> por viaje en el Plan Gratuito: 3 miembros contando al creador.</span></li>
+                </ul>
+                <p className="mt-auto border-t border-[#d6e2d8] pt-5 text-xs leading-relaxed text-[#587274]">Los invitados de solo lectura no pueden editar; el propietario decide el permiso de cada colaborador.</p>
+              </article>
+
+              <article className="flex h-full flex-col rounded-lg border border-[#a8cabe] bg-[#dcece5] p-6 shadow-sm sm:p-8">
+                <div className="mb-7 flex items-center justify-between gap-4">
+                  <span className="grid h-12 w-12 place-items-center rounded-xl bg-[#f1f8ec] text-[#246c70]"><Link2 size={24} aria-hidden="true" /></span>
+                  <span className="ob-mono text-[#246c70]">Consultan sin cuenta</span>
+                </div>
+                <h3 className="ob-display text-2xl sm:text-3xl">Enlace Público en 1 Clic</h3>
+                <p className="ob-body mt-4">Genera un enlace web a una página limpia con el resumen del viaje: horarios, desplazamientos, alojamiento e itinerario.</p>
+                <ul className="mt-6 space-y-3 text-sm leading-relaxed text-[#47676a]">
+                  <li className="flex gap-3"><Check className="mt-0.5 shrink-0 text-[#246c70]" size={18} aria-hidden="true" /><span>Familiares y amigos pueden consultar el plan <strong>sin registrarse</strong>, pero no editarlo.</span></li>
+                  <li className="flex gap-3"><Check className="mt-0.5 shrink-0 text-[#246c70]" size={18} aria-hidden="true" /><span><strong>Sin límite de consultas</strong> del enlace público de cada viaje en el Plan Gratuito; no cuenta como colaborador invitado.</span></li>
+                </ul>
+                <p className="mt-auto border-t border-[#bad2ca] pt-5 text-xs leading-relaxed text-[#587274]">Cualquier persona con el enlace puede ver el resumen. No incluye tus documentos Personal guardados en el móvil.</p>
+              </article>
+            </div>
+          </div>
+        </section>
+
         <section className="ob-offline-section" aria-labelledby="ob-offline-title">
           <div className="ob-container ob-offline-grid">
             <div>
-              <span className="ob-section-tag ob-mono">02 / Hecho para moverse</span>
+              <span className="ob-section-tag ob-mono">03 / Hecho para moverse</span>
               <h2 className="ob-display ob-section-title" id="ob-offline-title">La señal puede irse. Tu plan no tiene por qué hacerlo.</h2>
               <p className="ob-body">Un túnel, otra ciudad, una terminal sin cobertura. OffBunker está pensado para que la información ya guardada en tu dispositivo siga a mano.</p>
             </div>
@@ -267,7 +313,7 @@ export default function LoginPage() {
         <section className="ob-privacy ob-container" id="privacidad" aria-labelledby="ob-privacy-title">
           <div className="ob-privacy-grid">
             <div className="ob-privacy-lead">
-              <span className="ob-section-tag ob-mono">03 / Privacidad sin letra pequeña</span>
+              <span className="ob-section-tag ob-mono">04 / Privacidad sin letra pequeña</span>
               <h2 className="ob-display ob-section-title" id="ob-privacy-title">Saber dónde está cada documento importa.</h2>
               <p className="ob-body">“Personal” y “compartido” no significan lo mismo. Te contamos la diferencia sin promesas que el producto no puede demostrar.</p>
               <p className="ob-privacy-note">Si guardas información sensible, protege también el acceso a tu dispositivo y revisa qué documentos decides compartir.</p>
@@ -297,7 +343,7 @@ export default function LoginPage() {
           <div className="ob-container">
             <div className="ob-plans-heading">
               <div>
-                <span className="ob-section-tag ob-mono">04 / Lo que estamos explorando</span>
+                <span className="ob-section-tag ob-mono">05 / Tu plan, a tu ritmo</span>
                 <h2 className="ob-display ob-section-title" id="ob-plans-title">Un espacio para cada forma de viajar.</h2>
               </div>
               <p className="ob-body">El Plan Gratuito está disponible. Pro y Pase de Viaje son propuestas futuras, no productos contratables hoy.</p>
@@ -307,8 +353,14 @@ export default function LoginPage() {
               <article className="ob-plan">
                 <div className="ob-plan-top"><span className="ob-plan-label ob-mono">Una base para empezar</span><span className="ob-soon">Disponible</span></div>
                 <h3>Gratuito</h3>
-                <p>Hasta 2 viajes activos, con 2 acompañantes invitados por viaje y 50 MB de archivos compartidos en el servidor. Los documentos personales en el móvil no tienen límite impuesto por el plan: dependen del espacio disponible en tu dispositivo.</p>
-                <div className="ob-plan-footer">Comparte tus viajes de forma segura con hasta 2 acompañantes sin coste adicional. Los enlaces públicos de solo lectura siguen disponibles.</div>
+                <ul className="mt-4 space-y-3 text-sm leading-relaxed text-[#55706a]">
+                  <li><strong>2 viajes activos</strong> creados como máximo.</li>
+                  <li><strong>Colaboración completa</strong> con hasta 2 acompañantes invitados por viaje: 3 miembros en total.</li>
+                  <li><strong>Enlace público de solo lectura por viaje, sin límite de consultas</strong>, para mostrar el resumen sin registro.</li>
+                  <li><strong>Hasta 50 MB</strong> de almacenamiento en el servidor para documentos compartidos.</li>
+                  <li><strong>Subidas personales en la app móvil: 100 % locales y sin cuota del plan.</strong> No se sincronizan; dependen del espacio disponible en el dispositivo.</li>
+                </ul>
+                <div className="ob-plan-footer">Comparte tus viajes con hasta 2 acompañantes sin coste adicional. El enlace público es para consultar, no para editar.</div>
               </article>
               <article className="ob-plan">
                 <div className="ob-plan-top"><span className="ob-plan-label ob-mono">Para quienes viajan más</span><span className="ob-soon">Próximamente</span></div>
@@ -348,7 +400,8 @@ export default function LoginPage() {
           <nav className="ob-footer-links" aria-label="Navegación de pie de página">
             <a href="#funciones"><Plane size={13} aria-hidden="true" /> Funciones</a>
             <a href="#privacidad">Privacidad</a>
-            <a href="#planes">Planes propuestos</a>
+            <a href="#compartir">Formas de compartir</a>
+            <a href="#planes">Planes</a>
             <a href="#acceso">Acceder</a>
           </nav>
         </div>

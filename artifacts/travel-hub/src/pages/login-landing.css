@@ -67,7 +67,8 @@
 .ob-card-status::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: #4b9b78; }
 .ob-login-body { padding: 36px 34px 32px; }
 .ob-login-symbol { display: grid; place-items: center; width: 43px; height: 43px; background: #e3efe9; color: var(--ob-teal); border-radius: 10px; margin-bottom: 22px; }
-.ob-login-body h2 { font-family: 'Manrope', sans-serif; font-size: 27px; font-weight: 800; letter-spacing: -.045em; margin: 0 0 7px; }
+.ob-login-body h1, .ob-login-body h2 { font-family: 'Manrope', sans-serif; font-size: 27px; font-weight: 800; letter-spacing: -.045em; margin: 0 0 7px; }
+.ob-pwa-login .ob-login-body h1 { font-size: 27px; line-height: 1.25; }
 .ob-login-description { color: #69817e; font-size: 13px; line-height: 1.6; margin: 0 0 28px; }
 .ob-login-form { display: grid; gap: 18px; }
 .ob-form-field { display: grid; gap: 8px; }
@@ -78,6 +79,10 @@
 .ob-login-submit:hover { background: #286369; }
 .ob-login-submit:disabled { opacity: .6; }
 .ob-login-card-foot { border-top: 1px solid #e3eae3; padding: 17px 34px; display: flex; align-items: center; gap: 8px; font-size: 11px; color: #66807b; }
+.ob-pwa-login .ob-header-inner { min-height: 68px; }
+.ob-pwa-login .ob-hero { min-height: calc(100dvh - 68px); display: flex; align-items: center; }
+.ob-pwa-login .ob-hero-grid { display: flex; justify-content: center; padding-block: 28px 40px; }
+.ob-pwa-login .ob-login-stage { width: min(100%, 500px); }
 .ob-offline-notice { display: flex; align-items: flex-start; gap: 10px; border: 1px solid #e6d69d; background: #fcf7e9; color: #725f33; padding: 13px 14px; border-radius: 5px; font-size: 12px; line-height: 1.5; margin-bottom: 22px; }
 .ob-offline-notice svg { flex: none; margin-top: 2px; }
 .ob-offline-notice strong { display: block; font-size: 13px; }

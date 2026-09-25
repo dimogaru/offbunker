@@ -59,7 +59,7 @@ export default defineConfig({
         theme_color: "#0f4a52",
         background_color: "#0f4a52",
         display: "standalone",
-        start_url: "/",
+        start_url: "/login?mode=pwa",
         scope: "/",
         orientation: "portrait-primary",
         lang: "es",

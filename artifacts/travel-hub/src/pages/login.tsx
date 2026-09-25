@@ -30,6 +30,9 @@ import { useToast } from "@/hooks/use-toast";
 import "./login-landing.css";
 
 export default function LoginPage() {
+  const pwaLogin = new URLSearchParams(window.location.search).get("mode") === "pwa" ||
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true;
   const { login, register, loginDemo } = useAuth();
   const isOnline = useOnlineStatus();
   const [, navigate] = useLocation();
@@ -41,13 +44,16 @@ export default function LoginPage() {
   const [creatingAccount, setCreatingAccount] = useState(false);
 
   useEffect(() => {
-    document.title = "OffBunker — Tu Búnker Digital de Viajes y Documentación Segura";
+    document.title = pwaLogin
+      ? "Iniciar sesión | OffBunker"
+      : "OffBunker — Tu Búnker Digital de Viajes y Documentación Segura";
     const description = document.querySelector<HTMLMetaElement>('meta[name="description"]');
     if (description) {
-      description.content =
-        "Organiza itinerarios, equipaje y documentos de viaje en OffBunker. Consulta la información disponible en tu dispositivo incluso sin conexión.";
+      description.content = pwaLogin
+        ? "Accede a tu espacio de viajes de OffBunker."
+        : "Organiza itinerarios, equipaje y documentos de viaje en OffBunker. Consulta la información disponible en tu dispositivo incluso sin conexión.";
     }
-  }, []);
+  }, [pwaLogin]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -92,13 +98,14 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="ob-landing">
+    <div className={`ob-landing${pwaLogin ? " ob-pwa-login" : ""}`}>
       <header className="ob-header">
         <div className="ob-container ob-header-inner">
-          <a className="ob-logo" href="#inicio" aria-label="OffBunker, ir al inicio">
+          <a className="ob-logo" href={pwaLogin ? "/" : "#inicio"} aria-label="OffBunker, ir al inicio">
             <span className="ob-logo-mark"><Shield size={20} strokeWidth={2.2} aria-hidden="true" /></span>
             <span>OffBunker</span>
           </a>
+          {!pwaLogin && (
           <nav className="ob-nav" aria-label="Navegación principal">
             <a href="#funciones">Cómo funciona</a>
             <a href="#compartir">Compartir</a>
@@ -106,12 +113,14 @@ export default function LoginPage() {
             <a href="#privacidad">Privacidad</a>
             <a href="#planes">Planes</a>
           </nav>
+          )}
         </div>
       </header>
 
       <main id="inicio">
         <section className="ob-hero" aria-labelledby="ob-main-title">
           <div className="ob-container ob-hero-grid">
+            {!pwaLogin && (
             <div className="ob-hero-copy">
               <span className="ob-mono ob-hero-eyebrow">Tu viaje, con un lugar propio</span>
               <h1 id="ob-main-title">OffBunker — Tu Búnker Digital de Viajes y Documentación Segura</h1>
@@ -135,6 +144,7 @@ export default function LoginPage() {
                 <span>Un lugar claro para preparar el viaje. Consulta sin red la información que ya se haya guardado en este dispositivo.</span>
               </div>
             </div>
+            )}
 
             <div className="ob-login-stage" id="acceso">
               <div className="ob-login-card">
@@ -144,7 +154,9 @@ export default function LoginPage() {
                 </div>
                 <div className="ob-login-body">
                   <span className="ob-login-symbol"><LockKeyhole size={21} strokeWidth={1.8} aria-hidden="true" /></span>
-                  <h2>{creatingAccount ? "Crea tu espacio gratuito." : "Bienvenido de nuevo."}</h2>
+                  {pwaLogin
+                    ? <h1 id="ob-main-title">{creatingAccount ? "Crea tu espacio gratuito." : "Bienvenido de nuevo."}</h1>
+                    : <h2>{creatingAccount ? "Crea tu espacio gratuito." : "Bienvenido de nuevo."}</h2>}
                   <p className="ob-login-description">
                     {creatingAccount
                       ? "Solo necesitas un nombre de usuario y una contraseña. Tu Plan Gratuito estará activo al entrar."
@@ -232,6 +244,8 @@ export default function LoginPage() {
           </div>
         </section>
 
+        {!pwaLogin && (
+        <>
         <div className="ob-trust-strip" aria-label="Aspectos destacados">
           <div className="ob-container ob-trust-inner">
             <div className="ob-trust-item"><WifiOff size={21} aria-hidden="true" /><span>Consulta sin conexión</span></div>
@@ -480,8 +494,11 @@ export default function LoginPage() {
             <p>Vuelve a lo esencial: saber dónde está cada cosa, incluso cuando necesitas consultarla deprisa.</p>
           </div>
         </section>
+        </>
+        )}
       </main>
 
+      {!pwaLogin && (
       <footer className="ob-footer">
         <div className="ob-container ob-footer-inner">
           <div>
@@ -500,6 +517,7 @@ export default function LoginPage() {
           </nav>
         </div>
       </footer>
+      )}
     </div>
   );
 }

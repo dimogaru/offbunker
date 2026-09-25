@@ -173,15 +173,43 @@ function ProtectedApp() {
   );
 }
 
-function Router() {
+function isStandalone() {
+  return window.matchMedia("(display-mode: standalone)").matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true;
+}
+
+function LoginRoute() {
   const { user, isLoading } = useAuth();
+  const [, navigate] = useLocation();
+
+  useEffect(() => {
+    if (!isLoading && user) navigate(user.role === "superadmin" ? "/admin" : "/");
+  }, [isLoading, user, navigate]);
+
+  if (isLoading || user) return <LoadingScreen />;
+  return <LoginPage />;
+}
+
+function HomeRoute() {
+  const { user, isLoading } = useAuth();
+  const [, navigate] = useLocation();
+  const standalone = isStandalone();
+
+  useEffect(() => {
+    // iOS may launch from the page used to install the shortcut rather than the manifest start_url.
+    if (!isLoading && !user && standalone) navigate("/login?mode=pwa", { replace: true });
+  }, [isLoading, user, standalone, navigate]);
+
+  if (isLoading || (!user && standalone)) return <LoadingScreen />;
+  return user ? <ProtectedApp /> : <LoginPage />;
+}
+
+function Router() {
   return (
     <Switch>
-      <Route path="/login" component={LoginPage} />
+      <Route path="/login" component={LoginRoute} />
       <Route path="/share/:token" component={SharedTrip} />
-      <Route path="/">
-        {isLoading ? <LoadingScreen /> : user ? <ProtectedApp /> : <LoginPage />}
-      </Route>
+      <Route path="/" component={HomeRoute} />
       <Route component={ProtectedApp} />
     </Switch>
   );

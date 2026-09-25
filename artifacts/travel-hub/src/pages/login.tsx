@@ -81,6 +81,7 @@ export default function LoginPage() {
           <nav className="ob-nav" aria-label="Navegación principal">
             <a href="#funciones">Cómo funciona</a>
             <a href="#compartir">Compartir</a>
+            <a href="#instalar">Instalar</a>
             <a href="#privacidad">Privacidad</a>
             <a href="#planes">Planes</a>
             <a className="ob-nav-cta" href="#acceso">Acceder <ArrowUpRight size={14} aria-hidden="true" /></a>
@@ -99,6 +100,7 @@ export default function LoginPage() {
                 Organiza lo importante antes de salir y consulta lo que ya está disponible
                 en tu dispositivo cuando la conexión falle. Invita a tus acompañantes a
                 planificar contigo o comparte un enlace público para consultar el viaje sin registro.
+                También puedes instalar OffBunker en tu móvil desde el navegador.
               </p>
               <div className="ob-hero-actions">
                 <a className="ob-primary-link" href="#acceso">
@@ -286,10 +288,58 @@ export default function LoginPage() {
           </div>
         </section>
 
+        <section className="border-b border-[#cadbd6] bg-[#f0f5ed] py-20 md:py-28" id="instalar" aria-labelledby="ob-install-title">
+          <div className="ob-container grid items-center gap-10 lg:grid-cols-[1.1fr_.9fr] lg:gap-16">
+            <div>
+              <span className="ob-section-tag ob-mono">03 / OffBunker en tu móvil</span>
+              <h2 className="ob-display ob-section-title" id="ob-install-title">Instalación Instantánea sin Pasar por las Tiendas de Apps</h2>
+              <p className="ob-body mt-6 max-w-2xl">
+                Abre OffBunker en el navegador de tu móvil y añádelo a la pantalla de inicio.
+                Tendrás su propio icono y podrás abrirlo en una ventana independiente, con una
+                experiencia similar a la de una app instalada, sin buscarlo en App Store ni Google Play.
+              </p>
+              <div className="mt-8 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-lg border border-[#cadbd6] bg-[#fcfcf7] p-5">
+                  <span className="ob-mono text-[#246c70]">iPhone · Safari</span>
+                  <p className="mt-2 text-sm leading-relaxed text-[#47676a]">Abre el menú <strong>Compartir</strong> y elige <strong>«Añadir a la pantalla de inicio»</strong>.</p>
+                </div>
+                <div className="rounded-lg border border-[#cadbd6] bg-[#fcfcf7] p-5">
+                  <span className="ob-mono text-[#246c70]">Android · Chrome</span>
+                  <p className="mt-2 text-sm leading-relaxed text-[#47676a]">Abre el menú del navegador y elige <strong>«Instalar aplicación»</strong> o <strong>«Añadir a pantalla de inicio»</strong>.</p>
+                </div>
+              </div>
+              <p className="mt-5 text-xs leading-relaxed text-[#587274]">La opción de instalación depende del navegador y requiere una conexión segura. Como cualquier app, sus archivos y datos ocupan espacio en el dispositivo.</p>
+            </div>
+            <div className="rounded-[28px] border border-[#315f61] bg-[#113f46] p-6 text-[#f6f5ed] shadow-xl sm:p-8">
+              <div className="mb-7 flex items-center gap-3 border-b border-white/20 pb-6">
+                <span className="grid h-11 w-11 place-items-center rounded-xl bg-[#d9e6ba] text-[#113f46]"><Shield size={23} aria-hidden="true" /></span>
+                <div>
+                  <span className="ob-mono text-[#badac6]">Tu búnker, siempre a mano</span>
+                  <p className="font-semibold">Una app web para llevar contigo</p>
+                </div>
+              </div>
+              <div className="space-y-6">
+                <div className="flex gap-4">
+                  <Smartphone className="mt-1 shrink-0 text-[#d9e6ba]" size={23} aria-hidden="true" />
+                  <div><h3 className="font-semibold">Icono e interfaz de app</h3><p className="mt-1 text-sm leading-relaxed text-[#b9d1cc]">Accede desde tu pantalla de inicio y ábrela sin la barra habitual del navegador.</p></div>
+                </div>
+                <div className="flex gap-4">
+                  <WifiOff className="mt-1 shrink-0 text-[#d9e6ba]" size={23} aria-hidden="true" />
+                  <div><h3 className="font-semibold">Acceso offline preparado</h3><p className="mt-1 text-sm leading-relaxed text-[#b9d1cc]">Consulta itinerarios y documentos que ya estén disponibles en ese dispositivo cuando no tengas cobertura.</p></div>
+                </div>
+                <div className="flex gap-4">
+                  <HardDrive className="mt-1 shrink-0 text-[#d9e6ba]" size={23} aria-hidden="true" />
+                  <div><h3 className="font-semibold">Búnker privado local</h3><p className="mt-1 text-sm leading-relaxed text-[#b9d1cc]">Las subidas marcadas Personal permanecen solo en este dispositivo y no se sincronizan. La app no cifra actualmente estos archivos.</p></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         <section className="ob-offline-section" aria-labelledby="ob-offline-title">
           <div className="ob-container ob-offline-grid">
             <div>
-              <span className="ob-section-tag ob-mono">03 / Hecho para moverse</span>
+              <span className="ob-section-tag ob-mono">04 / Hecho para moverse</span>
               <h2 className="ob-display ob-section-title" id="ob-offline-title">La señal puede irse. Tu plan no tiene por qué hacerlo.</h2>
               <p className="ob-body">Un túnel, otra ciudad, una terminal sin cobertura. OffBunker está pensado para que la información ya guardada en tu dispositivo siga a mano.</p>
             </div>
@@ -313,7 +363,7 @@ export default function LoginPage() {
         <section className="ob-privacy ob-container" id="privacidad" aria-labelledby="ob-privacy-title">
           <div className="ob-privacy-grid">
             <div className="ob-privacy-lead">
-              <span className="ob-section-tag ob-mono">04 / Privacidad sin letra pequeña</span>
+              <span className="ob-section-tag ob-mono">05 / Privacidad sin letra pequeña</span>
               <h2 className="ob-display ob-section-title" id="ob-privacy-title">Saber dónde está cada documento importa.</h2>
               <p className="ob-body">“Personal” y “compartido” no significan lo mismo. Te contamos la diferencia sin promesas que el producto no puede demostrar.</p>
               <p className="ob-privacy-note">Si guardas información sensible, protege también el acceso a tu dispositivo y revisa qué documentos decides compartir.</p>
@@ -343,7 +393,7 @@ export default function LoginPage() {
           <div className="ob-container">
             <div className="ob-plans-heading">
               <div>
-                <span className="ob-section-tag ob-mono">05 / Tu plan, a tu ritmo</span>
+                <span className="ob-section-tag ob-mono">06 / Tu plan, a tu ritmo</span>
                 <h2 className="ob-display ob-section-title" id="ob-plans-title">Un espacio para cada forma de viajar.</h2>
               </div>
               <p className="ob-body">El Plan Gratuito está disponible. Pro y Pase de Viaje son propuestas futuras, no productos contratables hoy.</p>
@@ -399,6 +449,7 @@ export default function LoginPage() {
           </div>
           <nav className="ob-footer-links" aria-label="Navegación de pie de página">
             <a href="#funciones"><Plane size={13} aria-hidden="true" /> Funciones</a>
+            <a href="#instalar">Instalar en móvil</a>
             <a href="#privacidad">Privacidad</a>
             <a href="#compartir">Formas de compartir</a>
             <a href="#planes">Planes</a>

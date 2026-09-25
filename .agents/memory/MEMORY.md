@@ -2,3 +2,4 @@
 - [Pnpm y Corepack en Replit](pnpm-corepack.md) — al fijar packageManager, alinéalo con el pnpm preinstalado para evitar descargas implícitas y bloqueos.
 - [Afirmaciones públicas de privacidad y planes](public-claims.md) — no anunciar cifrado local ni planes de pago como disponibles hasta que existan.
 - [Límite de colaboradores del plan gratuito](free-plan-sharing.md) — los enlaces públicos de solo lectura siguen disponibles; solo cuentan invitados con cuenta.
+- [Mensajes públicos sobre la PWA](pwa-claims.md) — instalación y ventana independiente sí; no prometer equivalencia nativa, offline total ni cifrado local.

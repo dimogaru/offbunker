@@ -22,26 +22,21 @@ const DEMO_RATE_LIMIT = 5;
 const DEMO_RATE_BUCKET_LIMIT = 4096;
 const accountCreationBuckets = new Map<string, { count: number; resetAt: number }>();
 
-function allowAccountCreation(
-  endpoint: "demo" | "register",
-  ipAddress: string,
-  limit = DEMO_RATE_LIMIT,
-  windowMs = DEMO_RATE_WINDOW_MS,
-): boolean {
+function allowDemoAccountCreation(ipAddress: string): boolean {
   const now = Date.now();
   for (const [key, bucket] of accountCreationBuckets) {
     if (bucket.resetAt <= now) accountCreationBuckets.delete(key);
   }
 
-  const key = `${endpoint}:${ipAddress}`;
+  const key = `demo:${ipAddress}`;
   let bucket = accountCreationBuckets.get(key);
   if (!bucket) {
     if (accountCreationBuckets.size >= DEMO_RATE_BUCKET_LIMIT) return false;
-    bucket = { count: 0, resetAt: now + windowMs };
+    bucket = { count: 0, resetAt: now + DEMO_RATE_WINDOW_MS };
     accountCreationBuckets.set(key, bucket);
   }
 
-  if (bucket.count >= limit) return false;
+  if (bucket.count >= DEMO_RATE_LIMIT) return false;
   bucket.count += 1;
   return true;
 }
@@ -139,7 +134,7 @@ router.post("/auth/demo", async (req, res): Promise<void> => {
   }
 
   const ipAddress = req.ip || req.socket.remoteAddress || "unknown";
-  if (!allowAccountCreation("demo", ipAddress)) {
+  if (!allowDemoAccountCreation(ipAddress)) {
     res.status(429).json({ error: "Demasiados intentos de acceso demo. Inténtalo más tarde." });
     return;
   }
@@ -294,12 +289,6 @@ router.post("/auth/register", async (req, res): Promise<void> => {
     return;
   }
 
-  const ipAddress = req.ip || req.socket.remoteAddress || "unknown";
-  if (!allowAccountCreation("register", ipAddress, 5, 60 * 60 * 1000)) {
-    res.status(429).json({ error: "Has alcanzado el límite de registros. Inténtalo más tarde." });
-    return;
-  }
-
   const passwordHash = await bcrypt.hash(input.password, 12);
   let account: { id: number; username: string };
   try {
@@ -310,7 +299,13 @@ router.post("/auth/register", async (req, res): Promise<void> => {
     }).returning({ id: usersTable.id, username: usersTable.username });
     account = created;
   } catch (error) {
-    if ((error as { code?: string }).code === "23505") {
+    const dbError = error as {
+      code?: string;
+      constraint?: string;
+      cause?: { code?: string; constraint?: string };
+    };
+    const violation = dbError.cause ?? dbError;
+    if (violation.code === "23505" && violation.constraint === "users_username_key") {
       res.status(409).json({ error: "Ese nombre de usuario ya está en uso" });
       return;
     }

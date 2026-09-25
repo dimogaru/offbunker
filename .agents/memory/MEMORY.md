@@ -1,3 +1,4 @@
 - [Privacidad de adjuntos móviles](mobile-document-privacy.md) — en móvil/PWA, “Personal” es opt-in; solo los marcados quedan locales y fuera de toda sincronización.
 - [Pnpm y Corepack en Replit](pnpm-corepack.md) — al fijar packageManager, alinéalo con el pnpm preinstalado para evitar descargas implícitas y bloqueos.
 - [Afirmaciones públicas de privacidad y planes](public-claims.md) — no anunciar cifrado local ni planes de pago como disponibles hasta que existan.
+- [Límite de colaboradores del plan gratuito](free-plan-sharing.md) — los enlaces públicos de solo lectura siguen disponibles; solo cuentan invitados con cuenta.

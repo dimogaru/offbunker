@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { eq, and } from "drizzle-orm";
 import { db, documentsTable } from "@workspace/db";
+import { removeUnreferencedUpload } from "../lib/free-plan";
 import {
   ListDocumentsParams,
   ListDocumentsResponse,
@@ -39,6 +40,11 @@ router.post("/trips/:tripId/documents", async (req, res): Promise<void> => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  // Files created through this API must belong to the uploading user.
+  if (parsed.data.fileUrl && !parsed.data.fileUrl.startsWith(`/api/uploads/${req.session.userId!}/`)) {
+    res.status(403).json({ error: "El archivo no pertenece a tu espacio de subidas." });
+    return;
+  }
 
   const [doc] = await db
     .insert(documentsTable)
@@ -69,6 +75,10 @@ router.delete("/trips/:tripId/documents/:documentId", async (req, res): Promise<
     res.status(404).json({ error: "Document not found" });
     return;
   }
+
+  await removeUnreferencedUpload(doc.fileUrl).catch((error) => {
+    req.log.warn({ error }, "Unable to remove deleted upload");
+  });
 
   res.sendStatus(204);
 });

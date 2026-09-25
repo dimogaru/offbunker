@@ -300,15 +300,15 @@ export default function LoginPage() {
                 <span className="ob-section-tag ob-mono">04 / Lo que estamos explorando</span>
                 <h2 className="ob-display ob-section-title" id="ob-plans-title">Un espacio para cada forma de viajar.</h2>
               </div>
-              <p className="ob-body">Estas opciones describen una dirección futura, no productos contratables hoy.</p>
+              <p className="ob-body">El Plan Gratuito está disponible. Pro y Pase de Viaje son propuestas futuras, no productos contratables hoy.</p>
             </div>
-            <div className="ob-proposal"><strong>Planes propuestos.</strong> La contratación, los precios y los límites aún no están disponibles. No se realiza ningún cobro desde esta página.</div>
+            <div className="ob-proposal"><strong>Plan Gratuito disponible.</strong> Pro y Pase de Viaje aún no se pueden contratar; esta página no realiza cobros.</div>
             <div className="ob-plan-grid">
               <article className="ob-plan">
-                <div className="ob-plan-top"><span className="ob-plan-label ob-mono">Una base para empezar</span><span className="ob-soon">Próximamente</span></div>
+                <div className="ob-plan-top"><span className="ob-plan-label ob-mono">Una base para empezar</span><span className="ob-soon">Disponible</span></div>
                 <h3>Gratuito</h3>
-                <p>Propuesta: un viaje activo, almacenamiento esencial en la nube para documentos compartidos y subidas personales ilimitadas en móvil.</p>
-                <div className="ob-plan-footer">Límites y disponibilidad pendientes de implementación.</div>
+                <p>Hasta 2 viajes activos, con 2 acompañantes invitados por viaje y 50 MB de archivos compartidos en el servidor. Los documentos personales en el móvil no tienen límite impuesto por el plan: dependen del espacio disponible en tu dispositivo.</p>
+                <div className="ob-plan-footer">Comparte tus viajes de forma segura con hasta 2 acompañantes sin coste adicional. Los enlaces públicos de solo lectura siguen disponibles.</div>
               </article>
               <article className="ob-plan">
                 <div className="ob-plan-top"><span className="ob-plan-label ob-mono">Para quienes viajan más</span><span className="ob-soon">Próximamente</span></div>

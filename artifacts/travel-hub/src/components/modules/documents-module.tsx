@@ -201,6 +201,13 @@ export default function DocumentsModule({ tripId, coverImageUrl, readOnly, local
         setSelectedFileName("");
         toast({ title: "Documento añadido" });
       },
+      onError: (error) => {
+        toast({
+          title: "No se pudo añadir el documento",
+          description: error instanceof Error ? error.message : "Inténtalo de nuevo.",
+          variant: "destructive",
+        });
+      },
     },
   });
   const deleteDocument = useDeleteDocument({
@@ -230,7 +237,7 @@ export default function DocumentsModule({ tripId, coverImageUrl, readOnly, local
       return;
     }
 
-    if (file.size > MAX_FILE_SIZE) {
+    if (!uploadIsLocal && file.size > MAX_FILE_SIZE) {
       toast({
         title: "Archivo demasiado grande",
         description: `El archivo pesa ${(file.size / 1024 / 1024).toFixed(1)} MB. El límite es 5 MB.`,
@@ -378,10 +385,15 @@ export default function DocumentsModule({ tripId, coverImageUrl, readOnly, local
       }
       const { url } = await res.json() as { url: string };
       form.setValue("fileUrl", url);
-      createDocument.mutate({
-      tripId,
-      data: { ...values, fileUrl: url, notes: values.notes || undefined },
-      });
+      try {
+        await createDocument.mutateAsync({
+          tripId,
+          data: { ...values, fileUrl: url, notes: values.notes || undefined },
+        });
+      } catch {
+        // The mutation displays the error; release the upload so it doesn't use the quota.
+        await fetch(url, { method: "DELETE", credentials: "include" }).catch(() => undefined);
+      }
     } catch (err) {
       toast({ title: "Error al subir el archivo", description: err instanceof Error ? err.message : "Comprueba tu conexión e inténtalo de nuevo.", variant: "destructive" });
     } finally {

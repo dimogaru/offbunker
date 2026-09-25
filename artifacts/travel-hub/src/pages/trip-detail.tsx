@@ -163,6 +163,7 @@ function ShareModal({
               <Users className="w-4 h-4" />
               Colaboradores con cuenta
             </h3>
+            <p className="text-xs text-muted-foreground">Plan Gratuito: hasta 2 acompañantes invitados por viaje. Los enlaces públicos de solo lectura no cuentan como colaboradores.</p>
 
             <div className="flex gap-2">
               <Input

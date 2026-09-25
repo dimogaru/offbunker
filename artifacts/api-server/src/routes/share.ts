@@ -14,6 +14,7 @@ import {
 } from "@workspace/db";
 import type { Trip } from "@workspace/db";
 import { getTripAccess } from "../lib/trip-access.js";
+import { MAX_COLLABORATORS, SHARE_LIMIT_ERROR, withPlanLock } from "../lib/free-plan";
 
 const router: IRouter = Router();
 
@@ -93,14 +94,42 @@ router.post("/trips/:tripId/shares", async (req, res): Promise<void> => {
     return;
   }
 
+  if (userId === access.trip.ownerId) {
+    res.status(400).json({ error: "El propietario ya tiene acceso al viaje" });
+    return;
+  }
   try {
-    const [share] = await db
-      .insert(tripSharesTable)
-      .values({ tripId: access.trip.id, userId, permission: permission! })
-      .returning();
-    res.status(201).json(share);
-  } catch {
-    res.status(409).json({ error: "Este usuario ya tiene acceso al viaje" });
+    const result = await withPlanLock(2, access.trip.id, async (tx) => {
+    const shares = await tx.select({ userId: tripSharesTable.userId }).from(tripSharesTable)
+      .where(eq(tripSharesTable.tripId, access.trip.id));
+    if (shares.some((share) => share.userId === userId)) {
+      return "duplicate" as const;
+    }
+    if (shares.length >= MAX_COLLABORATORS) {
+      return "limit" as const;
+    }
+    const [share] = await tx.insert(tripSharesTable)
+      .values({ tripId: access.trip.id, userId, permission: permission! }).returning();
+    return share;
+    });
+    if (result === "duplicate") {
+      res.status(409).json({ error: "Este usuario ya tiene acceso al viaje" });
+      return;
+    }
+    if (result === "limit") {
+      res.status(403).json({ error: SHARE_LIMIT_ERROR });
+      return;
+    }
+    res.status(201).json(result);
+  } catch (error) {
+    const code = (error as { code?: string }).code;
+    if (code === "23503" || code === "23505") {
+      res.status(code === "23503" ? 400 : 409).json({
+        error: code === "23503" ? "Usuario no encontrado" : "Este usuario ya tiene acceso al viaje",
+      });
+      return;
+    }
+    throw error;
   }
 });
 

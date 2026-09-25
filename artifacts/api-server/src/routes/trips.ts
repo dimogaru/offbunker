@@ -20,6 +20,7 @@ import {
   GetTripProgressParams,
   GetTripProgressResponse,
 } from "@workspace/api-zod";
+import { isActiveTrip, MAX_ACTIVE_TRIPS, removeUnreferencedUpload, TRIP_LIMIT_ERROR, withPlanLock } from "../lib/free-plan";
 
 const router: IRouter = Router();
 
@@ -79,19 +80,28 @@ router.post("/trips", async (req, res): Promise<void> => {
     req.log.warn({ coverImage }, "Cover image download failed — storing null");
   }
 
-  const [trip] = await db
-    .insert(tripsTable)
-    .values({
+  const userId = req.session.userId!;
+  const created = await withPlanLock(1, userId, async (tx) => {
+    const owned = await tx.select({ status: tripsTable.status }).from(tripsTable)
+      .where(eq(tripsTable.ownerId, userId));
+    if (owned.filter((trip) => isActiveTrip(trip.status)).length >= MAX_ACTIVE_TRIPS) {
+      return null;
+    }
+    const [trip] = await tx.insert(tripsTable).values({
       ...required,
       startDate: required.startDate as unknown as string,
       endDate: required.endDate as unknown as string,
-      ownerId: req.session.userId!,
+      ownerId: userId,
       coverImage: localCover,
       notes: notes ?? null,
-    })
-    .returning();
-
-  res.status(201).json(trip);
+    }).returning();
+    return trip;
+  });
+  if (!created) {
+    res.status(403).json({ error: TRIP_LIMIT_ERROR });
+    return;
+  }
+  res.status(201).json(created);
 });
 
 router.get("/trips/:tripId", async (req, res): Promise<void> => {
@@ -153,12 +163,26 @@ router.patch("/trips/:tripId", async (req, res): Promise<void> => {
     ...(updateData.endDate !== undefined && { endDate: updateData.endDate as unknown as string }),
   };
 
-  const [trip] = await db
-    .update(tripsTable)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .set(serializedUpdate as any)
-    .where(eq(tripsTable.id, params.data.tripId))
-    .returning();
+  let trip: Trip | undefined;
+  if (access.trip.status === "completed" && parsed.data.status && isActiveTrip(parsed.data.status)) {
+    trip = await withPlanLock(1, req.session.userId!, async (tx) => {
+      const owned = await tx.select({ status: tripsTable.status }).from(tripsTable)
+        .where(eq(tripsTable.ownerId, req.session.userId!));
+      if (owned.filter((item) => isActiveTrip(item.status)).length >= MAX_ACTIVE_TRIPS) return undefined;
+      const [updated] = await tx.update(tripsTable)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .set(serializedUpdate as any).where(eq(tripsTable.id, params.data.tripId)).returning();
+      return updated;
+    });
+    if (!trip) {
+      res.status(403).json({ error: TRIP_LIMIT_ERROR });
+      return;
+    }
+  } else {
+    [trip] = await db.update(tripsTable)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      .set(serializedUpdate as any).where(eq(tripsTable.id, params.data.tripId)).returning();
+  }
 
   if (!trip) {
     res.status(404).json({ error: "Viaje no encontrado" });
@@ -183,6 +207,8 @@ router.delete("/trips/:tripId", async (req, res): Promise<void> => {
     return;
   }
 
+  const documents = await db.select({ fileUrl: documentsTable.fileUrl }).from(documentsTable)
+    .where(eq(documentsTable.tripId, access.trip.id));
   const [trip] = await db
     .delete(tripsTable)
     .where(eq(tripsTable.id, access.trip.id))
@@ -191,6 +217,11 @@ router.delete("/trips/:tripId", async (req, res): Promise<void> => {
   if (!trip) {
     res.status(404).json({ error: "Viaje no encontrado" });
     return;
+  }
+  for (const fileUrl of new Set(documents.map((doc) => doc.fileUrl))) {
+    await removeUnreferencedUpload(fileUrl).catch((error) => {
+      req.log.warn({ error }, "Unable to remove deleted trip upload");
+    });
   }
 
   res.sendStatus(204);

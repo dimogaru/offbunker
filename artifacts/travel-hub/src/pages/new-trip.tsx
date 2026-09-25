@@ -42,8 +42,8 @@ export default function NewTrip() {
         toast({ title: "Viaje creado", description: `${trip.name} ha sido añadido.` });
         navigate(`/trips/${trip.id}`);
       },
-      onError: () => {
-        toast({ title: "Error", description: "No se pudo crear el viaje.", variant: "destructive" });
+      onError: (error) => {
+        toast({ title: "No se pudo crear el viaje", description: error instanceof Error ? error.message : "Inténtalo de nuevo.", variant: "destructive" });
       },
     },
   });

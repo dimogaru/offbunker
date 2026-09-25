@@ -163,6 +163,7 @@ router.post("/auth/demo", async (req, res): Promise<void> => {
       startDate,
       endDate,
       status: "upcoming",
+      coverImage: "https://images.unsplash.com/photo-1503899036084-c55cdd92da26?auto=format&fit=crop&w=1200&q=80",
       notes: "Viaje de muestra para explorar OffBunker.",
     }).returning({ id: tripsTable.id });
 

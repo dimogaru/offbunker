@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, date, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, date, integer, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
@@ -14,6 +14,8 @@ export const tripsTable = pgTable("trips", {
   coverImage: text("cover_image"),
   notes: text("notes"),
   shareToken: text("share_token").unique(),
+  expenseBaseCurrency: text("expense_base_currency").notNull().default("EUR"),
+  expenseCurrencyLocked: boolean("expense_currency_locked").notNull().default(false),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

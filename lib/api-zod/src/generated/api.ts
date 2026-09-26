@@ -113,6 +113,195 @@ export const GenerateShareLinkResponse = zod.object({
 });
 
 /**
+ * @summary Get shared expense ledger
+ */
+export const GetExpenseLedgerParams = zod.object({
+  tripId: zod.coerce.number(),
+});
+
+export const GetExpenseLedgerResponse = zod.object({
+  baseCurrency: zod.enum([
+    "EUR",
+    "USD",
+    "JPY",
+    "CZK",
+    "GBP",
+    "CHF",
+    "CAD",
+    "AUD",
+  ]),
+  participants: zod.array(
+    zod.object({
+      id: zod.string(),
+      name: zod.string(),
+      kind: zod.enum(["user", "guest"]),
+      active: zod.boolean(),
+    }),
+  ),
+  expenses: zod.array(
+    zod.object({
+      id: zod.number(),
+      clientId: zod.string().uuid(),
+      concept: zod.string(),
+      amountMinor: zod.number(),
+      currency: zod.enum([
+        "EUR",
+        "USD",
+        "JPY",
+        "CZK",
+        "GBP",
+        "CHF",
+        "CAD",
+        "AUD",
+      ]),
+      payerId: zod.string(),
+      splits: zod.array(
+        zod.object({
+          participantId: zod.string(),
+          amountMinor: zod.number(),
+          baseAmountMinor: zod.number(),
+        }),
+      ),
+      baseAmountMinor: zod.number(),
+      rateToBase: zod.number(),
+      rateDate: zod.coerce.date(),
+      createdAt: zod.coerce.date(),
+      createdBy: zod.number(),
+    }),
+  ),
+});
+
+/**
+ * @summary Get exchange rates in the trip base currency
+ */
+export const GetExpenseRatesParams = zod.object({
+  tripId: zod.coerce.number(),
+});
+
+export const GetExpenseRatesResponse = zod.object({
+  baseCurrency: zod.enum([
+    "EUR",
+    "USD",
+    "JPY",
+    "CZK",
+    "GBP",
+    "CHF",
+    "CAD",
+    "AUD",
+  ]),
+  date: zod.coerce.date(),
+  rates: zod.record(zod.string(), zod.number()),
+});
+
+/**
+ * @summary Set the trip expense base currency
+ */
+export const UpdateExpenseSettingsParams = zod.object({
+  tripId: zod.coerce.number(),
+});
+
+export const UpdateExpenseSettingsBody = zod.object({
+  baseCurrency: zod.enum([
+    "EUR",
+    "USD",
+    "JPY",
+    "CZK",
+    "GBP",
+    "CHF",
+    "CAD",
+    "AUD",
+  ]),
+});
+
+export const UpdateExpenseSettingsResponse = zod.object({
+  baseCurrency: zod.enum([
+    "EUR",
+    "USD",
+    "JPY",
+    "CZK",
+    "GBP",
+    "CHF",
+    "CAD",
+    "AUD",
+  ]),
+});
+
+/**
+ * @summary Add a named guest participant
+ */
+export const CreateExpenseGuestParams = zod.object({
+  tripId: zod.coerce.number(),
+});
+
+export const createExpenseGuestBodyNameMax = 100;
+
+export const CreateExpenseGuestBody = zod.object({
+  name: zod.string().min(1).max(createExpenseGuestBodyNameMax),
+});
+
+/**
+ * @summary Remove a named guest participant
+ */
+export const DeleteExpenseGuestParams = zod.object({
+  tripId: zod.coerce.number(),
+  guestId: zod.coerce.number(),
+});
+
+/**
+ * @summary Record a shared expense
+ */
+export const CreateExpenseParams = zod.object({
+  tripId: zod.coerce.number(),
+});
+
+export const createExpenseBodyConceptMax = 200;
+
+export const CreateExpenseBody = zod.object({
+  clientId: zod.string().uuid(),
+  concept: zod.string().min(1).max(createExpenseBodyConceptMax),
+  amountMinor: zod.number().min(1),
+  currency: zod.enum(["EUR", "USD", "JPY", "CZK", "GBP", "CHF", "CAD", "AUD"]),
+  payerId: zod.string().min(1),
+  splits: zod
+    .array(
+      zod.object({
+        participantId: zod.string().min(1),
+        amountMinor: zod.number().min(1),
+      }),
+    )
+    .min(1),
+});
+
+export const CreateExpenseResponse = zod.object({
+  id: zod.number(),
+  clientId: zod.string().uuid(),
+  concept: zod.string(),
+  amountMinor: zod.number(),
+  currency: zod.enum(["EUR", "USD", "JPY", "CZK", "GBP", "CHF", "CAD", "AUD"]),
+  payerId: zod.string(),
+  splits: zod.array(
+    zod.object({
+      participantId: zod.string(),
+      amountMinor: zod.number(),
+      baseAmountMinor: zod.number(),
+    }),
+  ),
+  baseAmountMinor: zod.number(),
+  rateToBase: zod.number(),
+  rateDate: zod.coerce.date(),
+  createdAt: zod.coerce.date(),
+  createdBy: zod.number(),
+});
+
+/**
+ * @summary Delete a recorded expense
+ */
+export const DeleteExpenseParams = zod.object({
+  tripId: zod.coerce.number(),
+  expenseId: zod.coerce.number(),
+});
+
+/**
  * @summary Get full read-only trip snapshot by share token
  */
 export const GetSharedTripParams = zod.object({

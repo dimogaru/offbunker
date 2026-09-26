@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useLocation, Link } from "wouter";
 import {
   ArrowLeft, Plane, ParkingCircle, Car, Building2, CalendarDays,
-  FolderOpen, Pencil, Share2, Check, Link2, X, Users, LogOut, Shield, Luggage,
+  FolderOpen, Pencil, Share2, Check, Link2, X, Users, LogOut, Shield, Luggage, ReceiptText,
 } from "lucide-react";
 import { useGetTrip, getGetTripQueryKey, useGenerateShareLink } from "@workspace/api-client-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -18,6 +18,7 @@ import AccommodationsModule from "@/components/modules/accommodations-module";
 import ItineraryModule from "@/components/modules/itinerary-module";
 import DocumentsModule from "@/components/modules/documents-module";
 import BaggageModule from "@/components/modules/baggage-module";
+import ExpensesModule from "@/components/modules/expenses-module";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -35,6 +36,7 @@ const MODULES = [
   { id: "itinerary",     label: "Itinerario",           shortLabel: "Plan",     icon: CalendarDays },
   { id: "vault",         label: "Documentos",           shortLabel: "Docs",     icon: FolderOpen },
   { id: "baggage",       label: "Equipaje",             shortLabel: "Maleta",   icon: Luggage },
+  { id: "expenses",      label: "Gastos",               shortLabel: "Gastos",   icon: ReceiptText },
 ] as const;
 
 type ModuleId = typeof MODULES[number]["id"];
@@ -307,7 +309,11 @@ export default function TripDetail() {
     window.location.replace("/login");
   }
 
-  const activeModule: ModuleId = VALID_IDS.includes(moduleParam ?? "")
+  const visibleModules = user?.role === "demo"
+    ? MODULES.filter((module) => module.id !== "expenses")
+    : MODULES;
+  const activeModule: ModuleId = VALID_IDS.includes(moduleParam ?? "") &&
+    !(user?.role === "demo" && moduleParam === "expenses")
     ? (moduleParam as ModuleId)
     : "flights";
 
@@ -449,7 +455,7 @@ export default function TripDetail() {
           </Link>
           <hr className="mb-2 border-sidebar-border" />
 
-          {MODULES.map(({ id, label, icon: Icon }) => (
+          {visibleModules.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => handleModuleChange(id)}
@@ -493,6 +499,9 @@ export default function TripDetail() {
             {activeModule === "itinerary"     && <ItineraryModule tripId={tripId} readOnly={readOnly || !isOnline} localDocumentsEnabled={!readOnly && !isOnline} />}
             {activeModule === "vault"         && <DocumentsModule tripId={tripId} coverImageUrl={trip.coverImage} readOnly={readOnly || !isOnline} localDocumentsEnabled={!readOnly && !isOnline} />}
             {activeModule === "baggage"       && <BaggageModule tripId={tripId} readOnly={!isOnline} />}
+            {activeModule === "expenses" && user?.role !== "demo" && user && (
+              <ExpensesModule tripId={tripId} readOnly={readOnly} isOwner={isOwner} userId={String(user.id)} isOnline={isOnline} />
+            )}
           </div>
         </main>
       </div>
@@ -502,7 +511,7 @@ export default function TripDetail() {
         className="md:hidden fixed bottom-0 left-0 right-0 z-20 bg-sidebar border-t border-border flex"
         data-testid="nav-modules"
       >
-        {MODULES.map(({ id, shortLabel, icon: Icon }) => (
+        {visibleModules.map(({ id, shortLabel, icon: Icon }) => (
           <button
             key={id}
             onClick={() => handleModuleChange(id)}

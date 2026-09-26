@@ -12,6 +12,7 @@ import documentsRouter from "./documents";
 import baggageRouter from "./baggage";
 import shareRouter from "./share";
 import uploadsRouter from "./uploads";
+import expensesRouter from "./expenses";
 import { getTripAccess } from "../lib/trip-access";
 
 const router: IRouter = Router();
@@ -71,6 +72,7 @@ router.use(itineraryRouter);
 router.use(documentsRouter);
 router.use(baggageRouter);
 router.use(shareRouter);
+router.use(expensesRouter);
 router.use(uploadsRouter);
 
 export default router;

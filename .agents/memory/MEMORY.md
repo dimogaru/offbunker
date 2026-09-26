@@ -5,3 +5,4 @@
 - [Mensajes públicos sobre la PWA](pwa-claims.md) — instalación y ventana independiente sí; no prometer equivalencia nativa, offline total ni cifrado local.
 - [Cookies de sesión en pruebas locales](secure-cookie-preview.md) — las pruebas de alta que necesitan cookie deben pasar por HTTPS del dominio de desarrollo, no HTTP de localhost.
 - [Vista pública demo](demo-public-preview.md) — el enlace público de Tokio muestra una muestra fija, no publica datos editados en la sesión invitada ni genera tokens persistentes.
+- [Push de Drizzle en desarrollo](drizzle-dev-push.md) — la detección interactiva de renombres puede impedir aplicar tablas nuevas en una ejecución no interactiva; no forzar cambios destructivos.

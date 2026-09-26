@@ -536,3 +536,119 @@ export interface SharedTrip {
   accommodations: Accommodation[];
   itinerary: ItineraryItem[];
 }
+
+export type ExpenseCurrency =
+  (typeof ExpenseCurrency)[keyof typeof ExpenseCurrency];
+
+export const ExpenseCurrency = {
+  EUR: "EUR",
+  USD: "USD",
+  JPY: "JPY",
+  CZK: "CZK",
+  GBP: "GBP",
+  CHF: "CHF",
+  CAD: "CAD",
+  AUD: "AUD",
+} as const;
+
+export interface ExpenseSettingsUpdate {
+  baseCurrency: ExpenseCurrency;
+}
+
+export interface ExpenseSettings {
+  baseCurrency: ExpenseCurrency;
+}
+
+export interface ExpenseGuestInput {
+  /**
+   * @minLength 1
+   * @maxLength 100
+   */
+  name: string;
+}
+
+export type ExpenseGuestKind =
+  (typeof ExpenseGuestKind)[keyof typeof ExpenseGuestKind];
+
+export const ExpenseGuestKind = {
+  guest: "guest",
+} as const;
+
+export interface ExpenseGuest {
+  id: string;
+  name: string;
+  kind: ExpenseGuestKind;
+}
+
+export interface ExpenseSplitInput {
+  /** @minLength 1 */
+  participantId: string;
+  /** @minimum 1 */
+  amountMinor: number;
+}
+
+export interface ExpenseInput {
+  clientId: string;
+  /**
+   * @minLength 1
+   * @maxLength 200
+   */
+  concept: string;
+  /** @minimum 1 */
+  amountMinor: number;
+  currency: ExpenseCurrency;
+  /** @minLength 1 */
+  payerId: string;
+  /** @minItems 1 */
+  splits: ExpenseSplitInput[];
+}
+
+export interface ExpenseSplit {
+  participantId: string;
+  amountMinor: number;
+  baseAmountMinor: number;
+}
+
+export interface Expense {
+  id: number;
+  clientId: string;
+  concept: string;
+  amountMinor: number;
+  currency: ExpenseCurrency;
+  payerId: string;
+  splits: ExpenseSplit[];
+  baseAmountMinor: number;
+  rateToBase: number;
+  rateDate: string;
+  createdAt: string;
+  createdBy: number;
+}
+
+export type ExpenseParticipantKind =
+  (typeof ExpenseParticipantKind)[keyof typeof ExpenseParticipantKind];
+
+export const ExpenseParticipantKind = {
+  user: "user",
+  guest: "guest",
+} as const;
+
+export interface ExpenseParticipant {
+  id: string;
+  name: string;
+  kind: ExpenseParticipantKind;
+  active: boolean;
+}
+
+export interface ExpenseLedger {
+  baseCurrency: ExpenseCurrency;
+  participants: ExpenseParticipant[];
+  expenses: Expense[];
+}
+
+export type ExpenseRatesRates = { [key: string]: number };
+
+export interface ExpenseRates {
+  baseCurrency: ExpenseCurrency;
+  date: string;
+  rates: ExpenseRatesRates;
+}

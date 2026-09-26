@@ -90,6 +90,18 @@ app.use("/api", (_req, res, next) => {
   next();
 });
 
+// Demo identities are not registered accounts and must not use expense endpoints.
+app.use("/api", (req, res, next) => {
+  if (
+    req.session?.role === "demo" &&
+    /^\/trips\/[^/]+\/(?:expense-[^/]*(?:\/|$)|expenses(?:\/|$))/.test(req.path)
+  ) {
+    res.status(403).json({ error: "Expense sharing is unavailable in demo mode" });
+    return;
+  }
+  next();
+});
+
 // Global auth guard — open: /healthz, /auth/*, /shared/*
 app.use("/api", (req, res, next) => {
   const p = req.path;

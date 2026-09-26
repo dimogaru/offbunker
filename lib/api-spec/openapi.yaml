@@ -23,6 +23,8 @@ tags:
     description: Day-by-day itinerary
   - name: documents
     description: Document vault
+  - name: expenses
+    description: Shared trip expenses
 
 paths:
   /healthz:
@@ -147,6 +149,167 @@ paths:
                 $ref: "#/components/schemas/ShareLink"
         "404":
           description: Trip not found
+
+  /trips/{tripId}/expense-ledger:
+    get:
+      operationId: getExpenseLedger
+      tags: [expenses]
+      summary: Get shared expense ledger
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Expense ledger
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExpenseLedger"
+
+  /trips/{tripId}/expense-rates:
+    get:
+      operationId: getExpenseRates
+      tags: [expenses]
+      summary: Get exchange rates in the trip base currency
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Latest rates
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExpenseRates"
+        "503":
+          description: Exchange-rate provider unavailable and no cached snapshot exists
+
+  /trips/{tripId}/expense-settings:
+    patch:
+      operationId: updateExpenseSettings
+      tags: [expenses]
+      summary: Set the trip expense base currency
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExpenseSettingsUpdate"
+      responses:
+        "200":
+          description: Updated settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExpenseSettings"
+
+  /trips/{tripId}/expense-guests:
+    post:
+      operationId: createExpenseGuest
+      tags: [expenses]
+      summary: Add a named guest participant
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExpenseGuestInput"
+      responses:
+        "201":
+          description: Created guest
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ExpenseGuest"
+
+  /trips/{tripId}/expense-guests/{guestId}:
+    delete:
+      operationId: deleteExpenseGuest
+      tags: [expenses]
+      summary: Remove a named guest participant
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: guestId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /trips/{tripId}/expenses:
+    post:
+      operationId: createExpense
+      tags: [expenses]
+      summary: Record a shared expense
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExpenseInput"
+      responses:
+        "201":
+          description: Recorded expense
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Expense"
+        "200":
+          description: Existing expense for idempotent retry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Expense"
+
+  /trips/{tripId}/expenses/{expenseId}:
+    delete:
+      operationId: deleteExpense
+      tags: [expenses]
+      summary: Delete a recorded expense
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: expenseId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
 
   /shared/{token}:
     get:
@@ -1498,3 +1661,166 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ItineraryItem"
+
+    ExpenseCurrency:
+      type: string
+      enum: [EUR, USD, JPY, CZK, GBP, CHF, CAD, AUD]
+
+    ExpenseSettingsUpdate:
+      type: object
+      required: [baseCurrency]
+      properties:
+        baseCurrency:
+          $ref: "#/components/schemas/ExpenseCurrency"
+
+    ExpenseSettings:
+      type: object
+      required: [baseCurrency]
+      properties:
+        baseCurrency:
+          $ref: "#/components/schemas/ExpenseCurrency"
+
+    ExpenseGuestInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+
+    ExpenseGuest:
+      type: object
+      required: [id, name, kind]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        kind:
+          type: string
+          enum: [guest]
+
+    ExpenseSplitInput:
+      type: object
+      required: [participantId, amountMinor]
+      properties:
+        participantId:
+          type: string
+          minLength: 1
+        amountMinor:
+          type: integer
+          minimum: 1
+
+    ExpenseInput:
+      type: object
+      required: [clientId, concept, amountMinor, currency, payerId, splits]
+      properties:
+        clientId:
+          type: string
+          format: uuid
+        concept:
+          type: string
+          minLength: 1
+          maxLength: 200
+        amountMinor:
+          type: integer
+          minimum: 1
+        currency:
+          $ref: "#/components/schemas/ExpenseCurrency"
+        payerId:
+          type: string
+          minLength: 1
+        splits:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/ExpenseSplitInput"
+
+    ExpenseSplit:
+      type: object
+      required: [participantId, amountMinor, baseAmountMinor]
+      properties:
+        participantId:
+          type: string
+        amountMinor:
+          type: integer
+        baseAmountMinor:
+          type: integer
+
+    Expense:
+      type: object
+      required: [id, clientId, concept, amountMinor, currency, payerId, splits, baseAmountMinor, rateToBase, rateDate, createdAt, createdBy]
+      properties:
+        id:
+          type: integer
+        clientId:
+          type: string
+          format: uuid
+        concept:
+          type: string
+        amountMinor:
+          type: integer
+        currency:
+          $ref: "#/components/schemas/ExpenseCurrency"
+        payerId:
+          type: string
+        splits:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExpenseSplit"
+        baseAmountMinor:
+          type: integer
+        rateToBase:
+          type: number
+        rateDate:
+          type: string
+          format: date
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: integer
+
+    ExpenseParticipant:
+      type: object
+      required: [id, name, kind, active]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        kind:
+          type: string
+          enum: [user, guest]
+        active:
+          type: boolean
+
+    ExpenseLedger:
+      type: object
+      required: [baseCurrency, participants, expenses]
+      properties:
+        baseCurrency:
+          $ref: "#/components/schemas/ExpenseCurrency"
+        participants:
+          type: array
+          items:
+            $ref: "#/components/schemas/ExpenseParticipant"
+        expenses:
+          type: array
+          items:
+            $ref: "#/components/schemas/Expense"
+
+    ExpenseRates:
+      type: object
+      required: [baseCurrency, date, rates]
+      properties:
+        baseCurrency:
+          $ref: "#/components/schemas/ExpenseCurrency"
+        date:
+          type: string
+          format: date
+        rates:
+          type: object
+          additionalProperties:
+            type: number

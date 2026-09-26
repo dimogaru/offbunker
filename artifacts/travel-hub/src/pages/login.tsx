@@ -246,6 +246,18 @@ export default function LoginPage() {
 
         {!pwaLogin && (
         <>
+        <section className="border-y border-[#bed9cf] bg-[#e2eee6] py-7" aria-labelledby="ob-expenses-title">
+          <div className="ob-container flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+            <div>
+              <span className="ob-mono text-[#246c70]">Novedad para viajes en grupo</span>
+              <h2 id="ob-expenses-title" className="mt-2 font-['Manrope'] text-xl font-bold leading-snug text-[#113f46] sm:text-2xl">
+                ✨ ¡Nuevo! Gestor de Gastos y Reparto Multimoneda Offline — Incluido gratis por tiempo limitado.
+              </h2>
+              <p className="mt-2 text-sm text-[#47676a]">Disponible para cuentas registradas. La oferta no tiene una fecha de finalización anunciada.</p>
+            </div>
+            <a href="#acceso" className="ob-primary-link shrink-0">Crear cuenta gratuita</a>
+          </div>
+        </section>
         <div className="ob-trust-strip" aria-label="Aspectos destacados">
           <div className="ob-container ob-trust-inner">
             <div className="ob-trust-item"><WifiOff size={21} aria-hidden="true" /><span>Consulta sin conexión</span></div>

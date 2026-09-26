@@ -1,0 +1,30 @@
+IMPLEMENTACIÓN DE MÓDULO SMART EXPENSE & CURRENCY SPLITTER (OFERTA TIEMPO LIMITADO)
+
+OBJETIVO:
+Añadir el gestor de gastos compartidos y liquidación de deudas en multimoneda dentro de cada viaje, restringiendo la interacción exclusivamente a los usuarios con los que se ha compartido dicho viaje.
+
+1. REGLAS Y PERMISOS DE ACCESO (ESTRICTO):
+   - RESTRICCIÓN DE INTEGRANTES: Un usuario solo puede repartir y calcular gastos con las personas que forman parte del viaje (tanto colaboradores con permiso de edición como invitados con enlace/permiso de solo lectura). No se pueden añadir usuarios externos al viaje.
+   - PLAN GRATUITO (TIEMPO LIMITADO): Habilita este módulo de forma completa y gratuita durante el periodo promocional actual para todos los usuarios registrados.
+
+2. FUNCIONALIDADES DEL MÓDULO DE GASTOS:
+   - REGISTRO DE GASTOS MULTIMONEDA (OFFLINE-FIRST):
+     * Permite añadir un gasto seleccionando: Concepto, Importe, Moneda original (ej. JPY, USD, CZK), Quién pagó y A quiénes se divide (partes iguales o importes personalizados).
+     * Funciona 100% offline registrando los datos en local hasta recuperar la conexión.
+   
+   - TASAS DE CAMBIO EN CACHÉ (CACHED FX):
+     * Al sincronizar o abrir el viaje con conexión, descarga y almacena las tasas de cambio del día.
+     * Si no hay internet, calcula las conversiones a la moneda principal del viaje utilizando las tasas guardadas en caché.
+
+   - LIQUIDACIÓN OPTIMIZADA DE DEUDAS (MINIMIZAR TRANSFERENCIAS):
+     * Incluye una pestaña "Balance y Liquidación" que calcula automáticamente el saldo final entre los participantes del viaje.
+     * Algoritmo de optimización: Simplifica las deudas cruzadas para sugerir el número mínimo de pagos directos entre los integrantes (ej. "Ana debe 15€ a Carlos" en lugar de múltiples transacciones cruzadas).
+
+3. INTEGRACIÓN UI Y NARRATIVA LANDING PAGE:
+   - Añade una nueva pestaña "Gastos" o "Cuentas" dentro de la vista principal del viaje en el frontend.
+   - Agrega una tarjeta/banner destacado en la Landing Page anunciando la novedad:
+     "✨ ¡Nuevo! Gestor de Gastos y Reparto Multimoneda Offline — Incluido gratis por tiempo limitado."
+
+4. OPTIMIZACIÓN TÉCNICA:
+   - Utiliza la tabla de relaciones de usuarios asignados al viaje (`trip_shares` / creador) para poblar el desplegable de pagadores/deudores.
+   - Reutiliza las librerías de interfaz gráfica (Tailwind/shadcn) sin instalar dependencias pesadas de backend.

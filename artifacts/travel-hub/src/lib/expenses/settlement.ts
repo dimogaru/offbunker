@@ -197,9 +197,20 @@ export function calculateMinimumSettlementTransfers(
     return bestCount;
   };
 
-  search();
+  const optimalCount = search();
 
-  const transfers: SettlementTransfer[] = [];
+  // The search determines which original balances belong to each zero-sum
+  // component. Its intermediate residuals are bookkeeping, NOT actual payers:
+  // one of them may change sign after absorbing another balance. Replaying
+  // those intermediate edges as payments can send money to an original debtor.
+  const parent = participants.map((_, index) => index);
+  const root = (index: number): number => {
+    while (parent[index] !== index) {
+      parent[index] = parent[parent[index]];
+      index = parent[index];
+    }
+    return index;
+  };
   while (true) {
     let firstIndex = 0;
     while (firstIndex < count && working[firstIndex] === 0n) firstIndex += 1;
@@ -210,26 +221,51 @@ export function calculateMinimumSettlementTransfers(
       throw new Error("Unable to reconstruct exact settlement transfers");
     }
     const nextIndex = choice.nextIndex;
+    parent[root(nextIndex)] = root(firstIndex);
     const firstBalance = working[firstIndex];
-    const amountMinor = Number(firstBalance < 0n ? -firstBalance : firstBalance);
-    assertSafeInteger(amountMinor, "Transfer amountMinor");
-    transfers.push(
-      firstBalance < 0n
-        ? {
-            payerId: participants[firstIndex].participantId,
-            receiverId: participants[nextIndex].participantId,
-            amountMinor,
-          }
-        : {
-            payerId: participants[nextIndex].participantId,
-            receiverId: participants[firstIndex].participantId,
-            amountMinor,
-          },
-    );
     working[firstIndex] = 0n;
     working[nextIndex] += firstBalance;
   }
 
+  const groups = new Map<number, number[]>();
+  for (let index = 0; index < count; index += 1) {
+    const key = root(index);
+    const members = groups.get(key) ?? [];
+    members.push(index);
+    groups.set(key, members);
+  }
+
+  const transfers: SettlementTransfer[] = [];
+  for (const members of groups.values()) {
+    // Only use ORIGINAL net balances. Every component sums to zero, so the
+    // direct payments below clear it without routing through intermediaries.
+    const debtors = members
+      .filter((index) => participants[index].balance < 0n)
+      .map((index) => ({ id: participants[index].participantId, remaining: -participants[index].balance }));
+    const creditors = members
+      .filter((index) => participants[index].balance > 0n)
+      .map((index) => ({ id: participants[index].participantId, remaining: participants[index].balance }));
+    let debtorIndex = 0;
+    let creditorIndex = 0;
+    while (debtorIndex < debtors.length && creditorIndex < creditors.length) {
+      const debtor = debtors[debtorIndex];
+      const creditor = creditors[creditorIndex];
+      const amount = debtor.remaining < creditor.remaining ? debtor.remaining : creditor.remaining;
+      const amountMinor = Number(amount);
+      assertSafeInteger(amountMinor, "Transfer amountMinor");
+      transfers.push({ payerId: debtor.id, receiverId: creditor.id, amountMinor });
+      debtor.remaining -= amount;
+      creditor.remaining -= amount;
+      if (debtor.remaining === 0n) debtorIndex += 1;
+      if (creditor.remaining === 0n) creditorIndex += 1;
+    }
+    if (debtorIndex !== debtors.length || creditorIndex !== creditors.length) {
+      throw new Error("Unable to settle original net balances directly");
+    }
+  }
+  if (transfers.length !== optimalCount) {
+    throw new Error("Unable to reconstruct minimum direct settlement transfers");
+  }
   return transfers;
 }
 

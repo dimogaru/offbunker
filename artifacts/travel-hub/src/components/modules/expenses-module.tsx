@@ -37,6 +37,11 @@ const displayDate = (date: string) => {
   const d = new Date(date);
   return Number.isNaN(d.getTime()) ? date : new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", year: "numeric" }).format(d);
 };
+const expenseDay = (date: string) => {
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
 const errorText = (error: unknown) => error instanceof Error ? error.message : "No se pudo completar la operación.";
 const errorStatus = (error: unknown): number | null => {
   if (typeof error !== "object" || error === null || !("status" in error)) return null;
@@ -99,6 +104,7 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
   const [savingLocal, setSavingLocal] = useState(false);
   const [expenseSearch, setExpenseSearch] = useState("");
   const [payerFilter, setPayerFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState("");
   const [expenseOrder, setExpenseOrder] = useState<"recent" | "oldest" | "amount">("recent");
   const [visibleCount, setVisibleCount] = useState(10);
   const flushLock = useRef(false);
@@ -223,18 +229,20 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
   const myParticipantId = `user:${userId}`;
   const isParticipant = ledger?.participants.some(p => p.id === myParticipantId) ?? false;
   const myBalance = settlement?.value?.balances.find(b => b.participantId === myParticipantId)?.balanceMinor ?? 0;
+  const availableDates = useMemo(() => [...new Set((ledger?.expenses ?? []).map(expense => expenseDay(expense.createdAt)).filter(Boolean))].sort().reverse(), [ledger?.expenses]);
   const filteredExpenses = useMemo(() => {
     const query = expenseSearch.trim().toLocaleLowerCase("es");
     return (ledger?.expenses ?? [])
       .filter(expense => (!query || expense.concept.toLocaleLowerCase("es").includes(query))
-        && (payerFilter === "all" || expense.payerId === (payerFilter === "mine" ? myParticipantId : payerFilter)))
+        && (payerFilter === "all" || expense.payerId === (payerFilter === "mine" ? myParticipantId : payerFilter))
+        && (!dateFilter || expenseDay(expense.createdAt) === dateFilter))
       .sort((a, b) => expenseOrder === "amount"
         ? b.baseAmountMinor - a.baseAmountMinor || b.createdAt.localeCompare(a.createdAt) || b.id - a.id
         : expenseOrder === "oldest"
           ? a.createdAt.localeCompare(b.createdAt) || a.id - b.id
           : b.createdAt.localeCompare(a.createdAt) || b.id - a.id);
-  }, [ledger?.expenses, expenseSearch, payerFilter, expenseOrder, myParticipantId]);
-  useEffect(() => { setVisibleCount(10); setExpenseSearch(""); setPayerFilter("all"); setExpenseOrder("recent"); }, [tripId]);
+  }, [ledger?.expenses, expenseSearch, payerFilter, dateFilter, expenseOrder, myParticipantId]);
+  useEffect(() => { setVisibleCount(10); setExpenseSearch(""); setPayerFilter("all"); setDateFilter(""); setExpenseOrder("recent"); }, [tripId]);
   const pendingEstimates = useMemo(() => outstanding.map(item => ({ id: item.clientId, value: base ? estimate(item.body as ExpenseInput, base, rates) : null })), [outstanding, base, rates]);
   const unavailableEstimates = pendingEstimates.filter(item => item.value === null).length;
   const offlineEstimate = useMemo(() => {
@@ -392,10 +400,12 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
             </button>
           </div>
         </div>
-        <div className="mt-5 grid items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,1.5fr)]">
-          <div className="rounded-xl border border-[#d9e2d6] bg-white/75 px-4 py-3"><p className="text-xs font-medium text-[#61736a]">Total gastado en el viaje</p><p data-testid="text-expenses-total" className="mt-1 font-serif text-2xl font-semibold tabular-nums text-[#203d39]">{ledger ? money(totalSpent, baseCurrency) : "—"}</p></div>
-          <div className="rounded-xl border border-[#d9e2d6] bg-white/75 px-4 py-3"><p className="text-xs font-medium text-[#61736a]">Tu saldo</p><p data-testid="text-my-balance" className={`mt-1 font-serif text-2xl font-semibold tabular-nums ${myBalance < 0 ? "text-[#ad513e]" : "text-[#226650]"}`}>{!ledger || settlement?.error || !isParticipant ? "—" : `${myBalance > 0 ? "+" : myBalance < 0 ? "−" : ""}${money(Math.abs(myBalance), baseCurrency)}`}</p><p className="text-[11px] text-[#61736a]">{!isParticipant && ledger ? "No participas en los gastos" : myBalance < 0 ? "Debes aportar" : myBalance > 0 ? "Te deben" : "Cuentas al día"}</p></div>
-          {ledger && <div className="rounded-xl border border-[#ceddd3] bg-[#e9f0e9] p-4 sm:col-span-2 sm:p-5 xl:col-span-1" data-testid="section-settlement">
+        <div className="mt-5 grid items-start gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
+          <div className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+            <div className="min-w-0 rounded-xl border border-[#d9e2d6] bg-white/75 px-4 py-3"><p className="text-xs font-medium text-[#61736a]">Total gastado en el viaje</p><p data-testid="text-expenses-total" className="mt-1 break-words font-serif text-2xl font-semibold tabular-nums text-[#203d39]">{ledger ? money(totalSpent, baseCurrency) : "—"}</p></div>
+            <div className="min-w-0 rounded-xl border border-[#d9e2d6] bg-white/75 px-4 py-3"><p className="text-xs font-medium text-[#61736a]">Tu saldo</p><p data-testid="text-my-balance" className={`mt-1 break-words font-serif text-2xl font-semibold tabular-nums ${myBalance < 0 ? "text-[#ad513e]" : "text-[#226650]"}`}>{!ledger || settlement?.error || !isParticipant ? "—" : `${myBalance > 0 ? "+" : myBalance < 0 ? "−" : ""}${money(Math.abs(myBalance), baseCurrency)}`}</p><p className="text-[11px] text-[#61736a]">{!isParticipant && ledger ? "No participas en los gastos" : myBalance < 0 ? "Debes aportar" : myBalance > 0 ? "Te deben" : "Cuentas al día"}</p></div>
+          </div>
+          {ledger && <div className="rounded-xl border border-[#ceddd3] bg-[#e9f0e9] p-4 sm:p-5" data-testid="section-settlement">
             <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#568075]">Cuentas claras</p>
             <h3 className="mt-1 font-serif text-xl font-semibold text-[#244a43]">Balance y Liquidación</h3>
             <p className="mt-2 text-xs leading-relaxed text-[#60786c]">Transferencias mínimas exactas sobre los gastos confirmados, en {base}. No se registran pagos automáticamente.</p>
@@ -452,9 +462,10 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
           </div>}
           <div className="overflow-hidden rounded-xl border border-border bg-card">
               <div className="flex items-center justify-between border-b border-border px-4 py-4 sm:px-5"><div><h3 className="font-serif text-xl font-semibold">Movimientos</h3><p className="text-xs text-muted-foreground">{ledger.expenses.length} {ledger.expenses.length === 1 ? "gasto confirmado" : "gastos confirmados"}</p></div><span className="rounded-full bg-[#edf2ea] px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-[#4f7567]">Registrados</span></div>
-              <div className="grid gap-3 border-b border-border bg-[#f9faf6] px-4 py-4 sm:grid-cols-2 sm:px-5 lg:grid-cols-[minmax(0,1fr)_minmax(180px,0.7fr)_minmax(190px,0.7fr)]">
+              <div className="grid gap-3 border-b border-border bg-[#f9faf6] px-4 py-4 sm:grid-cols-2 sm:px-5 xl:grid-cols-[minmax(0,1.3fr)_repeat(3,minmax(0,1fr))]">
                 <div><label htmlFor="expense-search" className="mb-1 block text-xs font-semibold text-[#526d63]">Buscar por concepto o lugar</label><Input id="expense-search" type="search" data-testid="input-expense-search" placeholder="Buscar movimientos…" value={expenseSearch} onChange={e => { setExpenseSearch(e.target.value); setVisibleCount(10); }} className={fieldClass} /></div>
                 <div><label htmlFor="expense-payer-filter" className="mb-1 block text-xs font-semibold text-[#526d63]">Pagador</label><select id="expense-payer-filter" data-testid="select-expense-payer-filter" value={payerFilter} onChange={e => { setPayerFilter(e.target.value); setVisibleCount(10); }} className={`${fieldClass} w-full px-3`}><option value="all">Todos</option>{isParticipant && <option value="mine">Pagados por mí</option>}{ledger.participants.filter(p => p.id !== myParticipantId).map(p => <option key={p.id} value={p.id}>Pagados por {p.name}</option>)}</select></div>
+                <div><label htmlFor="expense-date-filter" className="mb-1 block text-xs font-semibold text-[#526d63]">Fecha</label><select id="expense-date-filter" data-testid="select-expense-date-filter" value={dateFilter} onChange={e => { setDateFilter(e.target.value); setVisibleCount(10); }} className={`${fieldClass} w-full px-3`}><option value="">Todas las fechas</option>{availableDates.map(date => <option key={date} value={date}>{displayDate(`${date}T12:00:00`)}</option>)}</select></div>
                 <div><label htmlFor="expense-order" className="mb-1 block text-xs font-semibold text-[#526d63]">Ordenar</label><select id="expense-order" data-testid="select-expense-order" value={expenseOrder} onChange={e => { setExpenseOrder(e.target.value as "recent" | "oldest" | "amount"); setVisibleCount(10); }} className={`${fieldClass} w-full px-3`}><option value="recent">Más recientes primero</option><option value="oldest">Más antiguos primero</option><option value="amount">Mayor importe</option></select></div>
               </div>
               {!ledger.expenses.length ? <div className="px-6 py-12 text-center"><Coins className="mx-auto mb-3 h-8 w-8 text-[#9fb1a8]" /><p className="font-medium">La cuenta empieza aquí</p><p className="mx-auto mt-1 max-w-xs text-sm text-muted-foreground">Anota el primer gasto para que el grupo vea qué se pagó y cómo se reparte.</p>{canEdit && <Button data-testid="button-add-first-expense" variant="outline" className="mt-4" onClick={startExpense}>Añadir primer gasto</Button>}</div> :

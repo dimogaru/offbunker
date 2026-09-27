@@ -33,6 +33,7 @@ import type {
   ExpenseRates,
   ExpenseSettings,
   ExpenseSettingsUpdate,
+  ExpenseUpdate,
   Flight,
   FlightInput,
   FlightUpdate,
@@ -1140,6 +1141,94 @@ export const useCreateExpense = <
   TContext
 > => {
   return useMutation(getCreateExpenseMutationOptions(options));
+};
+
+/**
+ * @summary Edit a recorded expense
+ */
+export const getUpdateExpenseUrl = (tripId: number, expenseId: number) => {
+  return `/api/trips/${tripId}/expenses/${expenseId}`;
+};
+
+export const updateExpense = async (
+  tripId: number,
+  expenseId: number,
+  expenseUpdate: ExpenseUpdate,
+  options?: RequestInit,
+): Promise<Expense> => {
+  return customFetch<Expense>(getUpdateExpenseUrl(tripId, expenseId), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(expenseUpdate),
+  });
+};
+
+export const getUpdateExpenseMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateExpense>>,
+    TError,
+    { tripId: number; expenseId: number; data: BodyType<ExpenseUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateExpense>>,
+  TError,
+  { tripId: number; expenseId: number; data: BodyType<ExpenseUpdate> },
+  TContext
+> => {
+  const mutationKey = ["updateExpense"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateExpense>>,
+    { tripId: number; expenseId: number; data: BodyType<ExpenseUpdate> }
+  > = (props) => {
+    const { tripId, expenseId, data } = props ?? {};
+
+    return updateExpense(tripId, expenseId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateExpenseMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateExpense>>
+>;
+export type UpdateExpenseMutationBody = BodyType<ExpenseUpdate>;
+export type UpdateExpenseMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Edit a recorded expense
+ */
+export const useUpdateExpense = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateExpense>>,
+    TError,
+    { tripId: number; expenseId: number; data: BodyType<ExpenseUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateExpense>>,
+  TError,
+  { tripId: number; expenseId: number; data: BodyType<ExpenseUpdate> },
+  TContext
+> => {
+  return useMutation(getUpdateExpenseMutationOptions(options));
 };
 
 /**

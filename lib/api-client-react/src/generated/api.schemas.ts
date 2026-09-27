@@ -603,6 +603,21 @@ export interface ExpenseInput {
   splits: ExpenseSplitInput[];
 }
 
+export interface ExpenseUpdate {
+  /**
+   * @minLength 1
+   * @maxLength 200
+   */
+  concept: string;
+  /** @minimum 1 */
+  amountMinor: number;
+  currency: ExpenseCurrency;
+  /** @minLength 1 */
+  payerId: string;
+  /** @minItems 1 */
+  splits: ExpenseSplitInput[];
+}
+
 export interface ExpenseSplit {
   participantId: string;
   amountMinor: number;

@@ -294,6 +294,52 @@ export const CreateExpenseResponse = zod.object({
 });
 
 /**
+ * @summary Edit a recorded expense
+ */
+export const UpdateExpenseParams = zod.object({
+  tripId: zod.coerce.number(),
+  expenseId: zod.coerce.number(),
+});
+
+export const updateExpenseBodyConceptMax = 200;
+
+export const UpdateExpenseBody = zod.object({
+  concept: zod.string().min(1).max(updateExpenseBodyConceptMax),
+  amountMinor: zod.number().min(1),
+  currency: zod.enum(["EUR", "USD", "JPY", "CZK", "GBP", "CHF", "CAD", "AUD"]),
+  payerId: zod.string().min(1),
+  splits: zod
+    .array(
+      zod.object({
+        participantId: zod.string().min(1),
+        amountMinor: zod.number().min(1),
+      }),
+    )
+    .min(1),
+});
+
+export const UpdateExpenseResponse = zod.object({
+  id: zod.number(),
+  clientId: zod.string().uuid(),
+  concept: zod.string(),
+  amountMinor: zod.number(),
+  currency: zod.enum(["EUR", "USD", "JPY", "CZK", "GBP", "CHF", "CAD", "AUD"]),
+  payerId: zod.string(),
+  splits: zod.array(
+    zod.object({
+      participantId: zod.string(),
+      amountMinor: zod.number(),
+      baseAmountMinor: zod.number(),
+    }),
+  ),
+  baseAmountMinor: zod.number(),
+  rateToBase: zod.number(),
+  rateDate: zod.coerce.date(),
+  createdAt: zod.coerce.date(),
+  createdBy: zod.number(),
+});
+
+/**
  * @summary Delete a recorded expense
  */
 export const DeleteExpenseParams = zod.object({

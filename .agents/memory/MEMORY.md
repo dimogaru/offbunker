@@ -6,3 +6,4 @@
 - [Cookies de sesión en pruebas locales](secure-cookie-preview.md) — las pruebas de alta que necesitan cookie deben pasar por HTTPS del dominio de desarrollo, no HTTP de localhost.
 - [Vista pública demo](demo-public-preview.md) — el enlace público de Tokio muestra una muestra fija, no publica datos editados en la sesión invitada ni genera tokens persistentes.
 - [Push de Drizzle en desarrollo](drizzle-dev-push.md) — la detección interactiva de renombres puede impedir aplicar tablas nuevas en una ejecución no interactiva; no forzar cambios destructivos.
+- [Tipo de cambio al editar gastos](expense-edit-rates.md) — conservar el tipo original al editar un gasto en la misma moneda; solo consultar uno nuevo al cambiarla.

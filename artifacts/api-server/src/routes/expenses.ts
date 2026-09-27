@@ -24,6 +24,8 @@ import {
   UpdateExpenseSettingsBody,
   UpdateExpenseSettingsParams,
   UpdateExpenseSettingsResponse,
+  UpdateExpenseBody,
+  UpdateExpenseParams,
 } from "@workspace/api-zod";
 import {
   allocateConvertedSplits,
@@ -467,6 +469,152 @@ router.post("/trips/:tripId/expenses", async (req, res): Promise<void> => {
     }
     throw error;
   }
+});
+
+router.put("/trips/:tripId/expenses/:expenseId", async (req, res): Promise<void> => {
+  const access = accessFor(req);
+  const params = UpdateExpenseParams.safeParse(req.params);
+  const body = UpdateExpenseBody.safeParse(req.body);
+  if (!access || !params.success || !body.success) {
+    res.status(400).json({ error: !params.success ? params.error.message : !body.success ? body.error.message : "Trip access unavailable" });
+    return;
+  }
+  if (!["owner", "edit"].includes(access.permission)) {
+    res.status(403).json({ error: "Only trip owners and editors can edit expenses" });
+    return;
+  }
+  const payload = body.data;
+  if (
+    !Number.isSafeInteger(payload.amountMinor) ||
+    payload.amountMinor > POSTGRES_INT_MAX ||
+    !payload.concept.trim() ||
+    new Set(payload.splits.map(split => split.participantId)).size !== payload.splits.length ||
+    payload.splits.some(split => !Number.isSafeInteger(split.amountMinor) || split.amountMinor > POSTGRES_INT_MAX) ||
+    payload.splits.reduce((sum, split) => sum + BigInt(split.amountMinor), 0n) !== BigInt(payload.amountMinor)
+  ) {
+    res.status(400).json({ error: "Expense amounts must be positive integers and splits must be unique and sum to the total" });
+    return;
+  }
+  const [original] = await db.select().from(expensesTable).where(and(
+    eq(expensesTable.id, params.data.expenseId),
+    eq(expensesTable.tripId, params.data.tripId),
+    isNull(expensesTable.deletedAt),
+  ));
+  if (!original) {
+    res.status(404).json({ error: "Expense not found" });
+    return;
+  }
+  const participants = await currentParticipants(params.data.tripId, access.trip);
+  const originalSplits = await db.select().from(expenseSplitsTable)
+    .where(eq(expenseSplitsTable.expenseId, original.id));
+  // Past participants may have left the trip. They can remain on this expense,
+  // but no other inactive participant can be newly added to it.
+  if (!participants.has(original.payerId)) {
+    participants.set(original.payerId, {
+      id: original.payerId, name: original.payerNameSnapshot,
+      kind: original.payerId.startsWith("guest:") ? "guest" : "user", active: false,
+    });
+  }
+  for (const split of originalSplits) {
+    if (!participants.has(split.participantId)) {
+      participants.set(split.participantId, {
+        id: split.participantId, name: split.participantNameSnapshot,
+        kind: split.participantId.startsWith("guest:") ? "guest" : "user", active: false,
+      });
+    }
+  }
+  const payer = participants.get(payload.payerId);
+  if (!payer || payload.splits.some(split => !participants.has(split.participantId))) {
+    res.status(400).json({ error: "Payer and split participants must be current members or trip guests" });
+    return;
+  }
+  let rateToBase: number;
+  let rateDate: string;
+  try {
+    if (payload.currency === original.currency) {
+      // Editing an amount or description must not silently reprice a past expense.
+      rateToBase = original.rateToBase;
+      rateDate = original.rateDate;
+    } else if (payload.currency === access.trip.expenseBaseCurrency) {
+      rateToBase = 1;
+      rateDate = new Date().toISOString().slice(0, 10);
+    } else {
+      const snapshot = await loadExpenseRates(access.trip.expenseBaseCurrency as ExpenseCurrency);
+      rateToBase = rateForExpense(snapshot, payload.currency as ExpenseCurrency);
+      rateDate = snapshot.date;
+    }
+  } catch (error) {
+    req.log.warn({ error, tripId: params.data.tripId }, "Unable to obtain rates for edited expense");
+    res.status(503).json({ error: "Exchange-rate provider unavailable and no cached rates exist" });
+    return;
+  }
+  let baseAmountMinor: number;
+  try {
+    baseAmountMinor = convertMinorUnits(
+      payload.amountMinor,
+      payload.currency as ExpenseCurrency,
+      access.trip.expenseBaseCurrency as ExpenseCurrency,
+      rateToBase,
+    );
+  } catch {
+    res.status(400).json({ error: "Converted base amount exceeds the maximum supported 32-bit integer" });
+    return;
+  }
+  if (baseAmountMinor > POSTGRES_INT_MAX) {
+    res.status(400).json({ error: "Converted base amount exceeds the maximum supported 32-bit integer" });
+    return;
+  }
+  const convertedSplits = allocateConvertedSplits(payload.splits, payload.amountMinor, baseAmountMinor);
+  if (convertedSplits.some(split => split.baseAmountMinor > POSTGRES_INT_MAX)) {
+    res.status(400).json({ error: "Converted split amount exceeds the maximum supported 32-bit integer" });
+    return;
+  }
+  const result = await db.transaction(async tx => {
+    await tx.execute(sql`SELECT id FROM trips WHERE id = ${params.data.tripId} FOR UPDATE`);
+    const [trip] = await tx.select({ expenseBaseCurrency: tripsTable.expenseBaseCurrency })
+      .from(tripsTable).where(eq(tripsTable.id, params.data.tripId));
+    if (!trip || trip.expenseBaseCurrency !== access.trip.expenseBaseCurrency) return { kind: "settings-changed" as const };
+    const [existing] = await tx.select().from(expensesTable).where(and(
+      eq(expensesTable.id, params.data.expenseId),
+      eq(expensesTable.tripId, params.data.tripId),
+      isNull(expensesTable.deletedAt),
+    ));
+    if (!existing) return { kind: "missing" as const };
+    if (existing.currency !== original.currency || existing.rateToBase !== original.rateToBase) {
+      return { kind: "expense-changed" as const };
+    }
+    const guestIds = [...new Set([payload.payerId, ...payload.splits.map(split => split.participantId)]
+      .filter(id => id.startsWith("guest:") && participants.get(id)?.active).map(id => Number(id.slice("guest:".length))))];
+    if (guestIds.length) {
+      const activeGuests = await tx.select({ id: expenseGuestsTable.id }).from(expenseGuestsTable)
+        .where(and(eq(expenseGuestsTable.tripId, params.data.tripId), inArray(expenseGuestsTable.id, guestIds)));
+      if (activeGuests.length !== guestIds.length) return { kind: "guest-removed" as const };
+    }
+    const [updated] = await tx.update(expensesTable).set({
+      concept: payload.concept.trim(),
+      amountMinor: payload.amountMinor,
+      currency: payload.currency,
+      payerId: payer.id,
+      payerNameSnapshot: payer.name,
+      baseAmountMinor,
+      rateToBase,
+      rateDate,
+    }).where(eq(expensesTable.id, existing.id)).returning();
+    await tx.delete(expenseSplitsTable).where(eq(expenseSplitsTable.expenseId, existing.id));
+    const splits = await tx.insert(expenseSplitsTable).values(convertedSplits.map(split => ({
+      expenseId: existing.id,
+      participantId: split.participantId,
+      participantNameSnapshot: participants.get(split.participantId)!.name,
+      amountMinor: split.amountMinor,
+      baseAmountMinor: split.baseAmountMinor,
+    }))).returning();
+    return { kind: "updated" as const, expense: updated, splits };
+  });
+  if (result.kind === "missing") { res.status(404).json({ error: "Expense not found" }); return; }
+  if (result.kind === "expense-changed") { res.status(409).json({ error: "Expense changed while editing; reload and try again" }); return; }
+  if (result.kind === "settings-changed") { res.status(409).json({ error: "Trip expense settings changed; retry with current settings" }); return; }
+  if (result.kind === "guest-removed") { res.status(400).json({ error: "A guest participant is no longer active on this trip" }); return; }
+  res.json(responseForExpense(result.expense, result.splits));
 });
 
 router.delete("/trips/:tripId/expenses/:expenseId", async (req, res): Promise<void> => {

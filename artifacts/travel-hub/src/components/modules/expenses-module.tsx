@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowDownRight, ArrowRight, CircleAlert, Clock3, Coins, Plus, RefreshCw, Trash2, Users, WifiOff } from "lucide-react";
+import { ArrowDownRight, ArrowRight, CircleAlert, Clock3, Coins, Pencil, Plus, RefreshCw, Settings2, Trash2, Users, WifiOff } from "lucide-react";
 import {
   getGetExpenseLedgerQueryKey, getGetExpenseRatesQueryKey,
   useCreateExpense, useCreateExpenseGuest, useDeleteExpense, useDeleteExpenseGuest,
-  useGetExpenseLedger, useGetExpenseRates, useUpdateExpenseSettings,
+  useGetExpenseLedger, useGetExpenseRates, useUpdateExpense, useUpdateExpenseSettings,
 } from "@workspace/api-client-react";
 import type { Expense, ExpenseCurrency, ExpenseInput, ExpenseLedger, ExpenseRates } from "@workspace/api-client-react";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,7 @@ const errorStatus = (error: unknown): number | null => {
   return typeof error.status === "number" ? error.status : null;
 };
 const initialValues: Values = { concept: "", amount: "", currency: "EUR", payerId: "", splitMode: "equal", selected: [], custom: {} };
+const minorInput = (value: number, currency: string) => (value / (currency === "JPY" ? 1 : 100)).toFixed(decimals(currency)).replace(".", ",");
 
 // The server records exact converted cents. This projection is only for queued-item estimates.
 function estimate(body: ExpenseInput, baseCurrency: ExpenseCurrency, rates: ExpenseRates | null) {
@@ -70,6 +71,7 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
   const ledgerQuery = useGetExpenseLedger(tripId, { query: { enabled: isOnline, queryKey: getGetExpenseLedgerQueryKey(tripId) } });
   const ratesQuery = useGetExpenseRates(tripId, { query: { enabled: isOnline, queryKey: getGetExpenseRatesQueryKey(tripId) } });
   const settingsMutation = useUpdateExpenseSettings();
+  const editMutation = useUpdateExpense();
   const addGuestMutation = useCreateExpenseGuest();
   const removeGuestMutation = useDeleteExpenseGuest();
   const createMutation = useCreateExpense();
@@ -85,6 +87,9 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
   const [syncingItem, setSyncingItem] = useState<string | null>(null);
   const [syncIssues, setSyncIssues] = useState<Record<string, { status: number | null; message: string }>>({});
   const [expenseOpen, setExpenseOpen] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [guestOpen, setGuestOpen] = useState(false);
   const [guestName, setGuestName] = useState("");
   const [deletingExpense, setDeletingExpense] = useState<Expense | null>(null);
@@ -210,6 +215,10 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
     try { return { value: calculateExpenseSettlement(ledger.expenses), error: "" }; }
     catch (e) { return { value: null, error: errorText(e) }; }
   }, [ledger]);
+  const totalSpent = useMemo(() => ledger?.expenses.reduce((sum, expense) => sum + expense.baseAmountMinor, 0) ?? 0, [ledger]);
+  const myParticipantId = `user:${userId}`;
+  const isParticipant = ledger?.participants.some(p => p.id === myParticipantId) ?? false;
+  const myBalance = settlement?.value?.balances.find(b => b.participantId === myParticipantId)?.balanceMinor ?? 0;
   const pendingEstimates = useMemo(() => outstanding.map(item => ({ id: item.clientId, value: base ? estimate(item.body as ExpenseInput, base, rates) : null })), [outstanding, base, rates]);
   const unavailableEstimates = pendingEstimates.filter(item => item.value === null).length;
   const offlineEstimate = useMemo(() => {
@@ -224,22 +233,36 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
   async function saveExpense(values: Values) {
     if (!ledger || !canEdit || savingLocal) return;
     setActionError("");
+    const eligible = editingExpense
+      ? [...activeParticipants, ...ledger.participants.filter(p => !p.active && (p.id === editingExpense.payerId || editingExpense.splits.some(s => s.participantId === p.id)))]
+      : activeParticipants;
     const amountMinor = parseMinor(values.amount, values.currency);
     if (!values.concept.trim()) { form.setError("concept", { message: "Escribe un concepto." }); return; }
     if (!amountMinor) { form.setError("amount", { message: `Introduce un importe válido${values.currency === "JPY" ? " sin decimales" : " con hasta dos decimales"}.` }); return; }
-    if (!activeParticipants.some(p => p.id === values.payerId)) { form.setError("payerId", { message: "Selecciona una persona activa que pagó." }); return; }
-    if (values.selected.some(id => !activeParticipants.some(p => p.id === id))) { form.setError("selected", { message: "El reparto incluye una persona que ya no participa. Actualiza la selección." }); return; }
+    if (!eligible.some(p => p.id === values.payerId)) { setAdvancedOpen(true); form.setError("payerId", { message: "Selecciona una persona que pueda pagar este gasto." }); return; }
+    if (values.selected.some(id => !eligible.some(p => p.id === id))) { setAdvancedOpen(true); form.setError("selected", { message: "El reparto incluye una persona no disponible. Actualiza la selección." }); return; }
     const ids = values.selected;
-    if (!ids.length) { form.setError("selected", { message: "Selecciona al menos una persona." }); return; }
-    if (ids.length > amountMinor && values.splitMode === "equal") { form.setError("selected", { message: "El importe es demasiado pequeño para repartirlo entre todas estas personas." }); return; }
+    if (!ids.length) { setAdvancedOpen(true); form.setError("selected", { message: "Selecciona al menos una persona." }); return; }
+    if (ids.length > amountMinor && values.splitMode === "equal") { setAdvancedOpen(true); form.setError("selected", { message: "El importe es demasiado pequeño para repartirlo entre todas estas personas." }); return; }
     const splits = values.splitMode === "equal"
       ? ids.map((participantId, index) => ({ participantId, amountMinor: Math.floor(amountMinor / ids.length) + (index < amountMinor % ids.length ? 1 : 0) }))
       : ids.map(participantId => ({ participantId, amountMinor: parseMinor(values.custom[participantId] ?? "", values.currency) ?? 0 }));
     if (splits.some(s => s.amountMinor < 1) || splits.reduce((sum, s) => sum + s.amountMinor, 0) !== amountMinor) {
+      setAdvancedOpen(true);
       form.setError("custom", { message: "Las partes deben ser positivas y sumar exactamente el importe original." }); return;
     }
     setSavingLocal(true);
     try {
+      if (editingExpense) {
+        if (!isOnline) { setActionError("Conéctate para editar un gasto confirmado."); return; }
+        await editMutation.mutateAsync({ tripId, expenseId: editingExpense.id, data: {
+          concept: values.concept.trim(), amountMinor, currency: values.currency, payerId: values.payerId, splits,
+        } });
+        await refreshLedger();
+        setEditingExpense(null);
+        setExpenseOpen(false);
+        return;
+      }
       const body: ExpenseInput = { clientId: createExpenseClientId(), concept: values.concept.trim(), amountMinor, currency: values.currency, payerId: values.payerId, splits };
       await enqueuePendingExpense(userId, tripKey, body);
       setPending(previous => [...previous, { clientId: body.clientId, body, enqueuedAt: Date.now() }]);
@@ -247,7 +270,7 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
       setExpenseOpen(false);
       if (isOnline) void flushRef.current();
     } catch (e) {
-      setActionError(`No se guardó el gasto: ${errorText(e)}. Inténtalo de nuevo.`);
+      setActionError(`No se ${editingExpense ? "actualizó" : "guardó"} el gasto: ${errorText(e)}. Inténtalo de nuevo.`);
     } finally { setSavingLocal(false); }
   }
 
@@ -311,23 +334,52 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
     }
   }
   function startExpense() {
-    form.reset({ ...initialValues, currency: base ?? "EUR", payerId: activeParticipants[0]?.id ?? "", selected: activeParticipants.map(p => p.id) });
+    const currentPayer = activeParticipants.find(p => p.id === myParticipantId)?.id ?? "";
+    form.reset({ ...initialValues, currency: base ?? "EUR", payerId: currentPayer, selected: activeParticipants.map(p => p.id) });
     setActionError("");
+    setEditingExpense(null);
+    setAdvancedOpen(!currentPayer);
     setExpenseOpen(true);
   }
+  function startEditing(expense: Expense) {
+    const splitCount = expense.splits.length;
+    const equal = expense.splits.every((split, index) =>
+      split.amountMinor === Math.floor(expense.amountMinor / splitCount) + (index < expense.amountMinor % splitCount ? 1 : 0));
+    form.reset({
+      concept: expense.concept,
+      amount: minorInput(expense.amountMinor, expense.currency),
+      currency: expense.currency,
+      payerId: expense.payerId,
+      splitMode: equal ? "equal" : "custom",
+      selected: expense.splits.map(split => split.participantId),
+      custom: Object.fromEntries(expense.splits.map(split => [split.participantId, minorInput(split.amountMinor, expense.currency)])),
+    });
+    setActionError("");
+    setEditingExpense(expense);
+    setAdvancedOpen(true);
+    setExpenseOpen(true);
+  }
+  const formParticipants = editingExpense
+    ? [...activeParticipants, ...ledger?.participants.filter(p => !p.active && (p.id === editingExpense.payerId || editingExpense.splits.some(s => s.participantId === p.id))) ?? []]
+    : activeParticipants;
 
   const fieldClass = "h-10 rounded-lg border-border bg-background text-sm";
   return (
     <section className="space-y-5 pb-10" data-testid="module-expenses">
-      <div className="relative overflow-hidden rounded-2xl border border-[#d7ded5] bg-[#eef0e6] px-5 py-6 sm:px-7 sm:py-7">
-        <div className="absolute -right-12 -top-16 h-48 w-48 rounded-full border-[28px] border-[#dce6d9] opacity-70 pointer-events-none" />
-        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <div className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-[#476b67]"><Coins className="h-4 w-4" /> Caja compartida</div>
-            <h2 className="font-serif text-3xl font-semibold tracking-tight text-[#203d39] sm:text-4xl">Gastos del viaje</h2>
-            <p className="mt-2 max-w-md text-sm leading-relaxed text-[#566660]">Cada importe en su moneda. Las cuentas, claras para todos.</p>
-          </div>
-          <div className="relative flex flex-col items-start gap-3 sm:items-end"><span data-testid="status-expenses-sync" className="rounded-full border border-[#c6d8cd] bg-[#f6faf2] px-2.5 py-1 text-xs font-medium text-[#38675a]">{syncing ? "Sincronizando…" : pending.length ? `${pending.length} pendiente${pending.length === 1 ? "" : "s"}` : "Gastos al día"}</span>{canEdit && <Button data-testid="button-add-expense" onClick={startExpense} disabled={!activeParticipants.length || storageLoading} className="w-full gap-2 bg-[#225a54] text-[#f6f3e9] hover:bg-[#194a45] sm:w-auto"><Plus className="h-4 w-4" /> Añadir gasto</Button>}</div>
+      <div className="rounded-2xl border border-[#d7ded5] bg-[#eef0e6] p-4 sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#476b67]">Caja compartida</p><h2 className="font-serif text-2xl font-semibold text-[#203d39] sm:text-3xl">Gastos del viaje</h2></div>
+          {canEdit && <Button data-testid="button-add-expense" onClick={startExpense} disabled={!activeParticipants.length || storageLoading} className="gap-2 bg-[#225a54] text-[#f6f3e9] hover:bg-[#194a45]"><Plus className="h-4 w-4" /> Añadir gasto</Button>}
+        </div>
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border border-[#d9e2d6] bg-white/75 px-4 py-3"><p className="text-xs font-medium text-[#61736a]">Total gastado en el viaje</p><p data-testid="text-expenses-total" className="mt-1 font-serif text-2xl font-semibold tabular-nums text-[#203d39]">{ledger ? money(totalSpent, baseCurrency) : "—"}</p></div>
+          <div className="rounded-xl border border-[#d9e2d6] bg-white/75 px-4 py-3"><p className="text-xs font-medium text-[#61736a]">Tu saldo</p><p data-testid="text-my-balance" className={`mt-1 font-serif text-2xl font-semibold tabular-nums ${myBalance < 0 ? "text-[#ad513e]" : "text-[#226650]"}`}>{!ledger || settlement?.error || !isParticipant ? "—" : `${myBalance > 0 ? "+" : myBalance < 0 ? "−" : ""}${money(Math.abs(myBalance), baseCurrency)}`}</p><p className="text-[11px] text-[#61736a]">{!isParticipant && ledger ? "No participas en los gastos" : myBalance < 0 ? "Debes aportar" : myBalance > 0 ? "Te deben" : "Cuentas al día"}</p></div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+          <span data-testid="status-expenses-sync" className="text-xs font-medium text-[#476b67]">{syncing ? "Sincronizando…" : pending.length ? `${pending.length} pendiente${pending.length === 1 ? "" : "s"}` : "Gastos al día"}</span>
+          <button type="button" data-testid="button-expense-settings" disabled={!ledger} onClick={() => setSettingsOpen(true)} className="inline-flex items-center gap-1.5 rounded-full border border-[#cad9cd] bg-white/80 px-3 py-1.5 text-xs font-semibold text-[#285950] hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#225a54] disabled:opacity-50" aria-label={`Configuración de gastos: ${baseCurrency}, ${activeParticipants.length} ${activeParticipants.length === 1 ? "participante" : "participantes"}`}>
+            {baseCurrency} <span aria-hidden="true">·</span> {activeParticipants.length} {activeParticipants.length === 1 ? "participante" : "participantes"} <Settings2 className="h-3.5 w-3.5" />
+          </button>
         </div>
       </div>
 
@@ -342,25 +394,6 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
         </div>
       ) : (
         <>
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(230px,0.44fr)]">
-            <div className="rounded-xl border border-border bg-card p-4 sm:p-5">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div><p className="text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground">Moneda de referencia</p><p data-testid="text-base-currency" className="mt-1 font-serif text-2xl text-[#225a54]">{base}</p></div>
-                {isOwner && !ledger.expenses.length && !pending.length && <select data-testid="select-base-currency" aria-label="Moneda base del viaje" value={base} onChange={e => void changeBase(e.target.value as ExpenseCurrency)} disabled={!isOnline || settingsMutation.isPending} className="rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium">{CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}</select>}
-              </div>
-              <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{ledger.expenses.length || pending.length ? "La moneda base queda fijada tras el primer gasto." : "La persona propietaria puede cambiarla antes del primer gasto."}</p>
-              <div className="mt-4 border-t border-border/70 pt-3 text-xs text-muted-foreground" data-testid="text-fx-date">
-                {rates ? <>Tipo de cambio {displayDate(rates.date)}{!isOnline ? " · copia guardada, puede estar desactualizada" : ""}</> : "Tipos de cambio no disponibles; las conversiones pendientes no se estimarán."}
-                {isOnline && ratesQuery.isError && <span className="ml-1 text-[#9a5c3b]">No se pudieron actualizar los tipos.</span>}
-              </div>
-            </div>
-            <div className="rounded-xl border border-border bg-card p-4 sm:p-5">
-              <div className="mb-3 flex items-center justify-between gap-2"><div className="flex items-center gap-2"><Users className="h-4 w-4 text-[#42766d]" /><h3 className="font-semibold">Participantes</h3></div>{isOwner && <button type="button" data-testid="button-add-guest" disabled={!isOnline} onClick={() => setGuestOpen(true)} className="text-xs font-semibold text-[#225a54] hover:underline disabled:opacity-40">+ Invitado</button>}</div>
-              <div className="flex flex-wrap gap-1.5">{ledger.participants.map(p => <span key={p.id} data-testid={`participant-${p.id}`} className={`inline-flex items-center gap-1.5 rounded-full border py-1 pl-2.5 pr-2 text-xs ${p.active ? "border-[#e0e7df] bg-[#f5f6ee] text-[#38524b]" : "border-border bg-muted/40 text-muted-foreground"}`}>{p.name}{p.kind === "guest" && <span className="text-[#8a9188]">· invitado</span>}{!p.active && <span>· histórico</span>}{isOwner && p.kind === "guest" && p.active && <button type="button" data-testid={`button-remove-guest-${p.id}`} disabled={!isOnline} onClick={() => setDeletingGuest(p)} aria-label={`Eliminar invitado ${p.name}`} className="ml-0.5 text-[#9b6150] hover:text-[#703728] disabled:opacity-40"><Trash2 className="h-3 w-3" /></button>}</span>)}</div>
-              <p className="mt-3 text-xs leading-relaxed text-muted-foreground">Solo la persona propietaria, las cuentas que comparten este viaje y los invitados con nombre participan en el reparto. El enlace público no participa.</p>
-            </div>
-          </div>
-
           {outstanding.length > 0 && <div className="rounded-xl border border-[#e4d9b8] bg-[#faf6e9] p-4" data-testid="status-pending-expenses">
             <div className="flex items-center justify-between gap-3"><p className="flex items-center gap-2 text-sm font-semibold text-[#756343]"><Clock3 className="h-4 w-4" /> {outstanding.length} {outstanding.length === 1 ? "gasto pendiente" : "gastos pendientes"} de sincronizar</p>{isOnline && canEdit && <button type="button" data-testid="button-sync-expenses" disabled={syncing} onClick={() => void flush()} className="flex items-center gap-1 text-xs font-semibold text-[#225a54] disabled:opacity-50"><RefreshCw className="h-3.5 w-3.5" />{syncing ? "Enviando…" : "Reintentar"}</button>}</div>
             <div className="mt-3 space-y-2">{outstanding.map(item => {
@@ -385,14 +418,14 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
             <div className="overflow-hidden rounded-xl border border-border bg-card">
               <div className="flex items-center justify-between border-b border-border px-4 py-4 sm:px-5"><div><h3 className="font-serif text-xl font-semibold">Movimientos</h3><p className="text-xs text-muted-foreground">{ledger.expenses.length} {ledger.expenses.length === 1 ? "gasto confirmado" : "gastos confirmados"}</p></div><span className="rounded-full bg-[#edf2ea] px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-[#4f7567]">Registrados</span></div>
               {!ledger.expenses.length ? <div className="px-6 py-12 text-center"><Coins className="mx-auto mb-3 h-8 w-8 text-[#9fb1a8]" /><p className="font-medium">La cuenta empieza aquí</p><p className="mx-auto mt-1 max-w-xs text-sm text-muted-foreground">Anota el primer gasto para que el grupo vea qué se pagó y cómo se reparte.</p>{canEdit && <Button data-testid="button-add-first-expense" variant="outline" className="mt-4" onClick={startExpense}>Añadir primer gasto</Button>}</div> :
-                <div className="divide-y divide-border/70">{[...ledger.expenses].reverse().map(expense => <article key={expense.id} data-testid={`expense-${expense.id}`} className="flex gap-3 px-4 py-4 sm:px-5"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#eaf0ea] text-[#49766a]"><ArrowDownRight className="h-5 w-5" /></div><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><h4 className="truncate font-semibold">{expense.concept}</h4><p className="mt-0.5 text-xs text-muted-foreground">Pagó {person(expense.payerId)} · {displayDate(expense.createdAt)}</p></div><div className="shrink-0 text-right"><p className="font-semibold tabular-nums">{money(expense.amountMinor, expense.currency)}</p>{expense.currency !== base && <p className="text-xs text-muted-foreground tabular-nums">{money(expense.baseAmountMinor, baseCurrency)}</p>}</div></div><div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground"><span>Entre {expense.splits.map(s => person(s.participantId)).join(", ")}</span><span>· cambio {displayDate(expense.rateDate)}</span></div></div>{canEdit && <button type="button" data-testid={`button-delete-expense-${expense.id}`} disabled={!isOnline} onClick={() => setDeletingExpense(expense)} aria-label={`Eliminar gasto ${expense.concept}`} className="self-start rounded-md p-1 text-muted-foreground hover:bg-[#fff1eb] hover:text-[#a4543e] disabled:opacity-40"><Trash2 className="h-4 w-4" /></button>}</article>)}</div>}
+                <div className="divide-y divide-border/70">{[...ledger.expenses].reverse().map(expense => <article key={expense.id} data-testid={`expense-${expense.id}`} className="flex gap-3 px-4 py-4 sm:px-5"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#eaf0ea] text-[#49766a]"><ArrowDownRight className="h-5 w-5" /></div><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><h4 className="truncate font-semibold">{expense.concept}</h4><p className="mt-0.5 text-xs text-muted-foreground">Pagó {person(expense.payerId)} · {displayDate(expense.createdAt)}</p></div><div className="shrink-0 text-right"><p className="font-semibold tabular-nums">{money(expense.amountMinor, expense.currency)}</p>{expense.currency !== base && <p className="text-xs text-muted-foreground tabular-nums">{money(expense.baseAmountMinor, baseCurrency)}</p>}</div></div><div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground"><span>Entre {expense.splits.map(s => person(s.participantId)).join(", ")}</span><span>· cambio {displayDate(expense.rateDate)}</span></div></div>{canEdit && <div className="flex shrink-0 flex-col gap-1"><button type="button" data-testid={`button-edit-expense-${expense.id}`} disabled={!isOnline} onClick={() => startEditing(expense)} aria-label={`Editar gasto ${expense.concept}`} title="Editar gasto (requiere conexión)" className="rounded-md p-1 text-muted-foreground hover:bg-[#edf3ec] hover:text-[#225a54] disabled:opacity-40"><Pencil className="h-4 w-4" /></button><button type="button" data-testid={`button-delete-expense-${expense.id}`} disabled={!isOnline} onClick={() => setDeletingExpense(expense)} aria-label={`Eliminar gasto ${expense.concept}`} className="rounded-md p-1 text-muted-foreground hover:bg-[#fff1eb] hover:text-[#a4543e] disabled:opacity-40"><Trash2 className="h-4 w-4" /></button></div>}</article>)}</div>}
             </div>
 
             <div className="rounded-xl border border-[#ceddd3] bg-[#e9f0e9] p-5 sm:p-6" data-testid="section-settlement">
               <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#568075]">Cuentas claras</p>
               <h3 className="mt-1 font-serif text-2xl font-semibold text-[#244a43]">Balance y Liquidación</h3>
               <p className="mt-2 text-xs leading-relaxed text-[#60786c]">Transferencias mínimas exactas sobre los gastos confirmados, en {base}. No se registran pagos automáticamente.</p>
-              {settlement?.error ? <p role="alert" data-testid="status-settlement-error" className="mt-5 rounded-lg bg-[#fff5ed] p-3 text-sm text-[#904d38]">No se puede calcular la liquidación exacta. {settlement.error.includes("at most 15") ? "Se admiten hasta 15 participantes con saldo distinto de cero." : settlement.error}</p> : !settlement?.value?.transfers.length ? <div className="mt-6 rounded-lg border border-dashed border-[#bfd2c3] px-4 py-7 text-center text-sm text-[#60796b]">{ledger.expenses.length ? "Todo está saldado. No hay transferencias pendientes." : "Los balances aparecerán con el primer gasto."}</div> :
+              {settlement?.error ? <p role="alert" data-testid="status-settlement-error" className="mt-5 rounded-lg bg-[#fff5ed] p-3 text-sm text-[#904d38]">No se puede calcular la liquidación exacta. {settlement.error.includes("at most 20") ? "Se admiten hasta 20 participantes con saldo distinto de cero." : settlement.error}</p> : !settlement?.value?.transfers.length ? <div className="mt-6 rounded-lg border border-dashed border-[#bfd2c3] px-4 py-7 text-center text-sm text-[#60796b]">{ledger.expenses.length ? "Todo está saldado. No hay transferencias pendientes." : "Los balances aparecerán con el primer gasto."}</div> :
                 <div className="mt-5 space-y-2.5">{settlement.value.transfers.map((transfer, index) => <div key={`${transfer.payerId}-${transfer.receiverId}-${index}`} data-testid={`transfer-${index}`} className="rounded-lg border border-[#d8e4d8] bg-[#f9fbf5] px-3 py-3"><div className="flex items-center gap-2 text-sm"><span className="min-w-0 flex-1 truncate font-semibold">{person(transfer.payerId)}</span><ArrowRight className="h-4 w-4 shrink-0 text-[#739b86]" /><span className="min-w-0 flex-1 truncate font-semibold">{person(transfer.receiverId)}</span></div><p className="mt-1 text-right font-semibold tabular-nums text-[#255e53]">{money(transfer.amountMinor, baseCurrency)}</p></div>)}</div>}
               {!!settlement?.value?.balances.length && <div className="mt-5 border-t border-[#cdddcf] pt-4"><p className="mb-2 text-xs font-semibold text-[#5b7668]">Saldo por persona</p>{settlement.value.balances.map(b => <div key={b.participantId} data-testid={`balance-${b.participantId}`} className="flex justify-between gap-3 py-1 text-xs"><span>{person(b.participantId)}</span><span className={`font-semibold tabular-nums ${b.balanceMinor > 0 ? "text-[#246354]" : "text-[#a35d43]"}`}>{b.balanceMinor > 0 ? "+" : "−"}{money(Math.abs(b.balanceMinor), baseCurrency)}</span></div>)}</div>}
               {outstanding.length > 0 && <p className="mt-4 border-t border-[#cdddcf] pt-3 text-xs text-[#647b6c]">Hay {outstanding.length} {outstanding.length === 1 ? "gasto local" : "gastos locales"} aún sin incluir. La liquidación se actualizará tras sincronizar.</p>}
@@ -401,7 +434,7 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
           {!isOnline && outstanding.length > 0 && <div data-testid="section-estimated-settlement" className="rounded-xl border border-dashed border-[#ceb98d] bg-[#fbf5e8] p-5 sm:p-6">
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1"><h3 className="font-serif text-xl font-semibold text-[#6c5939]">Liquidación estimada · sin conexión</h3><span className="text-xs font-semibold uppercase tracking-wider text-[#947952]">No confirmada</span></div>
             {unavailableEstimates > 0 ? <p data-testid="status-estimate-unavailable" className="mt-3 text-sm leading-relaxed text-[#78654c]">No se puede calcular un total estimado: {unavailableEstimates} {unavailableEstimates === 1 ? "gasto pendiente no tiene" : "gastos pendientes no tienen"} un tipo de cambio guardado para {base}. No se inventa ningún importe; los pendientes quedan excluidos de la liquidación confirmada.</p> :
-              offlineEstimate?.error ? <p role="alert" data-testid="status-estimate-error" className="mt-3 text-sm text-[#914c38]">No se puede calcular la liquidación estimada. {offlineEstimate.error.includes("at most 15") ? "Se admiten hasta 15 participantes con saldo distinto de cero." : offlineEstimate.error}</p> :
+              offlineEstimate?.error ? <p role="alert" data-testid="status-estimate-error" className="mt-3 text-sm text-[#914c38]">No se puede calcular la liquidación estimada. {offlineEstimate.error.includes("at most 20") ? "Se admiten hasta 20 participantes con saldo distinto de cero." : offlineEstimate.error}</p> :
               <><p className="mt-2 text-xs leading-relaxed text-[#817051]">Incluye {ledger.expenses.length} gastos confirmados y {outstanding.length} pendientes, convertidos con el tipo guardado{rates ? ` del ${displayDate(rates.date)}` : ""}. Los importes reales pueden variar al sincronizar.</p>
                 {offlineEstimate?.value?.transfers.length ? <div className="mt-4 grid gap-2 sm:grid-cols-2">{offlineEstimate.value.transfers.map((transfer, index) => <div key={`${transfer.payerId}-${transfer.receiverId}-${index}`} data-testid={`estimated-transfer-${index}`} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#e5d9bc] bg-[#fffaf0] px-3 py-2.5 text-sm"><span className="flex items-center gap-2"><span className="font-medium">{person(transfer.payerId)}</span><ArrowRight className="h-3.5 w-3.5 text-[#a58b5d]" /><span className="font-medium">{person(transfer.receiverId)}</span></span><strong className="tabular-nums text-[#6b5938]">{money(transfer.amountMinor, baseCurrency)}</strong></div>)}</div> : <p className="mt-3 text-sm text-[#78654c]">Sin transferencias estimadas; los saldos se compensan.</p>}
                 {!!offlineEstimate?.value?.balances.length && <div className="mt-4 grid gap-x-6 gap-y-1 border-t border-[#e4d6b8] pt-3 sm:grid-cols-2">{offlineEstimate.value.balances.map(balance => <div key={balance.participantId} data-testid={`estimated-balance-${balance.participantId}`} className="flex justify-between gap-3 text-xs text-[#78654c]"><span>{person(balance.participantId)}</span><span className="font-semibold tabular-nums">{balance.balanceMinor > 0 ? "+" : "−"}{money(Math.abs(balance.balanceMinor), baseCurrency)}</span></div>)}</div>}
@@ -410,21 +443,33 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
         </>
       )}
 
-      <Dialog open={expenseOpen} onOpenChange={setExpenseOpen}><DialogContent className="max-h-[min(90dvh,850px)] w-[calc(100vw-1.5rem)] max-w-lg overflow-y-auto rounded-xl">
-        <DialogHeader><DialogTitle className="font-serif text-2xl">Nuevo gasto</DialogTitle><DialogDescription>Indica quién pagó y cómo se reparte el importe original.</DialogDescription></DialogHeader>
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}><DialogContent className="max-h-[min(90dvh,850px)] w-[calc(100vw-1.5rem)] max-w-md overflow-y-auto rounded-xl">
+        <DialogHeader><DialogTitle className="font-serif text-2xl">Configuración de gastos</DialogTitle><DialogDescription>Moneda y personas que participan en los gastos del viaje.</DialogDescription></DialogHeader>
+        {ledger && <div className="space-y-5 pt-2">
+          {actionError && <p role="alert" className="text-sm text-destructive">{actionError}</p>}
+          <div><div className="flex items-center justify-between gap-3"><div><h3 className="text-sm font-semibold">Moneda de referencia</h3><p data-testid="text-base-currency" className="font-serif text-xl text-[#225a54]">{base}</p></div>{isOwner && !ledger.expenses.length && !pending.length && <select data-testid="select-base-currency" aria-label="Moneda base del viaje" value={base} onChange={e => void changeBase(e.target.value as ExpenseCurrency)} disabled={!isOnline || settingsMutation.isPending} className="rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium">{CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}</select>}</div><p className="mt-1 text-xs text-muted-foreground">{ledger.expenses.length || pending.length ? "La moneda base queda fijada tras el primer gasto." : "La persona propietaria puede cambiarla antes del primer gasto."}</p><p className="mt-2 text-xs text-muted-foreground" data-testid="text-fx-date">{rates ? <>Tipo de cambio {displayDate(rates.date)}{!isOnline ? " · copia guardada, puede estar desactualizada" : ""}</> : "Tipos de cambio no disponibles; las conversiones pendientes no se estimarán."}{isOnline && ratesQuery.isError && <span className="ml-1 text-[#9a5c3b]">No se pudieron actualizar los tipos.</span>}</p></div>
+          <div className="border-t border-border pt-4"><div className="mb-3 flex items-center justify-between gap-2"><h3 className="flex items-center gap-2 text-sm font-semibold"><Users className="h-4 w-4 text-[#42766d]" /> Participantes</h3>{isOwner && <button type="button" data-testid="button-add-guest" disabled={!isOnline} onClick={() => { setSettingsOpen(false); setGuestOpen(true); }} className="text-xs font-semibold text-[#225a54] hover:underline disabled:opacity-40">+ Invitado</button>}</div><div className="flex flex-wrap gap-1.5">{ledger.participants.map(p => <span key={p.id} data-testid={`participant-${p.id}`} className={`inline-flex items-center gap-1.5 rounded-full border py-1 pl-2.5 pr-2 text-xs ${p.active ? "border-[#e0e7df] bg-[#f5f6ee] text-[#38524b]" : "border-border bg-muted/40 text-muted-foreground"}`}>{p.name}{p.kind === "guest" && <span className="text-[#8a9188]">· invitado</span>}{!p.active && <span>· histórico</span>}{isOwner && p.kind === "guest" && p.active && <button type="button" data-testid={`button-remove-guest-${p.id}`} disabled={!isOnline} onClick={() => { setSettingsOpen(false); setDeletingGuest(p); }} aria-label={`Eliminar invitado ${p.name}`} className="ml-0.5 text-[#9b6150] hover:text-[#703728] disabled:opacity-40"><Trash2 className="h-3 w-3" /></button>}</span>)}</div><p className="mt-3 text-xs leading-relaxed text-muted-foreground">Solo la persona propietaria, las cuentas que comparten este viaje y los invitados con nombre participan en el reparto. El enlace público no participa.</p></div>
+        </div>}
+      </DialogContent></Dialog>
+      <Dialog open={expenseOpen} onOpenChange={open => { setExpenseOpen(open); if (!open) setEditingExpense(null); }}><DialogContent className="max-h-[min(90dvh,850px)] w-[calc(100vw-1.5rem)] max-w-lg overflow-y-auto rounded-xl">
+        <DialogHeader><DialogTitle className="font-serif text-2xl">{editingExpense ? "Editar gasto" : "Nuevo gasto"}</DialogTitle><DialogDescription>{editingExpense ? "Se conserva el tipo de cambio original si mantienes la moneda. Al cambiarla se usará el tipo disponible." : "Escribe concepto e importe. Pagas tú y se reparte entre todos por defecto."}</DialogDescription></DialogHeader>
         {actionError && <p role="alert" className="rounded-lg bg-[#fff1e8] p-2 text-sm text-[#914c38]">{actionError}</p>}
         <Form {...form}><form onSubmit={form.handleSubmit(saveExpense)} className="space-y-4 pt-2">
-          <FormField control={form.control} name="concept" rules={{ required: "Escribe un concepto." }} render={({ field }) => <FormItem><FormLabel>Concepto</FormLabel><FormControl><Input data-testid="input-expense-concept" maxLength={200} placeholder="Cena de la primera noche" className={fieldClass} {...field} /></FormControl><FormMessage /></FormItem>} />
-          <div className="grid grid-cols-[minmax(0,1fr)_110px] gap-3"><FormField control={form.control} name="amount" render={({ field }) => <FormItem><FormLabel>Importe original</FormLabel><FormControl><Input data-testid="input-expense-amount" inputMode="decimal" placeholder={chosenCurrency === "JPY" ? "2400" : "24,50"} className={fieldClass} {...field} /></FormControl><FormMessage /></FormItem>} /><FormField control={form.control} name="currency" render={({ field }) => <FormItem><FormLabel>Moneda</FormLabel><FormControl><select data-testid="select-expense-currency" aria-label="Moneda del gasto" className={`${fieldClass} w-full px-2`} {...field}>{CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}</select></FormControl><FormMessage /></FormItem>} /></div>
-          <FormField control={form.control} name="payerId" render={({ field }) => <FormItem><FormLabel>Pagó</FormLabel><FormControl><select data-testid="select-expense-payer" className={`${fieldClass} w-full px-3`} {...field}><option value="">Selecciona una persona</option>{activeParticipants.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></FormControl><FormMessage /></FormItem>} />
+          <FormField control={form.control} name="concept" rules={{ required: "Escribe un concepto." }} render={({ field }) => <FormItem><FormLabel>Concepto</FormLabel><FormControl><Input data-testid="input-expense-concept" autoFocus maxLength={200} placeholder="Cena de la primera noche" className={fieldClass} {...field} /></FormControl><FormMessage /></FormItem>} />
+          <FormField control={form.control} name="amount" render={({ field }) => <FormItem><FormLabel>Importe ({chosenCurrency})</FormLabel><FormControl><Input data-testid="input-expense-amount" inputMode="decimal" placeholder={chosenCurrency === "JPY" ? "2400" : "24,50"} className={fieldClass} {...field} /></FormControl><FormMessage /></FormItem>} />
+          <button type="button" data-testid="button-expense-advanced" aria-expanded={advancedOpen} onClick={() => setAdvancedOpen(!advancedOpen)} className="w-full rounded-lg border border-border bg-muted/30 px-3 py-2 text-left text-sm font-medium text-[#225a54] hover:bg-muted/60">{advancedOpen ? "Ocultar opciones" : "Cambiar pagador, moneda o reparto"}</button>
+          <div className={advancedOpen ? "space-y-4" : "hidden"}>
+          <FormField control={form.control} name="currency" render={({ field }) => <FormItem><FormLabel>Moneda del gasto</FormLabel><FormControl><select data-testid="select-expense-currency" aria-label="Moneda del gasto" className={`${fieldClass} w-full px-3`} {...field}>{CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}</select></FormControl><FormMessage /></FormItem>} />
+          <FormField control={form.control} name="payerId" render={({ field }) => <FormItem><FormLabel>Pagó</FormLabel><FormControl><select data-testid="select-expense-payer" className={`${fieldClass} w-full px-3`} {...field}><option value="">Selecciona una persona</option>{formParticipants.map(p => <option key={p.id} value={p.id}>{p.name}{!p.active ? " (histórico)" : ""}</option>)}</select></FormControl><FormMessage /></FormItem>} />
           <div className="border-t border-border pt-4"><p className="text-sm font-semibold">¿Entre quiénes se reparte?</p><p className="mt-0.5 text-xs text-muted-foreground">Puedes incluir a quien pagó o dejarlo fuera.</p>
-            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">{activeParticipants.map(p => <label key={p.id} className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-sm"><input data-testid={`checkbox-split-${p.id}`} type="checkbox" checked={selected.includes(p.id)} onChange={e => { form.setValue("selected", e.target.checked ? [...selected, p.id] : selected.filter(id => id !== p.id), { shouldValidate: true }); form.clearErrors("selected"); }} className="accent-[#225a54]" /><span className="truncate">{p.name}</span></label>)}</div>
+            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">{formParticipants.map(p => <label key={p.id} className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-sm"><input data-testid={`checkbox-split-${p.id}`} type="checkbox" checked={selected.includes(p.id)} onChange={e => { form.setValue("selected", e.target.checked ? [...selected, p.id] : selected.filter(id => id !== p.id), { shouldValidate: true }); form.clearErrors("selected"); }} className="accent-[#225a54]" /><span className="truncate">{p.name}{!p.active ? " (histórico)" : ""}</span></label>)}</div>
             {form.formState.errors.selected && <p role="alert" className="mt-1 text-xs text-destructive">{form.formState.errors.selected.message}</p>}
           </div>
           <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted/50 p-1"><button type="button" data-testid="button-equal-split" onClick={() => { form.setValue("splitMode", "equal"); form.clearErrors("custom"); }} className={`rounded-md px-3 py-2 text-sm font-medium ${splitMode === "equal" ? "bg-card text-[#225a54] shadow-sm" : "text-muted-foreground"}`}>A partes iguales</button><button type="button" data-testid="button-custom-split" onClick={() => form.setValue("splitMode", "custom")} className={`rounded-md px-3 py-2 text-sm font-medium ${splitMode === "custom" ? "bg-card text-[#225a54] shadow-sm" : "text-muted-foreground"}`}>Importes a medida</button></div>
           {splitMode === "custom" && <div className="space-y-2">{selected.map(id => <div key={id} className="flex items-center gap-3"><label htmlFor={`custom-${id}`} className="min-w-0 flex-1 truncate text-sm">{person(id)}</label><Input id={`custom-${id}`} data-testid={`input-custom-split-${id}`} inputMode="decimal" placeholder={chosenCurrency === "JPY" ? "0" : "0,00"} className="w-32" value={form.watch(`custom.${id}`) ?? ""} onChange={e => { form.setValue(`custom.${id}`, e.target.value); form.clearErrors("custom"); }} /><span className="w-9 text-xs text-muted-foreground">{chosenCurrency}</span></div>)}{form.formState.errors.custom && <p role="alert" className="text-xs text-destructive">{typeof form.formState.errors.custom.message === "string" ? form.formState.errors.custom.message : "Comprueba el reparto."}</p>}<p className="text-xs text-muted-foreground">Los importes deben sumar el total en {chosenCurrency}, no en {base}.</p></div>}
+          </div>
           <div className="rounded-lg bg-[#f5f3e9] px-3 py-2 text-xs text-[#736b54]">{isOnline ? "Primero se guarda en este dispositivo y luego se sincroniza." : "Sin conexión: quedará pendiente en este dispositivo hasta que vuelva la red."}</div>
-          <DialogFooter><Button type="button" data-testid="button-cancel-expense" variant="outline" onClick={() => setExpenseOpen(false)}>Cancelar</Button><Button type="submit" data-testid="button-save-expense" disabled={savingLocal} className="bg-[#225a54] hover:bg-[#194a45]">{savingLocal ? "Guardando…" : "Guardar gasto"}</Button></DialogFooter>
+          <DialogFooter><Button type="button" data-testid="button-cancel-expense" variant="outline" onClick={() => { setExpenseOpen(false); setEditingExpense(null); }}>Cancelar</Button><Button type="submit" data-testid="button-save-expense" disabled={savingLocal} className="bg-[#225a54] hover:bg-[#194a45]">{savingLocal ? "Guardando…" : editingExpense ? "Guardar cambios" : "Guardar gasto"}</Button></DialogFooter>
         </form></Form>
       </DialogContent></Dialog>
 

@@ -37,6 +37,7 @@ export * from "./expenseSettings";
 export * from "./expenseSettingsUpdate";
 export * from "./expenseSplit";
 export * from "./expenseSplitInput";
+export * from "./expenseUpdate";
 export * from "./flight";
 export * from "./flightInput";
 export * from "./flightUpdate";

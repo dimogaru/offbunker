@@ -19,8 +19,9 @@ import {
 } from "@/lib/expenses/offline-store";
 import type { PendingExpenseRecord } from "@/lib/expenses/offline-store";
 import { calculateExpenseSettlement } from "@/lib/expenses/settlement";
+import { createDemoExpenseLedger, DEMO_EXPENSE_RATES, demoSessionKey } from "@/data/demo-expenses";
 
-type Props = { tripId: number; readOnly: boolean; isOwner: boolean; userId: string; isOnline: boolean | { isOnline: boolean } };
+type Props = { tripId: number; readOnly: boolean; isOwner: boolean; userId: string; isOnline: boolean | { isOnline: boolean }; isDemo?: boolean };
 type Values = { concept: string; amount: string; currency: ExpenseCurrency; payerId: string; splitMode: "equal" | "custom"; selected: string[]; custom: Record<string, string> };
 const CURRENCIES: ExpenseCurrency[] = ["EUR", "USD", "JPY", "CZK", "GBP", "CHF", "CAD", "AUD"];
 const decimals = (currency: string) => currency === "JPY" ? 0 : 2;
@@ -69,12 +70,12 @@ function estimate(body: ExpenseInput, baseCurrency: ExpenseCurrency, rates: Expe
   return { payerId: body.payerId, baseAmountMinor: total, splits: parts.map(({ participantId, baseAmountMinor }) => ({ participantId, baseAmountMinor })) };
 }
 
-export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOnline: onlineSignal }: Props) {
+export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOnline: onlineSignal, isDemo = false }: Props) {
   const isOnline = typeof onlineSignal === "boolean" ? onlineSignal : onlineSignal.isOnline;
   const tripKey = String(tripId);
   const queryClient = useQueryClient();
-  const ledgerQuery = useGetExpenseLedger(tripId, { query: { enabled: isOnline, queryKey: getGetExpenseLedgerQueryKey(tripId) } });
-  const ratesQuery = useGetExpenseRates(tripId, { query: { enabled: isOnline, queryKey: getGetExpenseRatesQueryKey(tripId) } });
+  const ledgerQuery = useGetExpenseLedger(tripId, { query: { enabled: isOnline && !isDemo, queryKey: getGetExpenseLedgerQueryKey(tripId) } });
+  const ratesQuery = useGetExpenseRates(tripId, { query: { enabled: isOnline && !isDemo, queryKey: getGetExpenseRatesQueryKey(tripId) } });
   const settingsMutation = useUpdateExpenseSettings();
   const editMutation = useUpdateExpense();
   const addGuestMutation = useCreateExpenseGuest();
@@ -84,7 +85,7 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
   const [cachedLedger, setCachedLedger] = useState<ExpenseLedger | null>(null);
   const [cachedRates, setCachedRates] = useState<ExpenseRates | null>(null);
   const [pending, setPending] = useState<PendingExpenseRecord[]>([]);
-  const [storageLoading, setStorageLoading] = useState(true);
+  const [storageLoading, setStorageLoading] = useState(!isDemo);
   const [storageError, setStorageError] = useState("");
   const [actionError, setActionError] = useState("");
   const [syncError, setSyncError] = useState("");
@@ -102,6 +103,22 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
   const [deletingPending, setDeletingPending] = useState<PendingExpenseRecord | null>(null);
   const [removingPending, setRemovingPending] = useState(false);
   const [savingLocal, setSavingLocal] = useState(false);
+  const [demoSession, setDemoSession] = useState<{ expenses: Expense[]; error: string }>(() => {
+    if (!isDemo) return { expenses: [], error: "" };
+    try {
+      const saved = sessionStorage.getItem(demoSessionKey(userId, tripId));
+      if (!saved) return { expenses: [], error: "" };
+      const expenses: unknown = JSON.parse(saved);
+      if (!Array.isArray(expenses) || !expenses.every(item =>
+        item && typeof item === "object" && typeof item.id === "number" &&
+        typeof item.concept === "string" && typeof item.amountMinor === "number" &&
+        typeof item.payerId === "string" && typeof item.createdAt === "string" &&
+        Array.isArray(item.splits))) throw new Error("Invalid demo expense data");
+      return { expenses: expenses as Expense[], error: "" };
+    } catch {
+      return { expenses: [], error: "No se pudieron abrir los gastos temporales de esta sesión demo." };
+    }
+  });
   const [expenseSearch, setExpenseSearch] = useState("");
   const [payerFilter, setPayerFilter] = useState("all");
   const [dateFilter, setDateFilter] = useState("");
@@ -113,16 +130,21 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
   const selected = form.watch("selected");
   const splitMode = form.watch("splitMode");
   const chosenCurrency = form.watch("currency");
-  const ledger = isOnline ? ledgerQuery.data ?? cachedLedger : cachedLedger;
+  const demoLedger = useMemo(() => createDemoExpenseLedger(userId), [userId]);
+  const ledger = useMemo(() => isDemo
+    ? { ...demoLedger, expenses: [...demoSession.expenses, ...demoLedger.expenses] }
+    : isOnline ? ledgerQuery.data ?? cachedLedger : cachedLedger,
+  [isDemo, demoLedger, demoSession.expenses, isOnline, ledgerQuery.data, cachedLedger]);
   const activeParticipants = ledger?.participants.filter(p => p.active === true) ?? [];
   const base = ledger?.baseCurrency;
   const baseCurrency = base ?? "EUR";
-  const rates = (isOnline && ratesQuery.data?.baseCurrency === base ? ratesQuery.data : cachedRates?.baseCurrency === base ? cachedRates : null) ?? null;
+  const rates = isDemo ? DEMO_EXPENSE_RATES : (isOnline && ratesQuery.data?.baseCurrency === base ? ratesQuery.data : cachedRates?.baseCurrency === base ? cachedRates : null) ?? null;
   const canEdit = !readOnly;
   const person = (id: string) => ledger?.participants.find(p => p.id === id)?.name ?? "Participante no disponible";
   const refreshLedger = useCallback(() => queryClient.invalidateQueries({ queryKey: getGetExpenseLedgerQueryKey(tripId) }), [queryClient, tripId]);
 
   useEffect(() => {
+    if (isDemo) return;
     let active = true;
     setStorageLoading(true);
     setCachedLedger(null);
@@ -136,37 +158,37 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
       .catch(e => { if (active) setStorageError(`No se pudo abrir el almacenamiento local: ${errorText(e)}`); })
       .finally(() => { if (active) setStorageLoading(false); });
     return () => { active = false; };
-  }, [userId, tripKey]);
+  }, [userId, tripKey, isDemo]);
 
   useEffect(() => {
-    if (!isOnline || !ledgerQuery.data) return;
+    if (isDemo || !isOnline || !ledgerQuery.data) return;
     setCachedLedger(ledgerQuery.data);
     void saveCachedLedgerSnapshot(userId, tripKey, ledgerQuery.data).catch(e => setStorageError(`No se pudo guardar una copia sin conexión: ${errorText(e)}`));
-  }, [isOnline, ledgerQuery.data, userId, tripKey]);
+  }, [isDemo, isOnline, ledgerQuery.data, userId, tripKey]);
 
   useEffect(() => {
-    if (!base) return;
+    if (isDemo || !base) return;
     let active = true;
     setCachedRates(null);
     loadLatestFxRates(userId, `${tripKey}:${base}`)
       .then(value => { if (active && value) setCachedRates({ baseCurrency: base, date: value.date, rates: value.rates }); })
       .catch(e => { if (active) setStorageError(`No se pudieron cargar los tipos de cambio: ${errorText(e)}`); });
     return () => { active = false; };
-  }, [userId, tripKey, base]);
+  }, [isDemo, userId, tripKey, base]);
 
   useEffect(() => {
     const data = ratesQuery.data;
-    if (!isOnline || !data || data.baseCurrency !== base) return;
+    if (isDemo || !isOnline || !data || data.baseCurrency !== base) return;
     setCachedRates(data);
     void saveDailyFxRates(userId, `${tripKey}:${data.baseCurrency}`, data.date, data.rates)
       .catch(e => setStorageError(`No se pudieron guardar los tipos de cambio: ${errorText(e)}`));
-  }, [isOnline, ratesQuery.data, base, userId, tripKey]);
+  }, [isDemo, isOnline, ratesQuery.data, base, userId, tripKey]);
 
   const createRef = useRef(createMutation.mutateAsync);
   createRef.current = createMutation.mutateAsync;
   const flush = useCallback(async () => {
     if (flushLock.current) { flushAgain.current = true; return; }
-    if (!isOnline || !canEdit || storageLoading || !ledger) return;
+    if (isDemo || !isOnline || !canEdit || storageLoading || !ledger) return;
     flushLock.current = true;
     setSyncing(true);
     setSyncError("");
@@ -210,14 +232,14 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
       setSyncingItem(null);
       if (!succeeded) flushAgain.current = false;
     }
-  }, [isOnline, canEdit, storageLoading, ledger, userId, tripKey, tripId, refreshLedger]);
+  }, [isDemo, isOnline, canEdit, storageLoading, ledger, userId, tripKey, tripId, refreshLedger]);
   const flushRef = useRef(flush);
   flushRef.current = flush;
   useEffect(() => {
-    if (isOnline && !storageLoading && ledger) void flushRef.current();
+    if (!isDemo && isOnline && !storageLoading && ledger) void flushRef.current();
     // Automatic replay on mount, connection restore, or first available ledger only.
     // Do not depend on pending or query object: a failed request must not loop.
-  }, [isOnline, storageLoading, !!ledger, userId, tripKey]);
+  }, [isDemo, isOnline, storageLoading, !!ledger, userId, tripKey]);
 
   const outstanding = pending.filter(item => !ledger?.expenses.some(expense => expense.clientId === item.clientId));
   const settlement = useMemo(() => {
@@ -288,6 +310,33 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
         return;
       }
       const body: ExpenseInput = { clientId: createExpenseClientId(), concept: values.concept.trim(), amountMinor, currency: values.currency, payerId: values.payerId, splits };
+      if (isDemo) {
+        if (demoSession.error) { setActionError(demoSession.error); return; }
+        const converted = estimate(body, baseCurrency, rates);
+        if (!converted) { setActionError("No hay un tipo de cambio de ejemplo para esa moneda."); return; }
+        const now = new Date().toISOString();
+        const expense: Expense = {
+          ...body, id: Math.min(0, ...ledger.expenses.map(item => item.id)) - 1,
+          baseAmountMinor: converted.baseAmountMinor,
+          rateToBase: values.currency === baseCurrency ? 1 : DEMO_EXPENSE_RATES.rates[values.currency],
+          rateDate: now.slice(0, 10), createdAt: now, createdBy: Number(userId),
+          splits: body.splits.map(split => ({
+            ...split,
+            baseAmountMinor: converted.splits.find(part => part.participantId === split.participantId)!.baseAmountMinor,
+          })),
+        };
+        const expenses = [expense, ...demoSession.expenses];
+        try {
+          sessionStorage.setItem(demoSessionKey(userId, tripId), JSON.stringify(expenses));
+        } catch {
+          setActionError("No se pudo guardar el gasto temporal en esta pestaña. Comprueba que el almacenamiento del navegador esté disponible.");
+          return;
+        }
+        setDemoSession({ expenses, error: "" });
+        form.reset(initialValues);
+        setExpenseOpen(false);
+        return;
+      }
       await enqueuePendingExpense(userId, tripKey, body);
       setPending(previous => [...previous, { clientId: body.clientId, body, enqueuedAt: Date.now() }]);
       form.reset(initialValues);
@@ -299,7 +348,7 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
   }
 
   async function changeBase(currency: ExpenseCurrency) {
-    if (!isOwner || !isOnline || !ledger || ledger.expenses.length || pending.length) return;
+    if (isDemo || !isOwner || !isOnline || !ledger || ledger.expenses.length || pending.length) return;
     setActionError("");
     try {
       await settingsMutation.mutateAsync({ tripId, data: { baseCurrency: currency } });
@@ -308,7 +357,7 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
   }
   async function addGuest() {
     const name = guestName.trim();
-    if (!name || name.length > 100 || !isOwner || !isOnline) return;
+    if (!name || name.length > 100 || !isOwner || !isOnline || isDemo) return;
     setActionError("");
     try {
       await addGuestMutation.mutateAsync({ tripId, data: { name } });
@@ -422,12 +471,12 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
           </div>}
         </div>
         <div className="mt-3">
-          <span data-testid="status-expenses-sync" className="text-xs font-medium text-[#476b67]">{syncing ? "Sincronizando…" : pending.length ? `${pending.length} pendiente${pending.length === 1 ? "" : "s"}` : "Gastos al día"}</span>
+          <span data-testid="status-expenses-sync" className="text-xs font-medium text-[#476b67]">{isDemo ? "Datos de ejemplo · los nuevos gastos se guardan solo en esta pestaña" : syncing ? "Sincronizando…" : pending.length ? `${pending.length} pendiente${pending.length === 1 ? "" : "s"}` : "Gastos al día"}</span>
         </div>
       </div>
 
-      {(actionError || storageError || syncError) && <div role="alert" data-testid="status-expenses-error" className="flex items-start gap-2 rounded-xl border border-[#e6c8b9] bg-[#fff4ed] p-3 text-sm text-[#884532]"><CircleAlert className="mt-0.5 h-4 w-4 shrink-0" /><div>{actionError || storageError || syncError}{syncError && isOnline && canEdit && <button type="button" data-testid="button-retry-sync" className="ml-2 font-semibold underline underline-offset-2" onClick={() => void flush()}>Reintentar</button>}</div></div>}
-      {!isOnline && <div role="status" data-testid="status-expenses-offline" className="flex items-start gap-2 rounded-xl border border-[#d9d8c5] bg-[#f7f3e7] p-3 text-sm text-[#6e6546]"><WifiOff className="mt-0.5 h-4 w-4 shrink-0" /> Sin conexión. Puedes guardar gastos en este dispositivo; se enviarán al volver a conectarte.</div>}
+      {(actionError || demoSession.error || storageError || syncError) && <div role="alert" data-testid="status-expenses-error" className="flex items-start gap-2 rounded-xl border border-[#e6c8b9] bg-[#fff4ed] p-3 text-sm text-[#884532]"><CircleAlert className="mt-0.5 h-4 w-4 shrink-0" /><div>{actionError || demoSession.error || storageError || syncError}{syncError && isOnline && canEdit && <button type="button" data-testid="button-retry-sync" className="ml-2 font-semibold underline underline-offset-2" onClick={() => void flush()}>Reintentar</button>}</div></div>}
+      {!isDemo && !isOnline && <div role="status" data-testid="status-expenses-offline" className="flex items-start gap-2 rounded-xl border border-[#d9d8c5] bg-[#f7f3e7] p-3 text-sm text-[#6e6546]"><WifiOff className="mt-0.5 h-4 w-4 shrink-0" /> Sin conexión. Puedes guardar gastos en este dispositivo; se enviarán al volver a conectarte.</div>}
       {(storageLoading || (isOnline && ledgerQuery.isLoading && !ledger)) ? <div className="space-y-3"><Skeleton className="h-24 rounded-xl" /><Skeleton className="h-40 rounded-xl" /><Skeleton className="h-28 rounded-xl" /></div> : !ledger ? (
         <div className="rounded-xl border border-dashed border-border bg-card p-8 text-center">
           <Coins className="mx-auto mb-3 h-8 w-8 text-[#8aa29b]" />
@@ -477,7 +526,7 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
               {!ledger.expenses.length ? <div className="px-6 py-12 text-center"><Coins className="mx-auto mb-3 h-8 w-8 text-[#9fb1a8]" /><p className="font-medium">La cuenta empieza aquí</p><p className="mx-auto mt-1 max-w-xs text-sm text-muted-foreground">Anota el primer gasto para que el grupo vea qué se pagó y cómo se reparte.</p>{canEdit && <Button data-testid="button-add-first-expense" variant="outline" className="mt-4" onClick={startExpense}>Añadir primer gasto</Button>}</div> :
                 !filteredExpenses.length ? <div className="px-6 py-12 text-center text-sm text-muted-foreground">No hay movimientos que coincidan con los filtros.</div> :
                 <>
-                  <div className="divide-y divide-border/70">{filteredExpenses.slice(0, visibleCount).map(expense => <article key={expense.id} data-testid={`expense-${expense.id}`} className="flex gap-3 px-4 py-4 sm:px-5"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#eaf0ea] text-[#49766a]"><ArrowDownRight className="h-5 w-5" /></div><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><h4 className="truncate font-semibold">{expense.concept}</h4><p className="mt-0.5 text-xs text-muted-foreground">Pagó {person(expense.payerId)} · {displayDate(expense.createdAt)}</p></div><div className="shrink-0 text-right"><p className="font-semibold tabular-nums">{money(expense.amountMinor, expense.currency)}</p>{expense.currency !== base && <p className="text-xs text-muted-foreground tabular-nums">{money(expense.baseAmountMinor, baseCurrency)}</p>}</div></div><div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground"><span>Entre {expense.splits.map(s => person(s.participantId)).join(", ")}</span><span>· cambio {displayDate(expense.rateDate)}</span></div></div>{canEdit && <div className="flex shrink-0 flex-col gap-1"><button type="button" data-testid={`button-edit-expense-${expense.id}`} disabled={!isOnline} onClick={() => startEditing(expense)} aria-label={`Editar gasto ${expense.concept}`} title="Editar gasto (requiere conexión)" className="rounded-md p-1 text-muted-foreground hover:bg-[#edf3ec] hover:text-[#225a54] disabled:opacity-40"><Pencil className="h-4 w-4" /></button><button type="button" data-testid={`button-delete-expense-${expense.id}`} disabled={!isOnline} onClick={() => setDeletingExpense(expense)} aria-label={`Eliminar gasto ${expense.concept}`} className="rounded-md p-1 text-muted-foreground hover:bg-[#fff1eb] hover:text-[#a4543e] disabled:opacity-40"><Trash2 className="h-4 w-4" /></button></div>}</article>)}</div>
+                  <div className="divide-y divide-border/70">{filteredExpenses.slice(0, visibleCount).map(expense => <article key={expense.id} data-testid={`expense-${expense.id}`} className="flex gap-3 px-4 py-4 sm:px-5"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#eaf0ea] text-[#49766a]"><ArrowDownRight className="h-5 w-5" /></div><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><h4 className="truncate font-semibold">{expense.concept}</h4><p className="mt-0.5 text-xs text-muted-foreground">Pagó {person(expense.payerId)} · {displayDate(expense.createdAt)}</p></div><div className="shrink-0 text-right"><p className="font-semibold tabular-nums">{money(expense.amountMinor, expense.currency)}</p>{expense.currency !== base && <p className="text-xs text-muted-foreground tabular-nums">{money(expense.baseAmountMinor, baseCurrency)}</p>}</div></div><div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground"><span>Entre {expense.splits.map(s => person(s.participantId)).join(", ")}</span><span>· cambio {displayDate(expense.rateDate)}</span></div></div>{canEdit && !isDemo && <div className="flex shrink-0 flex-col gap-1"><button type="button" data-testid={`button-edit-expense-${expense.id}`} disabled={!isOnline} onClick={() => startEditing(expense)} aria-label={`Editar gasto ${expense.concept}`} title="Editar gasto (requiere conexión)" className="rounded-md p-1 text-muted-foreground hover:bg-[#edf3ec] hover:text-[#225a54] disabled:opacity-40"><Pencil className="h-4 w-4" /></button><button type="button" data-testid={`button-delete-expense-${expense.id}`} disabled={!isOnline} onClick={() => setDeletingExpense(expense)} aria-label={`Eliminar gasto ${expense.concept}`} className="rounded-md p-1 text-muted-foreground hover:bg-[#fff1eb] hover:text-[#a4543e] disabled:opacity-40"><Trash2 className="h-4 w-4" /></button></div>}</article>)}</div>
                   <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3 sm:px-5"><p role="status" data-testid="text-expense-results" className="text-xs text-muted-foreground">Mostrando {Math.min(visibleCount, filteredExpenses.length)} de {filteredExpenses.length} {filteredExpenses.length === 1 ? "movimiento" : "movimientos"}</p>{visibleCount < filteredExpenses.length && <Button type="button" variant="outline" data-testid="button-load-more-expenses" onClick={() => setVisibleCount(count => count + 10)}>Cargar más movimientos</Button>}</div>
                 </>}
           </div>
@@ -488,8 +537,8 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
         <DialogHeader><DialogTitle className="font-serif text-2xl">Configuración de gastos</DialogTitle><DialogDescription>Moneda y personas que participan en los gastos del viaje.</DialogDescription></DialogHeader>
         {ledger && <div className="space-y-5 pt-2">
           {actionError && <p role="alert" className="text-sm text-destructive">{actionError}</p>}
-          <div><div className="flex items-center justify-between gap-3"><div><h3 className="text-sm font-semibold">Moneda de referencia</h3><p data-testid="text-base-currency" className="font-serif text-xl text-[#225a54]">{base}</p></div>{isOwner && !ledger.expenses.length && !pending.length && <select data-testid="select-base-currency" aria-label="Moneda base del viaje" value={base} onChange={e => void changeBase(e.target.value as ExpenseCurrency)} disabled={!isOnline || settingsMutation.isPending} className="rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium">{CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}</select>}</div><p className="mt-1 text-xs text-muted-foreground">{ledger.expenses.length || pending.length ? "La moneda base queda fijada tras el primer gasto." : "La persona propietaria puede cambiarla antes del primer gasto."}</p><p className="mt-2 text-xs text-muted-foreground" data-testid="text-fx-date">{rates ? <>Tipo de cambio {displayDate(rates.date)}{!isOnline ? " · copia guardada, puede estar desactualizada" : ""}</> : "Tipos de cambio no disponibles; las conversiones pendientes no se estimarán."}{isOnline && ratesQuery.isError && <span className="ml-1 text-[#9a5c3b]">No se pudieron actualizar los tipos.</span>}</p></div>
-          <div className="border-t border-border pt-4"><div className="mb-3 flex items-center justify-between gap-2"><h3 className="flex items-center gap-2 text-sm font-semibold"><Users className="h-4 w-4 text-[#42766d]" /> Participantes</h3>{isOwner && <button type="button" data-testid="button-add-guest" disabled={!isOnline} onClick={() => { setSettingsOpen(false); setGuestOpen(true); }} className="text-xs font-semibold text-[#225a54] hover:underline disabled:opacity-40">+ Invitado</button>}</div><div className="flex flex-wrap gap-1.5">{ledger.participants.map(p => <span key={p.id} data-testid={`participant-${p.id}`} className={`inline-flex items-center gap-1.5 rounded-full border py-1 pl-2.5 pr-2 text-xs ${p.active ? "border-[#e0e7df] bg-[#f5f6ee] text-[#38524b]" : "border-border bg-muted/40 text-muted-foreground"}`}>{p.name}{p.kind === "guest" && <span className="text-[#8a9188]">· invitado</span>}{!p.active && <span>· histórico</span>}{isOwner && p.kind === "guest" && p.active && <button type="button" data-testid={`button-remove-guest-${p.id}`} disabled={!isOnline} onClick={() => { setSettingsOpen(false); setDeletingGuest(p); }} aria-label={`Eliminar invitado ${p.name}`} className="ml-0.5 text-[#9b6150] hover:text-[#703728] disabled:opacity-40"><Trash2 className="h-3 w-3" /></button>}</span>)}</div><p className="mt-3 text-xs leading-relaxed text-muted-foreground">Solo la persona propietaria, las cuentas que comparten este viaje y los invitados con nombre participan en el reparto. El enlace público no participa.</p></div>
+          <div><div className="flex items-center justify-between gap-3"><div><h3 className="text-sm font-semibold">Moneda de referencia</h3><p data-testid="text-base-currency" className="font-serif text-xl text-[#225a54]">{base}</p></div>{isOwner && !isDemo && !ledger.expenses.length && !pending.length && <select data-testid="select-base-currency" aria-label="Moneda base del viaje" value={base} onChange={e => void changeBase(e.target.value as ExpenseCurrency)} disabled={!isOnline || settingsMutation.isPending} className="rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium">{CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}</select>}</div><p className="mt-1 text-xs text-muted-foreground">{isDemo ? "Moneda fija del ejemplo." : ledger.expenses.length || pending.length ? "La moneda base queda fijada tras el primer gasto." : "La persona propietaria puede cambiarla antes del primer gasto."}</p><p className="mt-2 text-xs text-muted-foreground" data-testid="text-fx-date">{isDemo ? "Importes de muestra con conversiones orientativas." : rates ? <>Tipo de cambio {displayDate(rates.date)}{!isOnline ? " · copia guardada, puede estar desactualizada" : ""}</> : "Tipos de cambio no disponibles; las conversiones pendientes no se estimarán."}{!isDemo && isOnline && ratesQuery.isError && <span className="ml-1 text-[#9a5c3b]">No se pudieron actualizar los tipos.</span>}</p></div>
+          <div className="border-t border-border pt-4"><div className="mb-3 flex items-center justify-between gap-2"><h3 className="flex items-center gap-2 text-sm font-semibold"><Users className="h-4 w-4 text-[#42766d]" /> Participantes</h3>{isOwner && !isDemo && <button type="button" data-testid="button-add-guest" disabled={!isOnline} onClick={() => { setSettingsOpen(false); setGuestOpen(true); }} className="text-xs font-semibold text-[#225a54] hover:underline disabled:opacity-40">+ Invitado</button>}</div><div className="flex flex-wrap gap-1.5">{ledger.participants.map(p => <span key={p.id} data-testid={`participant-${p.id}`} className={`inline-flex items-center gap-1.5 rounded-full border py-1 pl-2.5 pr-2 text-xs ${p.active ? "border-[#e0e7df] bg-[#f5f6ee] text-[#38524b]" : "border-border bg-muted/40 text-muted-foreground"}`}>{p.name}{p.kind === "guest" && <span className="text-[#8a9188]">· invitado</span>}{!p.active && <span>· histórico</span>}{isOwner && !isDemo && p.kind === "guest" && p.active && <button type="button" data-testid={`button-remove-guest-${p.id}`} disabled={!isOnline} onClick={() => { setSettingsOpen(false); setDeletingGuest(p); }} aria-label={`Eliminar invitado ${p.name}`} className="ml-0.5 text-[#9b6150] hover:text-[#703728] disabled:opacity-40"><Trash2 className="h-3 w-3" /></button>}</span>)}</div><p className="mt-3 text-xs leading-relaxed text-muted-foreground">{isDemo ? "Personas ficticias para probar el reparto de gastos." : "Solo la persona propietaria, las cuentas que comparten este viaje y los invitados con nombre participan en el reparto. El enlace público no participa."}</p></div>
         </div>}
       </DialogContent></Dialog>
       <Dialog open={expenseOpen} onOpenChange={open => { setExpenseOpen(open); if (!open) setEditingExpense(null); }}><DialogContent className="max-h-[min(90dvh,850px)] w-[calc(100vw-1.5rem)] max-w-lg overflow-y-auto rounded-xl">
@@ -500,7 +549,7 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
           <FormField control={form.control} name="amount" render={({ field }) => <FormItem><FormLabel>Importe ({chosenCurrency})</FormLabel><FormControl><Input data-testid="input-expense-amount" inputMode="decimal" placeholder={chosenCurrency === "JPY" ? "2400" : "24,50"} className={fieldClass} {...field} /></FormControl><FormMessage /></FormItem>} />
           <button type="button" data-testid="button-expense-advanced" aria-expanded={advancedOpen} onClick={() => setAdvancedOpen(!advancedOpen)} className="w-full rounded-lg border border-border bg-muted/30 px-3 py-2 text-left text-sm font-medium text-[#225a54] hover:bg-muted/60">{advancedOpen ? "Ocultar opciones" : "Cambiar pagador, moneda o reparto"}</button>
           <div className={advancedOpen ? "space-y-4" : "hidden"}>
-          <FormField control={form.control} name="currency" render={({ field }) => <FormItem><FormLabel>Moneda del gasto</FormLabel><FormControl><select data-testid="select-expense-currency" aria-label="Moneda del gasto" className={`${fieldClass} w-full px-3`} {...field}>{CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}</select></FormControl><FormMessage /></FormItem>} />
+          <FormField control={form.control} name="currency" render={({ field }) => <FormItem><FormLabel>Moneda del gasto</FormLabel><FormControl><select data-testid="select-expense-currency" aria-label="Moneda del gasto" className={`${fieldClass} w-full px-3`} {...field}>{(isDemo ? CURRENCIES.filter(c => c === "EUR" || c === "JPY") : CURRENCIES).map(c => <option key={c} value={c}>{c}</option>)}</select></FormControl><FormMessage /></FormItem>} />
           <FormField control={form.control} name="payerId" render={({ field }) => <FormItem><FormLabel>Pagó</FormLabel><FormControl><select data-testid="select-expense-payer" className={`${fieldClass} w-full px-3`} {...field}><option value="">Selecciona una persona</option>{formParticipants.map(p => <option key={p.id} value={p.id}>{p.name}{!p.active ? " (histórico)" : ""}</option>)}</select></FormControl><FormMessage /></FormItem>} />
           <div className="border-t border-border pt-4"><p className="text-sm font-semibold">¿Entre quiénes se reparte?</p><p className="mt-0.5 text-xs text-muted-foreground">Puedes incluir a quien pagó o dejarlo fuera.</p>
             <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">{formParticipants.map(p => <label key={p.id} className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-border bg-muted/30 px-3 py-2.5 text-sm"><input data-testid={`checkbox-split-${p.id}`} type="checkbox" checked={selected.includes(p.id)} onChange={e => { form.setValue("selected", e.target.checked ? [...selected, p.id] : selected.filter(id => id !== p.id), { shouldValidate: true }); form.clearErrors("selected"); }} className="accent-[#225a54]" /><span className="truncate">{p.name}{!p.active ? " (histórico)" : ""}</span></label>)}</div>
@@ -509,7 +558,7 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
           <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted/50 p-1"><button type="button" data-testid="button-equal-split" onClick={() => { form.setValue("splitMode", "equal"); form.clearErrors("custom"); }} className={`rounded-md px-3 py-2 text-sm font-medium ${splitMode === "equal" ? "bg-card text-[#225a54] shadow-sm" : "text-muted-foreground"}`}>A partes iguales</button><button type="button" data-testid="button-custom-split" onClick={() => form.setValue("splitMode", "custom")} className={`rounded-md px-3 py-2 text-sm font-medium ${splitMode === "custom" ? "bg-card text-[#225a54] shadow-sm" : "text-muted-foreground"}`}>Importes a medida</button></div>
           {splitMode === "custom" && <div className="space-y-2">{selected.map(id => <div key={id} className="flex items-center gap-3"><label htmlFor={`custom-${id}`} className="min-w-0 flex-1 truncate text-sm">{person(id)}</label><Input id={`custom-${id}`} data-testid={`input-custom-split-${id}`} inputMode="decimal" placeholder={chosenCurrency === "JPY" ? "0" : "0,00"} className="w-32" value={form.watch(`custom.${id}`) ?? ""} onChange={e => { form.setValue(`custom.${id}`, e.target.value); form.clearErrors("custom"); }} /><span className="w-9 text-xs text-muted-foreground">{chosenCurrency}</span></div>)}{form.formState.errors.custom && <p role="alert" className="text-xs text-destructive">{typeof form.formState.errors.custom.message === "string" ? form.formState.errors.custom.message : "Comprueba el reparto."}</p>}<p className="text-xs text-muted-foreground">Los importes deben sumar el total en {chosenCurrency}, no en {base}.</p></div>}
           </div>
-          <div className="rounded-lg bg-[#f5f3e9] px-3 py-2 text-xs text-[#736b54]">{isOnline ? "Primero se guarda en este dispositivo y luego se sincroniza." : "Sin conexión: quedará pendiente en este dispositivo hasta que vuelva la red."}</div>
+          <div className="rounded-lg bg-[#f5f3e9] px-3 py-2 text-xs text-[#736b54]">{isDemo ? "Modo demo: el gasto se guardará solo en esta pestaña y desaparecerá al cerrar sesión." : isOnline ? "Primero se guarda en este dispositivo y luego se sincroniza." : "Sin conexión: quedará pendiente en este dispositivo hasta que vuelva la red."}</div>
           <DialogFooter><Button type="button" data-testid="button-cancel-expense" variant="outline" onClick={() => { setExpenseOpen(false); setEditingExpense(null); }}>Cancelar</Button><Button type="submit" data-testid="button-save-expense" disabled={savingLocal} className="bg-[#225a54] hover:bg-[#194a45]">{savingLocal ? "Guardando…" : editingExpense ? "Guardar cambios" : "Guardar gasto"}</Button></DialogFooter>
         </form></Form>
       </DialogContent></Dialog>

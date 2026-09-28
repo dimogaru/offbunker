@@ -301,6 +301,11 @@ export default function TripDetail() {
   const { user, logout } = useAuth();
   const isOnline = useOnlineStatus();
   const queryClient = useQueryClient();
+  const { data: trip, isLoading } = useGetTrip(tripId, {
+    query: { enabled: !!tripId, queryKey: getGetTripQueryKey(tripId) },
+  });
+  const isDemoTokyo = user?.role === "demo" &&
+    trip?.name === "Exploración de Tokio" && trip.destination === "Tokio, Japón";
 
   async function handleLogout() {
     if (user) clearPersistedQueryCacheForUser(String(user.id));
@@ -309,11 +314,11 @@ export default function TripDetail() {
     window.location.replace("/login");
   }
 
-  const visibleModules = user?.role === "demo"
+  const visibleModules = user?.role === "demo" && !isDemoTokyo
     ? MODULES.filter((module) => module.id !== "expenses")
     : MODULES;
   const activeModule: ModuleId = VALID_IDS.includes(moduleParam ?? "") &&
-    !(user?.role === "demo" && moduleParam === "expenses")
+    !(user?.role === "demo" && !isDemoTokyo && moduleParam === "expenses")
     ? (moduleParam as ModuleId)
     : "flights";
 
@@ -327,10 +332,6 @@ export default function TripDetail() {
     navigate(`/trips/${tripId}/${mod}`);
     document.getElementById("module-main")?.scrollTo({ top: 0, behavior: "instant" });
   }
-
-  const { data: trip, isLoading } = useGetTrip(tripId, {
-    query: { enabled: !!tripId, queryKey: getGetTripQueryKey(tripId) },
-  });
 
   // Permission is injected by the API into the trip response
   const permission = (trip as Record<string, unknown> | undefined)?.permission as
@@ -499,8 +500,8 @@ export default function TripDetail() {
             {activeModule === "itinerary"     && <ItineraryModule tripId={tripId} readOnly={readOnly || !isOnline} localDocumentsEnabled={!readOnly && !isOnline} />}
             {activeModule === "vault"         && <DocumentsModule tripId={tripId} coverImageUrl={trip.coverImage} readOnly={readOnly || !isOnline} localDocumentsEnabled={!readOnly && !isOnline} />}
             {activeModule === "baggage"       && <BaggageModule tripId={tripId} readOnly={!isOnline} />}
-            {activeModule === "expenses" && user?.role !== "demo" && user && (
-              <ExpensesModule tripId={tripId} readOnly={readOnly} isOwner={isOwner} userId={String(user.id)} isOnline={isOnline} />
+            {activeModule === "expenses" && user && (user.role !== "demo" || isDemoTokyo) && (
+              <ExpensesModule key={`${user.id}:${tripId}`} tripId={tripId} readOnly={readOnly} isOwner={isOwner} userId={String(user.id)} isOnline={isOnline} isDemo={isDemoTokyo} />
             )}
           </div>
         </main>

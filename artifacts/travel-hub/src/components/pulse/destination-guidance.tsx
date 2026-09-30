@@ -6,6 +6,7 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, Di
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/hooks/use-auth";
 import { useOnlineStatus } from "@/hooks/use-online-status";
+import { ELECTRICITY_SOURCE_URL } from "@/lib/pulse/country-types";
 import { getPlaceGuidance } from "@/lib/pulse/guidance";
 
 interface Props {
@@ -123,7 +124,7 @@ export default function DestinationGuidance({ tripId, destination }: Props) {
 
                 <TabsContent value="electricidad" className="space-y-2 pt-1">
                   <div className="grid gap-2 sm:grid-cols-2">
-                    <Detail icon={PlugZap} label="Enchufes y tensión"><strong>Tipo {place.plugs}</strong> · {place.voltage}<span className="mt-1 block text-xs text-muted-foreground">Comprueba la compatibilidad de tus dispositivos.</span></Detail>
+                    <Detail icon={PlugZap} label="Enchufes y tensión"><strong>Tipo {place.plugs}</strong> · {place.voltage}<span className="mt-1 block text-xs text-muted-foreground">Comprueba la compatibilidad de tus dispositivos. <a href={ELECTRICITY_SOURCE_URL} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2">Referencia eléctrica</a></span></Detail>
                     <Detail icon={Wallet} label="Moneda"><strong>{place.currency}</strong><span className="mt-1 block text-xs text-muted-foreground">Código {place.currencyCode}</span></Detail>
                   </div>
                   <div className="rounded-xl border border-border bg-muted/40 p-3" data-testid="card-reference-converter">
@@ -165,7 +166,7 @@ export default function DestinationGuidance({ tripId, destination }: Props) {
 
                 <TabsContent value="salud" className="space-y-2 pt-1">
                   <Detail icon={Droplets} label="Agua del grifo">
-                    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${place.tapWaterStatus === "Potable" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"}`}>{place.tapWaterStatus} en general</span>
+                    <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${place.tapWaterStatus === "Potable" ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300" : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"}`}>{place.tapWaterStatus === "Potable" ? "Habitualmente potable" : place.tapWaterStatus === "Consultar" ? "Consultar localmente" : "No potable"}</span>
                     <span className="mt-1 block text-xs text-muted-foreground">{place.tapWater}</span>
                   </Detail>
                   <div className="grid grid-cols-2 gap-2">
@@ -184,9 +185,17 @@ export default function DestinationGuidance({ tripId, destination }: Props) {
               {(!rentals && !isOnline || rentalsError) && <p className="mt-2 text-[11px] text-muted-foreground">No se pudieron revisar los transportes; se muestran solo los lugares disponibles.</p>}
             </>
           ) : (
-            <div className="flex items-start gap-2 rounded-xl border border-border bg-muted/40 p-4 text-xs text-muted-foreground" role="status">
-              <CircleHelp className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
-              <p>No hay orientación verificada para este destino{rentalsLoading ? " todavía" : ""}. {isOnline ? "Añade un país explícito al viaje o a Transportes para mostrar referencias." : "Sin conexión; no hay datos locales suficientes para identificar el país."}</p>
+            <div className="rounded-xl border border-border bg-muted/40 p-4 text-sm" role="status" data-testid="card-guidance-unknown">
+              <h3 className="flex items-center gap-2 font-semibold"><CircleHelp className="h-4 w-4 shrink-0 text-primary" aria-hidden="true" /> Consejos generales para tu viaje</h3>
+              <p className="mt-1 break-words text-xs text-muted-foreground">
+                No hay una ficha específica para {destination ? <strong>{destination}</strong> : "este destino"}{rentalsLoading ? " todavía" : ""}. No damos por hecho datos locales.
+              </p>
+              <ul className="mt-3 space-y-2 text-xs leading-relaxed text-foreground">
+                <li><strong>Enchufes:</strong> comprueba tipo, voltaje y compatibilidad de tus dispositivos antes de llevar un adaptador. <a href={ELECTRICITY_SOURCE_URL} target="_blank" rel="noopener noreferrer" className="text-primary underline underline-offset-2">Referencia eléctrica</a>.</li>
+                <li><strong>Entrada y visado:</strong> consulta la embajada o consulado oficial del destino para tu pasaporte, ruta y fechas.</li>
+                <li><strong>Pagos y conectividad:</strong> lleva un medio de pago alternativo y consulta a tu operador el roaming; una eSIM es opcional.</li>
+                <li><strong>Agua y emergencias:</strong> confirma la potabilidad y los teléfonos locales en fuentes oficiales. No uses números de otro país.</li>
+              </ul>
             </div>
           )}
         </div>

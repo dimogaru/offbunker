@@ -1,0 +1,34 @@
+INSPECCIÓN Y AMPLIACIÓN DE LA BASE DE DATOS DE PAÍSES EN OFFBUNKER PULSE
+
+OBJETIVO:
+1. Inspeccionar qué lista/diccionario de países está configurada actualmente en OffBunker Pulse y mostrármela.
+2. Ampliar el dataset local de países para que cubra automáticamente los principales destinos turísticos y de viaje del mundo con datos oficiales.
+
+INSTRUCCIONES PARA REPLIT / AGENT:
+
+1. REVISIÓN Y MUESTRA DE DATOS ACTUALES:
+   - Localiza el archivo donde están definidos los datos de OffBunker Pulse (ej. 'pulseData.ts', 'constants.ts' o similar).
+   - Lista en el chat qué países están creados actualmente y qué campos contienen.
+
+2. AMPLIACIÓN DEL DATASET A COBERURA MUNDIAL (+30 DESTINOS PRINCIPALES):
+   - Amplía el objeto/JSON de países para incluir de serie los principales destinos de viaje:
+     * EUROPA: España, Francia, Italia, Portugal, Reino Unido, Alemania, Holanda, Suiza, Grecia, Austria, Irlanda, Noruega, Islandia.
+     * AMÉRICA: Estados Unidos, Canadá, México, Brasil, Argentina, Costa Rica, Perú, Colombia.
+     * ASIA/OCEANÍA: Japón, China, Tailandia, Indonesia (Bali), Vietnam, Corea del Sur, Singapur, Emiratos Árabes Unidos (Dubái), Australia, Nueva Zelanda.
+     * ÁFRICA: Marruecos, Egipto, Sudáfrica.
+
+3. ESTRUCTURA DE DATOS COMPLETA POR PAÍS:
+   Asegúrate de que cada país en el objeto tenga definidos todos los campos requeridos para las pestañas de Pulse:
+   - countryCode / countryName
+   - plugType (Tipos de enchufe: Ej. "Tipo A / B", "Tipo G", "Tipo C / F")
+   - voltage (Voltaje y frecuencia: Ej. "110V / 60Hz", "230V / 50Hz")
+   - currency (Moneda oficial y código ISO: Ej. "USD", "JPY", "GBP", "EUR")
+   - tippingPolicy (Consejos sobre propinas)
+   - paymentPreference ("Principalmente tarjeta (Cashless)", "Efectivo necesario", etc.)
+   - transportApps (Apps de VTC/Taxi recomendadas: Ej. Uber, Grab, Bolt, KakaoT)
+   - tapWater (Potable / No potable / Embotellada recomendada)
+   - emergencyNumbers (Policía/Emergencias)
+   - visaInfo (Notas sobre visado/ESTA/ETA si aplica)
+
+4. FALLBACK GENERAL (PAÍS DESCONOCIDO):
+   - Si el usuario introduce un país que aún no está en el dataset de Pulse, muestra una tarjeta genérica con consejos estándar de viaje y una recomendación para verificar el tipo de enchufe/visado en la embajada oficial, evitando que el modal aparezca vacío.

@@ -23,6 +23,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { Checkbox } from "@/components/ui/checkbox";
+import BunkerVerification from "@/components/pulse/bunker-verification";
 
 // ── iOS / Blob helpers ────────────────────────────────────────────────────────
 function isIOS(): boolean {
@@ -159,9 +160,11 @@ interface Props {
   coverImageUrl?: string | null;
   readOnly?: boolean;
   localDocumentsEnabled?: boolean;
+  userId: string | null;
+  isDemo: boolean;
 }
 
-export default function DocumentsModule({ tripId, coverImageUrl, readOnly, localDocumentsEnabled }: Props) {
+export default function DocumentsModule({ tripId, coverImageUrl, readOnly, localDocumentsEnabled, userId, isDemo }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -431,17 +434,20 @@ export default function DocumentsModule({ tripId, coverImageUrl, readOnly, local
 
   return (
     <div>
-      <div className="flex items-start justify-between mb-4">
-        <div>
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+        <div className="min-w-0">
           <h2 className="text-lg font-bold">Bóveda de Documentos</h2>
           <p className="text-muted-foreground text-sm mt-0.5">Guarda tarjetas de embarque, seguros, visados y más</p>
         </div>
-        {(!readOnly || localDocumentsEnabled) && (
-          <Button onClick={onOpenDialog} className="gap-2 flex-shrink-0" data-testid="button-add">
-            <Paperclip className="w-4 h-4" />
-            Subir
-          </Button>
-        )}
+        <div className="flex flex-wrap items-center gap-2 ml-auto">
+          <BunkerVerification tripId={tripId} ownerId={userId} isDemo={isDemo} />
+          {(!readOnly || localDocumentsEnabled) && (
+            <Button onClick={onOpenDialog} className="gap-2 flex-shrink-0" data-testid="button-add">
+              <Paperclip className="w-4 h-4" />
+              Subir
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* ── Offline sync banner (automatic — no manual controls) ── */}

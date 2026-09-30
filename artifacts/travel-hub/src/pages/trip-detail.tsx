@@ -19,7 +19,6 @@ import ItineraryModule from "@/components/modules/itinerary-module";
 import DocumentsModule from "@/components/modules/documents-module";
 import BaggageModule from "@/components/modules/baggage-module";
 import ExpensesModule from "@/components/modules/expenses-module";
-import PulsePanel from "@/components/pulse/pulse-panel";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -382,7 +381,7 @@ export default function TripDetail() {
     <div className="min-h-screen bg-background flex flex-col">
       {/* ── Top header ── */}
       <header className="border-b border-border bg-sidebar text-sidebar-foreground sticky top-0 z-20">
-        <div className="px-3 sm:px-5 h-14 flex items-center gap-2">
+        <div className="px-3 sm:px-5 min-h-14 h-auto flex flex-wrap items-center gap-2 py-2">
           <Link href="/">
             <button
               className="p-2 rounded-md hover:bg-sidebar-accent transition-colors flex-shrink-0"
@@ -494,16 +493,14 @@ export default function TripDetail() {
           <div className="mb-5">
             <TripProgressBar tripId={tripId} />
           </div>
-          <PulsePanel tripId={tripId} ownerId={user?.id != null ? String(user.id) : null} destination={trip.destination} isDemo={user?.role === "demo"} />
-
           <div key={activeModule} className="max-w-3xl animate-in fade-in slide-in-from-bottom-2 duration-300">
             {activeModule === "flights"       && <FlightsModule tripId={tripId} readOnly={readOnly || !isOnline} localDocumentsEnabled={!readOnly && !isOnline} />}
             {activeModule === "parking"       && <ParkingModule tripId={tripId} readOnly={readOnly || !isOnline} localDocumentsEnabled={!readOnly && !isOnline} />}
             {activeModule === "rental"        && <RentalsModule tripId={tripId} readOnly={readOnly || !isOnline} localDocumentsEnabled={!readOnly && !isOnline} />}
             {activeModule === "accommodation" && <AccommodationsModule tripId={tripId} readOnly={readOnly || !isOnline} localDocumentsEnabled={!readOnly && !isOnline} />}
             {activeModule === "itinerary"     && <ItineraryModule tripId={tripId} readOnly={readOnly || !isOnline} localDocumentsEnabled={!readOnly && !isOnline} />}
-            {activeModule === "vault"         && <DocumentsModule tripId={tripId} coverImageUrl={trip.coverImage} readOnly={readOnly || !isOnline} localDocumentsEnabled={!readOnly && !isOnline} />}
-            {activeModule === "baggage"       && <BaggageModule tripId={tripId} readOnly={!isOnline} />}
+            {activeModule === "vault"         && <DocumentsModule tripId={tripId} coverImageUrl={trip.coverImage} readOnly={readOnly || !isOnline} localDocumentsEnabled={!readOnly && !isOnline} userId={user?.id != null ? String(user.id) : null} isDemo={user?.role === "demo"} />}
+            {activeModule === "baggage"       && <BaggageModule tripId={tripId} destination={trip.destination} readOnly={!isOnline} />}
             {activeModule === "expenses" && user && (user.role !== "demo" || isDemoTokyo) && (
               <ExpensesModule key={`${user.id}:${tripId}`} tripId={tripId} readOnly={readOnly} isOwner={isOwner} userId={String(user.id)} isOnline={isOnline} isDemo={isDemoTokyo} />
             )}

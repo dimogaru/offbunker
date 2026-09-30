@@ -1,5 +1,5 @@
-import { getListFlightsQueryKey, getListAccommodationsQueryKey } from "@workspace/api-client-react";
-import type { Flight, Accommodation } from "@workspace/api-client-react";
+import { getListFlightsQueryKey, getListAccommodationsQueryKey, getListDocumentsQueryKey } from "@workspace/api-client-react";
+import type { Flight, Accommodation, Document } from "@workspace/api-client-react";
 import { persistedQueryCacheKey } from "@/lib/query-cache";
 import { listLocalDocuments } from "@/lib/local-documents";
 import { loadCachedLedgerSnapshot, loadLatestFxRates } from "@/lib/expenses/offline-store";
@@ -7,6 +7,13 @@ import { loadCachedLedgerSnapshot, loadLatestFxRates } from "@/lib/expenses/offl
 export type CheckState = "verified" | "missing" | "unverified";
 export interface PulseCheck { label: string; state: CheckState; detail: string }
 export interface PulseResult { checks: PulseCheck[]; ready: boolean }
+
+type DescribedDocument = { module: string; name: string; notes?: string | null; fileType: string };
+const isPassport = (doc: DescribedDocument) => /\b(pasaportes?|passports?)\b/i.test(`${doc.name} ${doc.notes ?? ""}`);
+const isReservationPdf = (doc: DescribedDocument) =>
+  (doc.fileType.toLowerCase().includes("pdf") || /\.pdf$/i.test(doc.name)) &&
+  (["flights", "accommodation", "rental", "parking", "itinerary"].includes(doc.module) ||
+    (doc.module === "vault" && /\b(reservas?|reservaci[oó]n|confirmaci[oó]n|booking|hotel)\b/i.test(`${doc.name} ${doc.notes ?? ""}`)));
 
 function savedQuery<T>(ownerId: string, queryKey: readonly unknown[]): T | null {
   const raw = localStorage.getItem(persistedQueryCacheKey(ownerId));
@@ -28,9 +35,12 @@ export async function verifyBunker(ownerId: string, tripId: number): Promise<Pul
   const checks: PulseCheck[] = [];
   let flights: Flight[] | null = null;
   let accommodations: Accommodation[] | null = null;
+  let remoteDocuments: Document[] | null = null;
   try {
     flights = savedQuery<Flight[]>(ownerId, getListFlightsQueryKey(tripId));
     accommodations = savedQuery<Accommodation[]>(ownerId, getListAccommodationsQueryKey(tripId));
+    const documents = savedQuery<Document[]>(ownerId, getListDocumentsQueryKey(tripId));
+    if (Array.isArray(documents) && documents.every(doc => doc.tripId === tripId)) remoteDocuments = documents;
   } catch {
     // Damaged or inaccessible localStorage is not evidence of availability.
   }
@@ -42,20 +52,62 @@ export async function verifyBunker(ownerId: string, tripId: number): Promise<Pul
     detail: flightsValid ? `${flights!.length} vuelo(s) con ruta, número y horario en caché persistida.` : "No se encontraron vuelos completos en la caché persistida de este viaje.",
   });
 
+  let localDocuments: Awaited<ReturnType<typeof listLocalDocuments>> | null = null;
   try {
-    const docs = await listLocalDocuments(ownerId, tripId);
-    const allTickets = flightsValid && flights!.every(f =>
-      docs.some(d => d.module === "flights" && d.notes === `flightId:${f.id}` && d.blob instanceof Blob && d.blob.size > 0),
-    );
-    checks.push({
-      label: "Archivos de billetes disponibles",
-      state: allTickets ? "verified" : "unverified",
-      detail: allTickets
-        ? "Archivo local asociado a cada vuelo y guardado en este dispositivo; no se verifica el contenido del billete."
-        : "No se puede verificar un archivo local para cada vuelo. Un enlace o archivo del servidor no demuestra que esté descargado.",
-    });
+    localDocuments = await listLocalDocuments(ownerId, tripId);
   } catch {
-    checks.push({ label: "Archivos de billetes disponibles", state: "unverified", detail: "No se pudo leer el almacén local de documentos; descarga no verificada." });
+    // A failed IndexedDB read cannot establish local availability.
+  }
+  const availableRemoteIds = new Set<number>();
+  let remoteCacheReadable = false;
+  if (remoteDocuments && typeof caches !== "undefined") {
+    try {
+      const cache = await caches.open("travelhub-uploads-v2");
+      remoteCacheReadable = true;
+      for (const doc of remoteDocuments) {
+        if (typeof doc.fileUrl !== "string" || !/^\/(?:api\/)?uploads\//.test(doc.fileUrl)) continue;
+        const response = await cache.match(doc.fileUrl);
+        if (response?.ok && (await response.clone().blob()).size > 0) availableRemoteIds.add(doc.id);
+      }
+    } catch {
+      remoteCacheReadable = false;
+    }
+  }
+  const localAvailable = (doc: { blob: Blob }) => doc.blob instanceof Blob && doc.blob.size > 0;
+  const allTickets = flightsValid && flights!.every(f =>
+    (localDocuments?.some(doc => doc.module === "flights" && doc.notes === `flightId:${f.id}` && localAvailable(doc)) ?? false) ||
+    (remoteDocuments?.some(doc => doc.module === "flights" && doc.notes === `flightId:${f.id}` && availableRemoteIds.has(doc.id)) ?? false),
+  );
+  checks.push({
+    label: "Archivos de billetes disponibles",
+    state: allTickets ? "verified" : "unverified",
+    detail: allTickets
+      ? "Hay un archivo local o en caché asociado a cada vuelo; no se verifica el contenido del billete."
+      : "No se pudo confirmar un archivo descargado para cada vuelo. Un enlace no demuestra que esté disponible sin conexión.",
+  });
+
+  for (const { label, matches } of [
+    { label: "Pasaportes disponibles sin conexión", matches: isPassport },
+    { label: "PDFs de reservas disponibles sin conexión", matches: isReservationPdf },
+  ]) {
+    const localMatches = localDocuments?.filter(matches) ?? [];
+    const remoteMatches = remoteDocuments?.filter(matches) ?? [];
+    const complete = localMatches.length + remoteMatches.length > 0 &&
+      localMatches.every(localAvailable) &&
+      remoteMatches.every(doc => availableRemoteIds.has(doc.id));
+    const state: CheckState = !localDocuments || !remoteDocuments || !remoteCacheReadable
+      ? "unverified" : complete ? "verified" : "missing";
+    checks.push({
+      label,
+      state,
+      detail: state === "verified"
+        ? `${localMatches.length + remoteMatches.length} archivo(s) etiquetado(s) y con bytes disponibles en este dispositivo; no se valida su contenido, identidad ni vigencia.`
+        : !remoteDocuments
+          ? "No hay una lista persistida de documentos del viaje: no se puede confirmar que estén todos descargados."
+          : !localDocuments || !remoteCacheReadable
+            ? "No se pudo leer el almacén local o la caché de archivos; disponibilidad no verificada."
+            : "Faltan archivos etiquetados de este tipo o alguno no tiene una copia local utilizable.",
+    });
   }
 
   const staysValid = Array.isArray(accommodations) && accommodations.length > 0 &&

@@ -485,20 +485,16 @@ export default function LoginPage() {
                 <div className="ob-plan-footer">Comparte tus viajes con hasta 2 acompañantes sin coste adicional. El enlace público es para consultar, no para editar.</div>
               </article>
               <article className="ob-plan">
-                <div className="ob-plan-top"><span className="ob-plan-label ob-mono">Regalo para los primeros usuarios</span><span className="ob-soon">PRO Beta ⚡</span></div>
-                <h3>PRO Beta</h3>
-                <p className="mt-4 text-xs font-bold uppercase tracking-wide text-[#315e55]">Disponible ahora con PRO Beta</p>
-                <ul className="mt-2 space-y-3 text-sm leading-relaxed text-[#55706a]">
+                <div className="ob-plan-top"><span className="ob-plan-label ob-mono">Para quienes viajan más</span><span className="ob-soon">Próximamente</span></div>
+                <h3>Pro</h3>
+                <ul className="mt-4 space-y-3 text-sm leading-relaxed text-[#55706a]">
                   <li>Viajes ilimitados (almacena y organiza todos tus viajes pasados y futuros)</li>
                   <li>Gastos y repartos ilimitados por viaje</li>
-                </ul>
-                <p className="mt-4 text-xs font-bold uppercase tracking-wide text-[#315e55]">Vistas previas y propuestas futuras</p>
-                <ul className="mt-2 space-y-3 text-sm leading-relaxed text-[#55706a]">
                   <li>Asistente inteligente OffBunker Pulse (alertas de destino, enchufes y visados): la vista previa está disponible para todos; la inteligencia completa está en desarrollo.</li>
                   <li>Checklist de Desconexión antes del vuelo: vista previa disponible para todos.</li>
                   <li>Más espacio en la nube para copias de seguridad de billetes y documentos: propuesta futura, no disponible actualmente.</li>
                 </ul>
-                <div className="ob-plan-footer">PRO Beta se regala de por vida a los primeros usuarios. Hoy desbloquea viajes y gastos ilimitados; las vistas previas no son exclusivas de PRO.</div>
+                <div className="ob-plan-footer">PRO Beta se regala a los primeros usuarios: hoy desbloquea viajes y gastos ilimitados. Las otras ventajas siguen en vista previa o son propuestas futuras.</div>
               </article>
               <article className="ob-plan">
                 <div className="ob-plan-top"><span className="ob-plan-label ob-mono">Pensado para un viaje</span><span className="ob-soon">Próximamente</span></div>

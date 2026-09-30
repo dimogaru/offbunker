@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
+import DestinationGuidance from "@/components/pulse/destination-guidance";
 import {
   Plus, Trash2, ChevronDown, ChevronRight,
   Luggage, AlertTriangle, Briefcase, FileDown, FileUp, X, Check,
@@ -100,10 +101,11 @@ function setCachedChecked(tripId: number, itemId: number, checked: boolean, user
 
 interface Props {
   tripId: number;
+  destination: string;
   readOnly?: boolean;
 }
 
-export default function BaggageModule({ tripId, readOnly }: Props) {
+export default function BaggageModule({ tripId, destination, readOnly }: Props) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -318,6 +320,8 @@ export default function BaggageModule({ tripId, readOnly }: Props) {
           </Button>
         )}
       </div>
+
+      <DestinationGuidance tripId={tripId} destination={destination} />
 
       {/* ── Modo Maleta toolbar ── */}
       {suitcaseMode && (

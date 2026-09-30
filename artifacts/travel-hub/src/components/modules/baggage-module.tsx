@@ -312,6 +312,8 @@ export default function BaggageModule({ tripId, destination, readOnly }: Props) 
           {suitcaseMode ? "Salir de Modo Maleta" : "Modo Maleta"}
         </Button>
 
+        <DestinationGuidance tripId={tripId} destination={destination} />
+
         {/* Template panel toggle */}
         {!readOnly && (
           <Button variant="ghost" size="sm" onClick={() => setTemplatePanelOpen((v) => !v)}>
@@ -320,8 +322,6 @@ export default function BaggageModule({ tripId, destination, readOnly }: Props) 
           </Button>
         )}
       </div>
-
-      <DestinationGuidance tripId={tripId} destination={destination} />
 
       {/* ── Modo Maleta toolbar ── */}
       {suitcaseMode && (

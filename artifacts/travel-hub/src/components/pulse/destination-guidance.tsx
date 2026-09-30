@@ -1,5 +1,8 @@
-import { CircleHelp, Globe2, PlugZap, Wallet } from "lucide-react";
+import { useState } from "react";
+import { CircleHelp, PlugZap, Wallet, Zap } from "lucide-react";
 import { useListRentals, getListRentalsQueryKey } from "@workspace/api-client-react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogClose, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { getPlaceGuidance } from "@/lib/pulse/guidance";
 
@@ -9,23 +12,26 @@ interface Props {
 }
 
 export default function DestinationGuidance({ tripId, destination }: Props) {
+  const [open, setOpen] = useState(false);
   const { isOnline } = useOnlineStatus();
   const { data: rentals, isLoading, isError } = useListRentals(tripId, {
-    query: { enabled: isOnline, queryKey: getListRentalsQueryKey(tripId) },
+    query: { enabled: isOnline && open, queryKey: getListRentalsQueryKey(tripId) },
   });
   const guidance = getPlaceGuidance(destination, rentals ?? []);
 
   return (
-    <section className="max-w-3xl mb-5" aria-labelledby="pulse-title">
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
-        <div className="flex gap-2.5 items-start px-4 py-3 border-b border-border bg-muted/30">
-          <span className="p-1.5 rounded-lg bg-primary/10 text-primary"><Globe2 className="h-4 w-4" aria-hidden="true" /></span>
-          <div>
-            <h2 id="pulse-title" className="font-semibold text-sm leading-5">OffBunker Pulse <span className="ml-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Vista previa</span></h2>
-            <p className="text-xs text-muted-foreground">Pistas para el destino, no requisitos de viaje personalizados.</p>
-          </div>
-        </div>
-        <div className="p-4">
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button type="button" size="sm" variant="outline" className="gap-1.5" data-testid="button-pulse-destination">
+          <Zap className="h-4 w-4" aria-hidden="true" /> Pistas del destino
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[85dvh] w-[calc(100vw-1.5rem)] max-w-lg overflow-y-auto">
+        <DialogHeader className="pr-5">
+          <DialogTitle>OffBunker Pulse — Pistas de destino</DialogTitle>
+          <DialogDescription>Vista previa. Pistas para el destino, no requisitos de viaje personalizados.</DialogDescription>
+        </DialogHeader>
+        <div>
           {isLoading && !rentals && <p role="status" className="text-xs text-muted-foreground">Consultando transportes del viaje…</p>}
           {guidance.length ? (
             <div className="space-y-3">
@@ -54,7 +60,10 @@ export default function DestinationGuidance({ tripId, destination }: Props) {
             </div>
           )}
         </div>
-      </div>
-    </section>
+        <DialogClose asChild>
+          <Button type="button" size="sm" variant="outline" className="justify-self-end">Cerrar</Button>
+        </DialogClose>
+      </DialogContent>
+    </Dialog>
   );
 }

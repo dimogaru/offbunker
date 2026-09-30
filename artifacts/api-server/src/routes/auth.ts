@@ -11,7 +11,7 @@ import {
   flightsTable,
   accommodationsTable,
 } from "@workspace/db";
-import { userUploadDir } from "../lib/free-plan";
+import { userUploadDir, withPlanLock } from "../lib/free-plan";
 import { DEMO_SESSION_MAX_AGE, SESSION_COOKIE_NAME } from "../lib/session";
 import { logger } from "../lib/logger";
 
@@ -409,21 +409,94 @@ router.post("/auth/logout", async (req, res): Promise<void> => {
   res.json({ ok: true });
 });
 
-router.get("/auth/me", (req, res): void => {
+router.post("/auth/pro-beta", async (req, res): Promise<void> => {
   if (!req.session?.userId) {
     res.status(401).json({ error: "No autenticado" });
     return;
   }
-  if (req.session.role === "demo" &&
+  if (req.session.role === "demo") {
+    res.status(403).json({ error: "La cuenta demo no puede activar PRO Beta" });
+    return;
+  }
+  if (req.body != null && (
+    typeof req.body !== "object" ||
+    Array.isArray(req.body) ||
+    Object.keys(req.body).length > 0
+  )) {
+    res.status(400).json({ error: "Este endpoint no acepta datos de entrada" });
+    return;
+  }
+
+  const account = await withPlanLock(1, req.session.userId, async (tx) => {
+    const [upgraded] = await tx.update(usersTable)
+      .set({ role: "beta_pro" })
+      .where(and(eq(usersTable.id, req.session.userId!), eq(usersTable.role, "user")))
+      .returning({
+        id: usersTable.id,
+        username: usersTable.username,
+        role: usersTable.role,
+      });
+    if (upgraded) return upgraded;
+
+    const [existing] = await tx.select({
+      id: usersTable.id,
+      username: usersTable.username,
+      role: usersTable.role,
+    }).from(usersTable).where(and(
+      eq(usersTable.id, req.session.userId!),
+      eq(usersTable.role, "beta_pro"),
+    ));
+    return existing;
+  });
+
+  if (!account) {
+    const [persisted] = await db.select({ id: usersTable.id }).from(usersTable)
+      .where(eq(usersTable.id, req.session.userId));
+    if (!persisted) {
+      await destroySession(req).catch(() => undefined);
+      res.clearCookie(SESSION_COOKIE_NAME, { httpOnly: true, secure: true, sameSite: "lax" });
+      res.status(401).json({ error: "La cuenta ya no existe" });
+      return;
+    }
+    res.status(403).json({ error: "Solo las cuentas de usuario pueden activar PRO Beta" });
+    return;
+  }
+
+  req.session.username = account.username;
+  req.session.role = account.role;
+  await saveSession(req).catch((error: unknown) => {
+    req.log.warn({ error, userId: account.id }, "Unable to persist refreshed PRO Beta session");
+  });
+  res.json(account);
+});
+
+router.get("/auth/me", async (req, res): Promise<void> => {
+  if (!req.session?.userId) {
+    res.status(401).json({ error: "No autenticado" });
+    return;
+  }
+  const [account] = await db.select({
+    id: usersTable.id,
+    username: usersTable.username,
+    role: usersTable.role,
+  }).from(usersTable).where(eq(usersTable.id, req.session.userId));
+  if (!account) {
+    await destroySession(req).catch(() => undefined);
+    res.clearCookie(SESSION_COOKIE_NAME, { httpOnly: true, secure: true, sameSite: "lax" });
+    res.status(401).json({ error: "La cuenta ya no existe" });
+    return;
+  }
+  if (account.role === "demo" &&
     (!req.session.demoExpiresAt || req.session.demoExpiresAt <= Date.now())) {
     res.status(401).json({ error: "La sesión demo ha expirado" });
     return;
   }
-  res.json({
-    id: req.session.userId,
-    username: req.session.username,
-    role: req.session.role,
+  req.session.username = account.username;
+  req.session.role = account.role;
+  await saveSession(req).catch((error: unknown) => {
+    req.log.warn({ error, userId: account.id }, "Unable to persist refreshed authentication session");
   });
+  res.json(account);
 });
 
 export default router;

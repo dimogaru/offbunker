@@ -9,7 +9,7 @@ import {
 export interface AuthUser {
   id: number;
   username: string;
-  role: "user" | "superadmin" | "demo";
+  role: "user" | "superadmin" | "demo" | "pro" | "beta_pro";
 }
 
 interface AuthContextValue {
@@ -18,6 +18,7 @@ interface AuthContextValue {
   login: (username: string, password: string) => Promise<AuthUser>;
   register: (username: string, password: string) => Promise<AuthUser>;
   loginDemo: () => Promise<AuthUser>;
+  grantProBeta: () => Promise<AuthUser>;
   logout: () => Promise<void>;
 }
 
@@ -122,6 +123,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return data;
   }
 
+  async function grantProBeta(): Promise<AuthUser> {
+    if (!navigator.onLine) throw new Error("Necesitas conexión a internet para solicitar PRO Beta.");
+    if (user?.role !== "user") {
+      throw new Error(user?.role === "demo"
+        ? "Crea una cuenta para solicitar PRO Beta."
+        : "Solo las cuentas registradas pueden solicitar PRO Beta.");
+    }
+    const res = await fetch("/api/auth/pro-beta", {
+      method: "POST",
+      credentials: "include",
+    });
+    if (!res.ok) {
+      const err = (await res.json().catch(() => ({}))) as { error?: string };
+      throw new Error(err.error ?? (res.status === 403
+        ? "No se pudo conceder PRO Beta a esta cuenta."
+        : res.status === 401 ? "Tu sesión ha caducado. Inicia sesión de nuevo."
+          : "No se pudo solicitar PRO Beta."));
+    }
+    const data = (await res.json()) as AuthUser;
+    if (data.role !== "beta_pro") throw new Error("El servidor no confirmó el acceso PRO Beta.");
+    setUser(data);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      const raw = localStorage.getItem(CREDS_KEY);
+      if (raw) {
+        const stored = JSON.parse(raw) as { hash: string; user: AuthUser };
+        localStorage.setItem(CREDS_KEY, JSON.stringify({ ...stored, user: data }));
+      }
+    } catch {
+      // The server grant is valid even if local persistence is unavailable.
+    }
+    return data;
+  }
+
   async function register(username: string, password: string): Promise<AuthUser> {
     if (!navigator.onLine) throw new Error("Necesitas conexión para crear una cuenta.");
     const res = await fetch("/api/auth/register", {
@@ -161,7 +196,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, register, loginDemo, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, login, register, loginDemo, grantProBeta, logout }}>
       {children}
     </AuthContext.Provider>
   );

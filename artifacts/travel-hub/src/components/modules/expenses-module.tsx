@@ -21,6 +21,7 @@ import type { PendingExpenseRecord } from "@/lib/expenses/offline-store";
 import { calculateExpenseSettlement } from "@/lib/expenses/settlement";
 import { createDemoExpenseLedger, DEMO_EXPENSE_RATES, demoSessionKey } from "@/data/demo-expenses";
 import { FreeLimitDialog } from "@/components/free-limit-dialog";
+import { useAuth } from "@/hooks/use-auth";
 
 type Props = { tripId: number; readOnly: boolean; isOwner: boolean; userId: string; isOnline: boolean | { isOnline: boolean }; isDemo?: boolean };
 type Values = { concept: string; amount: string; currency: ExpenseCurrency; payerId: string; splitMode: "equal" | "custom"; selected: string[]; custom: Record<string, string> };
@@ -73,6 +74,8 @@ function estimate(body: ExpenseInput, baseCurrency: ExpenseCurrency, rates: Expe
 
 export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOnline: onlineSignal, isDemo = false }: Props) {
   const isOnline = typeof onlineSignal === "boolean" ? onlineSignal : onlineSignal.isOnline;
+  const { user } = useAuth();
+  const hasFreeLimits = user?.role === "user" || user?.role === "demo";
   const tripKey = String(tripId);
   const queryClient = useQueryClient();
   const ledgerQuery = useGetExpenseLedger(tripId, { query: { enabled: isOnline && !isDemo, queryKey: getGetExpenseLedgerQueryKey(tripId) } });
@@ -106,6 +109,8 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
   const [savingLocal, setSavingLocal] = useState(false);
   const [limitOpen, setLimitOpen] = useState(false);
   const savingLock = useRef(false);
+  const pendingFormSubmission = useRef<Values | null>(null);
+  const pendingNewExpenseForm = useRef(false);
   const [demoSession, setDemoSession] = useState<{ expenses: Expense[]; error: string }>(() => {
     if (!isDemo) return { expenses: [], error: "" };
     try {
@@ -285,9 +290,10 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
     }
   }, [isOnline, ledger, outstanding.length, unavailableEstimates, pendingEstimates]);
 
-  async function saveExpense(values: Values) {
+  async function saveExpense(values: Values, afterGrant = false) {
     if (!ledger || !canEdit || savingLock.current) return;
-    if (!editingExpense && expenseCount >= 10) {
+    if (!afterGrant && hasFreeLimits && !editingExpense && expenseCount >= 10) {
+      pendingFormSubmission.current = { ...values, selected: [...values.selected], custom: { ...values.custom } };
       setLimitOpen(true);
       return;
     }
@@ -423,8 +429,9 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
       setRemovingPending(false);
     }
   }
-  function startExpense() {
-    if (expenseCount >= 10) {
+  function startExpense(afterGrant = false) {
+    if (!afterGrant && hasFreeLimits && expenseCount >= 10) {
+      pendingNewExpenseForm.current = true;
       setLimitOpen(true);
       return;
     }
@@ -462,9 +469,9 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
     <section className="space-y-5 pb-10" data-testid="module-expenses">
       <div className="rounded-2xl border border-[#d7ded5] bg-[#eef0e6] p-4 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#476b67]">Caja compartida</p><h2 className="font-serif text-2xl font-semibold text-[#203d39] sm:text-3xl">Gastos del viaje</h2></div>
+          <div><p className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#476b67]">Caja compartida</p><h2 className="font-serif text-2xl font-semibold text-[#203d39] sm:text-3xl">Gastos del viaje</h2><p data-testid="text-expense-limit-count" className="mt-1 text-xs font-semibold text-[#476b67]">{hasFreeLimits ? `Gastos: ${expenseCount}/10` : "Gastos: ilimitados"}</p></div>
           <div className="flex flex-wrap items-center gap-2">
-            {canEdit && <Button data-testid="button-add-expense" onClick={startExpense} disabled={!activeParticipants.length || storageLoading} className="gap-2 bg-[#225a54] text-[#f6f3e9] hover:bg-[#194a45]"><Plus className="h-4 w-4" /> Añadir gasto</Button>}
+            {canEdit && <Button data-testid="button-add-expense" onClick={() => startExpense()} disabled={!activeParticipants.length || storageLoading} className="gap-2 bg-[#225a54] text-[#f6f3e9] hover:bg-[#194a45]"><Plus className="h-4 w-4" /> Añadir gasto</Button>}
             <button type="button" data-testid="button-expense-settings" disabled={!ledger} onClick={() => setSettingsOpen(true)} className="inline-flex items-center gap-1.5 rounded-full border border-[#cad9cd] bg-white/80 px-3 py-1.5 text-xs font-semibold text-[#285950] hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#225a54] disabled:opacity-50" aria-label={`Configuración de gastos: ${baseCurrency}, ${activeParticipants.length} ${activeParticipants.length === 1 ? "participante" : "participantes"}`}>
               {baseCurrency} <span aria-hidden="true">·</span> {activeParticipants.length} {activeParticipants.length === 1 ? "participante" : "participantes"} <Settings2 className="h-3.5 w-3.5" />
             </button>
@@ -493,7 +500,6 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
         </div>
         <div className="mt-3">
           <span data-testid="status-expenses-sync" className="text-xs font-medium text-[#476b67]">{isDemo ? "Datos de ejemplo · los nuevos gastos se guardan solo en esta pestaña" : syncing ? "Sincronizando…" : pending.length ? `${pending.length} pendiente${pending.length === 1 ? "" : "s"}` : "Gastos al día"}</span>
-          <span data-testid="text-expense-limit-count" className="ml-3 text-xs text-[#476b67]">{expenseCount}/10 gastos del Plan Gratuito</span>
         </div>
       </div>
 
@@ -545,7 +551,7 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
                 <div><label htmlFor="expense-date-filter" className="mb-1 block text-xs font-semibold text-[#526d63]">Fecha</label><select id="expense-date-filter" data-testid="select-expense-date-filter" value={dateFilter} onChange={e => { setDateFilter(e.target.value); setVisibleCount(10); }} className={`${fieldClass} w-full px-3`}><option value="">Todas las fechas</option>{availableDates.map(date => <option key={date} value={date}>{displayDate(`${date}T12:00:00`)}</option>)}</select></div>
                 <div><label htmlFor="expense-order" className="mb-1 block text-xs font-semibold text-[#526d63]">Ordenar</label><select id="expense-order" data-testid="select-expense-order" value={expenseOrder} onChange={e => { setExpenseOrder(e.target.value as "recent" | "oldest" | "amount"); setVisibleCount(10); }} className={`${fieldClass} w-full px-3`}><option value="recent">Más recientes primero</option><option value="oldest">Más antiguos primero</option><option value="amount">Mayor importe</option></select></div>
               </div>
-              {!ledger.expenses.length ? <div className="px-6 py-12 text-center"><Coins className="mx-auto mb-3 h-8 w-8 text-[#9fb1a8]" /><p className="font-medium">La cuenta empieza aquí</p><p className="mx-auto mt-1 max-w-xs text-sm text-muted-foreground">Anota el primer gasto para que el grupo vea qué se pagó y cómo se reparte.</p>{canEdit && <Button data-testid="button-add-first-expense" variant="outline" className="mt-4" onClick={startExpense}>Añadir primer gasto</Button>}</div> :
+              {!ledger.expenses.length ? <div className="px-6 py-12 text-center"><Coins className="mx-auto mb-3 h-8 w-8 text-[#9fb1a8]" /><p className="font-medium">La cuenta empieza aquí</p><p className="mx-auto mt-1 max-w-xs text-sm text-muted-foreground">Anota el primer gasto para que el grupo vea qué se pagó y cómo se reparte.</p>{canEdit && <Button data-testid="button-add-first-expense" variant="outline" className="mt-4" onClick={() => startExpense()}>Añadir primer gasto</Button>}</div> :
                 !filteredExpenses.length ? <div className="px-6 py-12 text-center text-sm text-muted-foreground">No hay movimientos que coincidan con los filtros.</div> :
                 <>
                   <div className="divide-y divide-border/70">{filteredExpenses.slice(0, visibleCount).map(expense => <article key={expense.id} data-testid={`expense-${expense.id}`} className="flex gap-3 px-4 py-4 sm:px-5"><div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#eaf0ea] text-[#49766a]"><ArrowDownRight className="h-5 w-5" /></div><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-2"><div className="min-w-0"><h4 className="truncate font-semibold">{expense.concept}</h4><p className="mt-0.5 text-xs text-muted-foreground">Pagó {person(expense.payerId)} · {displayDate(expense.createdAt)}</p></div><div className="shrink-0 text-right"><p className="font-semibold tabular-nums">{money(expense.amountMinor, expense.currency)}</p>{expense.currency !== base && <p className="text-xs text-muted-foreground tabular-nums">{money(expense.baseAmountMinor, baseCurrency)}</p>}</div></div><div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground"><span>Entre {expense.splits.map(s => person(s.participantId)).join(", ")}</span><span>· cambio {displayDate(expense.rateDate)}</span></div></div>{canEdit && !isDemo && <div className="flex shrink-0 flex-col gap-1"><button type="button" data-testid={`button-edit-expense-${expense.id}`} disabled={!isOnline} onClick={() => startEditing(expense)} aria-label={`Editar gasto ${expense.concept}`} title="Editar gasto (requiere conexión)" className="rounded-md p-1 text-muted-foreground hover:bg-[#edf3ec] hover:text-[#225a54] disabled:opacity-40"><Pencil className="h-4 w-4" /></button><button type="button" data-testid={`button-delete-expense-${expense.id}`} disabled={!isOnline} onClick={() => setDeletingExpense(expense)} aria-label={`Eliminar gasto ${expense.concept}`} className="rounded-md p-1 text-muted-foreground hover:bg-[#fff1eb] hover:text-[#a4543e] disabled:opacity-40"><Trash2 className="h-4 w-4" /></button></div>}</article>)}</div>
@@ -566,7 +572,7 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
       <Dialog open={expenseOpen} onOpenChange={open => { setExpenseOpen(open); if (!open) setEditingExpense(null); }}><DialogContent className="max-h-[min(90dvh,850px)] w-[calc(100vw-1.5rem)] max-w-lg overflow-y-auto rounded-xl">
         <DialogHeader><DialogTitle className="font-serif text-2xl">{editingExpense ? "Editar gasto" : "Nuevo gasto"}</DialogTitle><DialogDescription>{editingExpense ? "Se conserva el tipo de cambio original si mantienes la moneda. Al cambiarla se usará el tipo disponible." : "Escribe concepto e importe. Pagas tú y se reparte entre todos por defecto."}</DialogDescription></DialogHeader>
         {actionError && <p role="alert" className="rounded-lg bg-[#fff1e8] p-2 text-sm text-[#914c38]">{actionError}</p>}
-        <Form {...form}><form onSubmit={form.handleSubmit(saveExpense)} className="space-y-4 pt-2">
+        <Form {...form}><form onSubmit={form.handleSubmit(values => saveExpense(values))} className="space-y-4 pt-2">
           <FormField control={form.control} name="concept" rules={{ required: "Escribe un concepto." }} render={({ field }) => <FormItem><FormLabel>Concepto</FormLabel><FormControl><Input data-testid="input-expense-concept" autoFocus maxLength={200} placeholder="Cena de la primera noche" className={fieldClass} {...field} /></FormControl><FormMessage /></FormItem>} />
           <FormField control={form.control} name="amount" render={({ field }) => <FormItem><FormLabel>Importe ({chosenCurrency})</FormLabel><FormControl><Input data-testid="input-expense-amount" inputMode="decimal" placeholder={chosenCurrency === "JPY" ? "2400" : "24,50"} className={fieldClass} {...field} /></FormControl><FormMessage /></FormItem>} />
           <button type="button" data-testid="button-expense-advanced" aria-expanded={advancedOpen} onClick={() => setAdvancedOpen(!advancedOpen)} className="w-full rounded-lg border border-border bg-muted/30 px-3 py-2 text-left text-sm font-medium text-[#225a54] hover:bg-muted/60">{advancedOpen ? "Ocultar opciones" : "Cambiar pagador, moneda o reparto"}</button>
@@ -589,7 +595,32 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
       <Dialog open={!!deletingExpense} onOpenChange={open => { if (!open) setDeletingExpense(null); }}><DialogContent className="w-[calc(100vw-1.5rem)] max-w-sm"><DialogHeader><DialogTitle>¿Eliminar este gasto?</DialogTitle><DialogDescription>Se eliminará «{deletingExpense?.concept}» y se recalcularán los balances. No se puede deshacer.</DialogDescription></DialogHeader>{actionError && <p role="alert" className="text-sm text-destructive">{actionError}</p>}<DialogFooter><Button data-testid="button-cancel-delete-expense" variant="outline" onClick={() => setDeletingExpense(null)}>Cancelar</Button><Button data-testid="button-confirm-delete-expense" variant="destructive" disabled={deleteMutation.isPending} onClick={() => void confirmDeleteExpense()}>{deleteMutation.isPending ? "Eliminando…" : "Eliminar gasto"}</Button></DialogFooter></DialogContent></Dialog>
       <Dialog open={!!deletingGuest} onOpenChange={open => { if (!open) setDeletingGuest(null); }}><DialogContent className="w-[calc(100vw-1.5rem)] max-w-sm"><DialogHeader><DialogTitle>¿Eliminar a {deletingGuest?.name}?</DialogTitle><DialogDescription>Solo se puede eliminar a un invitado que no participe en gastos registrados.</DialogDescription></DialogHeader>{actionError && <p role="alert" className="text-sm text-destructive">{actionError}</p>}<DialogFooter><Button data-testid="button-cancel-delete-guest" variant="outline" onClick={() => setDeletingGuest(null)}>Cancelar</Button><Button data-testid="button-confirm-delete-guest" variant="destructive" disabled={removeGuestMutation.isPending} onClick={() => void confirmDeleteGuest()}>{removeGuestMutation.isPending ? "Eliminando…" : "Eliminar invitado"}</Button></DialogFooter></DialogContent></Dialog>
       <Dialog open={!!deletingPending} onOpenChange={open => { if (!open && !removingPending) setDeletingPending(null); }}><DialogContent className="w-[calc(100vw-1.5rem)] max-w-sm"><DialogHeader><DialogTitle>¿Quitar este gasto local?</DialogTitle><DialogDescription>Se borrará «{deletingPending?.body.concept}» de este dispositivo. No se sincronizará y esta acción no se puede deshacer. Los gastos ya confirmados no se verán afectados.</DialogDescription></DialogHeader>{actionError && <p role="alert" className="text-sm text-destructive">{actionError}</p>}<DialogFooter><Button type="button" data-testid="button-cancel-remove-pending" variant="outline" disabled={removingPending} onClick={() => setDeletingPending(null)}>Cancelar</Button><Button type="button" data-testid="button-confirm-remove-pending" variant="destructive" disabled={removingPending || syncing} onClick={() => void confirmDeletePending()}>{removingPending ? "Quitando…" : "Quitar gasto local"}</Button></DialogFooter></DialogContent></Dialog>
-      <FreeLimitDialog type="expense" open={limitOpen} onOpenChange={setLimitOpen} />
+      <FreeLimitDialog
+        type="expense"
+        open={limitOpen}
+        onOpenChange={(open) => {
+          setLimitOpen(open);
+          if (!open) {
+            pendingFormSubmission.current = null;
+            pendingNewExpenseForm.current = false;
+          }
+        }}
+        onGranted={() => {
+          void flush();
+          const values = pendingFormSubmission.current;
+          pendingFormSubmission.current = null;
+          if (values) {
+            pendingNewExpenseForm.current = false;
+            void saveExpense(values, true);
+            return;
+          }
+          if (pendingNewExpenseForm.current) {
+            pendingNewExpenseForm.current = false;
+            startExpense(true);
+            return;
+          }
+        }}
+      />
       <span className="sr-only" aria-live="polite">{syncing ? "Sincronizando gastos" : syncError ? "Error de sincronización" : pending.length ? "Hay gastos pendientes" : "Gastos sincronizados"}</span>
     </section>
   );

@@ -467,9 +467,9 @@ export default function LoginPage() {
                 <span className="ob-section-tag ob-mono">06 / Tu plan, a tu ritmo</span>
                 <h2 className="ob-display ob-section-title" id="ob-plans-title">Un espacio para cada forma de viajar.</h2>
               </div>
-              <p className="ob-body">El Plan Gratuito está disponible. Pro y Pase de Viaje son propuestas futuras, no productos contratables hoy.</p>
+              <p className="ob-body">Empieza con el Plan Gratuito. A los primeros usuarios les regalamos PRO Beta de por vida.</p>
             </div>
-            <div className="ob-proposal"><strong>Plan Gratuito disponible.</strong> Pro y Pase de Viaje aún no se pueden contratar; esta página no realiza cobros.</div>
+            <div className="ob-proposal"><strong>Regalo de bienvenida:</strong> PRO Beta desbloquea viajes y gastos ilimitados ahora. Pulse y Bunker Check siguen en vista previa para todos; más almacenamiento está en desarrollo futuro.</div>
             <div className="ob-plan-grid">
               <article className="ob-plan">
                 <div className="ob-plan-top"><span className="ob-plan-label ob-mono">Una base para empezar</span><span className="ob-soon">Disponible</span></div>
@@ -485,17 +485,20 @@ export default function LoginPage() {
                 <div className="ob-plan-footer">Comparte tus viajes con hasta 2 acompañantes sin coste adicional. El enlace público es para consultar, no para editar.</div>
               </article>
               <article className="ob-plan">
-                <div className="ob-plan-top"><span className="ob-plan-label ob-mono">Para quienes viajan más</span><span className="ob-soon">Próximamente</span></div>
-                <h3>Pro</h3>
-                <p className="ob-proposal">Propuesta Próximamente, no disponible para contratar. No hay checkout ni ventajas PRO activas.</p>
-                <ul className="mt-4 space-y-3 text-sm leading-relaxed text-[#55706a]">
+                <div className="ob-plan-top"><span className="ob-plan-label ob-mono">Regalo para los primeros usuarios</span><span className="ob-soon">PRO Beta ⚡</span></div>
+                <h3>PRO Beta</h3>
+                <p className="mt-4 text-xs font-bold uppercase tracking-wide text-[#315e55]">Disponible ahora con PRO Beta</p>
+                <ul className="mt-2 space-y-3 text-sm leading-relaxed text-[#55706a]">
                   <li>Viajes ilimitados (almacena y organiza todos tus viajes pasados y futuros)</li>
                   <li>Gastos y repartos ilimitados por viaje</li>
-                  <li>Asistente inteligente OffBunker Pulse (alertas de destino, enchufes y visados)</li>
-                  <li>Checklist de Desconexión antes del vuelo</li>
-                  <li>Más espacio en la nube para copias de seguridad de billetes y documentos</li>
                 </ul>
-                <div className="ob-plan-footer">Estas cinco ventajas son una propuesta; funciones, precio y contratación aún no están disponibles.</div>
+                <p className="mt-4 text-xs font-bold uppercase tracking-wide text-[#315e55]">Vistas previas y propuestas futuras</p>
+                <ul className="mt-2 space-y-3 text-sm leading-relaxed text-[#55706a]">
+                  <li>Asistente inteligente OffBunker Pulse (alertas de destino, enchufes y visados): la vista previa está disponible para todos; la inteligencia completa está en desarrollo.</li>
+                  <li>Checklist de Desconexión antes del vuelo: vista previa disponible para todos.</li>
+                  <li>Más espacio en la nube para copias de seguridad de billetes y documentos: propuesta futura, no disponible actualmente.</li>
+                </ul>
+                <div className="ob-plan-footer">PRO Beta se regala de por vida a los primeros usuarios. Hoy desbloquea viajes y gastos ilimitados; las vistas previas no son exclusivas de PRO.</div>
               </article>
               <article className="ob-plan">
                 <div className="ob-plan-top"><span className="ob-plan-label ob-mono">Pensado para un viaje</span><span className="ob-soon">Próximamente</span></div>

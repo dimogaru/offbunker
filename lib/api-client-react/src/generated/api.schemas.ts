@@ -5,6 +5,12 @@
  * TravelHub API - Comprehensive travel management platform
  * OpenAPI spec version: 0.1.0
  */
+export interface ProBetaAccount {
+  id: number;
+  username: string;
+  role: "beta_pro";
+}
+
 export interface HealthStatus {
   status: string;
 }

@@ -21,6 +21,10 @@ export function hasReachedExpenseLimit(activeExpenseCount: number): boolean {
   return activeExpenseCount >= MAX_ACTIVE_EXPENSES_PER_TRIP;
 }
 
+export function isFreePlanRole(role: string): boolean {
+  return role === "user" || role === "demo";
+}
+
 type PlanTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 // Use the same database connection for the lock and the quota query/write.

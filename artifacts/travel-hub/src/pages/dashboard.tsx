@@ -23,6 +23,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { removeLocalDocumentsForTrip } from "@/lib/local-documents";
 import { clearPersistedQueryCacheForUser } from "@/lib/query-cache";
+import { FreeLimitDialog } from "@/components/free-limit-dialog";
 
 interface Trip {
   id: number;
@@ -78,6 +79,11 @@ export default function Dashboard() {
   const [, navigate] = useLocation();
   const [deletingTrip, setDeletingTrip] = useState<Trip | null>(null);
   const [editingTrip, setEditingTrip] = useState<Trip | null>(null);
+  const [proOfferOpen, setProOfferOpen] = useState(false);
+  const ownedTripCount = trips?.filter(trip => {
+    const ownerId = (trip as Trip).ownerId;
+    return !ownerId || ownerId === user?.id;
+  }).length ?? 0;
 
   const deleteTrip = useDeleteTrip({
     mutation: {
@@ -103,32 +109,37 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b border-border bg-card sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between">
           <div className="flex items-center gap-2">
             <Shield className="w-6 h-6 text-primary" />
-            <span className="text-xl font-bold tracking-tight">OffBunker</span>
+            <span className="hidden text-xl font-bold tracking-tight sm:inline">OffBunker</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:flex-nowrap sm:gap-3">
             <div className="hidden sm:block">
               <SavedLocallyBadge />
             </div>
-            <div className="hidden sm:flex items-center gap-1.5 text-sm text-muted-foreground">
+            <div className="order-3 flex w-full flex-wrap items-center justify-center gap-1.5 border-t border-border pt-2 text-xs text-muted-foreground sm:order-none sm:w-auto sm:max-w-none sm:justify-end sm:border-0 sm:pt-0 sm:text-sm">
               <User className="w-3.5 h-3.5" />
-              <span>{user?.role === "demo" ? "Invitado" : user?.username}</span>
+              <span className="max-w-[5.5rem] truncate sm:max-w-none">{user?.role === "demo" ? "Invitado" : user?.username}</span>
+              {user?.role === "user" && <>
+                <span className="rounded-full border border-slate-300 bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-slate-600 sm:text-xs">Plan Gratis</span>
+                <button type="button" data-testid="button-improve-to-pro" onClick={() => setProOfferOpen(true)} className="font-semibold text-primary underline underline-offset-2">Mejorar a PRO</button>
+              </>}
+              {(user?.role === "beta_pro" || user?.role === "pro") && <span data-testid="badge-pro-beta" className="rounded-full border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-800 sm:text-xs">PRO Beta ⚡</span>}
             </div>
             {/* Mobile: first (order-1); desktop: last (sm:order-2) */}
             <div className="order-1 sm:order-2">
               {isOnline ? (
                 <Link href="/trips/new">
-                  <Button data-testid="button-new-trip" className="gap-2">
+                  <Button data-testid="button-new-trip" aria-label="Nuevo Viaje" title="Nuevo Viaje" className="gap-2">
                     <PlusCircle className="w-4 h-4" />
-                    Nuevo Viaje
+                    <span className="hidden sm:inline">Nuevo Viaje</span>
                   </Button>
                 </Link>
               ) : (
-                <Button data-testid="button-new-trip" className="gap-2" disabled title="Requiere conexión a internet">
+                <Button data-testid="button-new-trip" aria-label="Nuevo Viaje" className="gap-2" disabled title="Requiere conexión a internet">
                   <PlusCircle className="w-4 h-4" />
-                  Nuevo Viaje
+                  <span className="hidden sm:inline">Nuevo Viaje</span>
                 </Button>
               )}
             </div>
@@ -148,11 +159,9 @@ export default function Dashboard() {
         <div className="mb-6">
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-bold">Mis Viajes</h1>
-            {user?.role === "user" && (
-              <span className="rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-950">
-                Plan Gratuito activo
-              </span>
-            )}
+            {user?.role === "user" && <span data-testid="text-owned-trip-count" className="rounded-full border border-slate-300 bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">Viajes: {ownedTripCount}/2</span>}
+            {user?.role === "demo" && <span data-testid="text-owned-trip-count" className="rounded-full border border-slate-300 bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">Viajes: {ownedTripCount}/2</span>}
+            {(user?.role === "beta_pro" || user?.role === "pro") && <span data-testid="text-owned-trip-count" className="rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800">Viajes: ilimitados</span>}
           </div>
           <p className="text-muted-foreground mt-1 text-sm">Todos tus planes de viaje en un lugar</p>
         </div>
@@ -274,6 +283,7 @@ export default function Dashboard() {
         open={!!editingTrip}
         onOpenChange={(open) => { if (!open) setEditingTrip(null); }}
       />
+      <FreeLimitDialog type="trip" open={proOfferOpen} offer onOpenChange={setProOfferOpen} />
 
       <AlertDialog open={!!deletingTrip} onOpenChange={(open) => { if (!open) setDeletingTrip(null); }}>
         <AlertDialogContent>

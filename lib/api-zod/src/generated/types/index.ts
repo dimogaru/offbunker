@@ -52,6 +52,7 @@ export * from "./moduleProgress";
 export * from "./parking";
 export * from "./parkingInput";
 export * from "./parkingUpdate";
+export * from "./proBetaAccount";
 export * from "./rental";
 export * from "./rentalInput";
 export * from "./rentalInputTransportType";

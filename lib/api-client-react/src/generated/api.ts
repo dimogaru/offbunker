@@ -44,6 +44,7 @@ import type {
   Parking,
   ParkingInput,
   ParkingUpdate,
+  ProBetaAccount,
   Rental,
   RentalInput,
   RentalUpdate,
@@ -63,6 +64,88 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 type Awaited<O> = O extends AwaitedInput<infer T> ? T : never;
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
+/**
+ * Upgrades a persistent user account to beta_pro. This endpoint accepts no request body and is idempotent.
+ * @summary Activate PRO Beta for the authenticated user
+ */
+export const getActivateProBetaUrl = () => {
+  return `/api/auth/pro-beta`;
+};
+
+export const activateProBeta = async (
+  options?: RequestInit,
+): Promise<ProBetaAccount> => {
+  return customFetch<ProBetaAccount>(getActivateProBetaUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getActivateProBetaMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof activateProBeta>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof activateProBeta>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["activateProBeta"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof activateProBeta>>,
+    void
+  > = () => {
+    return activateProBeta(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ActivateProBetaMutationResult = NonNullable<
+  Awaited<ReturnType<typeof activateProBeta>>
+>;
+
+export type ActivateProBetaMutationError = ErrorType<void>;
+
+/**
+ * @summary Activate PRO Beta for the authenticated user
+ */
+export const useActivateProBeta = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof activateProBeta>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof activateProBeta>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getActivateProBetaMutationOptions(options));
+};
 
 /**
  * @summary Health check

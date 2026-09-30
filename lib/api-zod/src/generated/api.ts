@@ -8,6 +8,16 @@
 import * as zod from "zod";
 
 /**
+ * Upgrades a persistent user account to beta_pro. This endpoint accepts no request body and is idempotent.
+ * @summary Activate PRO Beta for the authenticated user
+ */
+export const ActivateProBetaResponse = zod.object({
+  id: zod.number(),
+  username: zod.string(),
+  role: zod.literal("beta_pro"),
+});
+
+/**
  * @summary Health check
  */
 export const HealthCheckResponse = zod.object({

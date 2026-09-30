@@ -34,7 +34,7 @@ import {
 } from "../lib/expense-calculations.js";
 import { classifyExpenseRetry } from "../lib/expense-idempotency.js";
 import { loadExpenseRates, rateForExpense } from "../lib/expense-rates.js";
-import { EXPENSE_LIMIT_ERROR, hasReachedExpenseLimit } from "../lib/free-plan";
+import { EXPENSE_LIMIT_ERROR, hasReachedExpenseLimit, isFreePlanRole } from "../lib/free-plan";
 
 const router: IRouter = Router();
 const POSTGRES_INT_MAX = 2_147_483_647;
@@ -426,13 +426,20 @@ router.post("/trips/:tripId/expenses", async (req, res): Promise<void> => {
           return { kind: "guest-removed" as const };
         }
       }
-      const activeExpenses = await tx.select({ id: expensesTable.id }).from(expensesTable)
-        .where(and(
-          eq(expensesTable.tripId, params.data.tripId),
-          isNull(expensesTable.deletedAt),
-        ));
-      if (hasReachedExpenseLimit(activeExpenses.length)) {
-        return { kind: "limit-reached" as const };
+      const [actingUser] = await tx.select({ role: usersTable.role }).from(usersTable)
+        .where(eq(usersTable.id, req.session.userId!));
+      if (!actingUser) {
+        return { kind: "missing-account" as const };
+      }
+      if (isFreePlanRole(actingUser.role)) {
+        const activeExpenses = await tx.select({ id: expensesTable.id }).from(expensesTable)
+          .where(and(
+            eq(expensesTable.tripId, params.data.tripId),
+            isNull(expensesTable.deletedAt),
+          ));
+        if (hasReachedExpenseLimit(activeExpenses.length)) {
+          return { kind: "limit-reached" as const };
+        }
       }
       const [expense] = await tx.insert(expensesTable).values({
         tripId: params.data.tripId,
@@ -465,6 +472,10 @@ router.post("/trips/:tripId/expenses", async (req, res): Promise<void> => {
     }
     if (recorded.kind === "retry") {
       res.status(200).json(responseForExpense(recorded.expense, recorded.splits));
+      return;
+    }
+    if (recorded.kind === "missing-account") {
+      res.status(401).json({ error: "La cuenta ya no existe" });
       return;
     }
     if (recorded.kind === "limit-reached") {

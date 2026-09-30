@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useLocation, Link } from "wouter";
 import { ArrowLeft, Plane } from "lucide-react";
 import { useForm } from "react-hook-form";
@@ -35,9 +35,11 @@ export default function NewTrip() {
   const { user } = useAuth();
   const { data: trips } = useListTrips();
   const [limitOpen, setLimitOpen] = useState(false);
-  const ownedTripCount = trips?.filter(trip =>
-    (trip as typeof trip & { ownerId?: number | null }).ownerId === Number(user?.id)
-  ).length ?? 0;
+  const pendingTripValues = useRef<FormValues | null>(null);
+  const ownedTripCount = trips?.filter(trip => {
+    const ownerId = (trip as typeof trip & { ownerId?: number | null }).ownerId;
+    return !ownerId || ownerId === Number(user?.id);
+  }).length ?? 0;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -47,30 +49,26 @@ export default function NewTrip() {
   const createTrip = useCreateTrip({
     mutation: {
       onSuccess: (trip) => {
+        pendingTripValues.current = null;
         queryClient.invalidateQueries({ queryKey: getListTripsQueryKey() });
         toast({ title: "Viaje creado", description: `${trip.name} ha sido añadido.` });
         navigate(`/trips/${trip.id}`);
       },
       onError: (error) => {
         const status = typeof error === "object" && error !== null && "status" in error ? error.status : null;
-        if (status === 403) {
+        const message = error instanceof Error ? error.message : "";
+        if (status === 403 && message.includes("Has alcanzado el límite de 2 viajes")) {
           setLimitOpen(true);
           return;
         }
+        pendingTripValues.current = null;
         toast({ title: "No se pudo crear el viaje", description: error instanceof Error ? error.message : "Inténtalo de nuevo.", variant: "destructive" });
       },
     },
   });
 
-  function onSubmit(values: FormValues) {
-    if (ownedTripCount >= 2) {
-      setLimitOpen(true);
-      return;
-    }
-    if (!isOnline) {
-      toast({ title: "Sin conexión", description: "Crear viajes requiere conexión a internet.", variant: "destructive" });
-      return;
-    }
+  function submitTrip(values: FormValues) {
+    pendingTripValues.current = { ...values };
     createTrip.mutate({
       data: {
         name: values.name,
@@ -81,6 +79,19 @@ export default function NewTrip() {
         notes: values.notes || undefined,
       },
     });
+  }
+
+  function onSubmit(values: FormValues) {
+    if ((user?.role === "user" || user?.role === "demo") && ownedTripCount >= 2) {
+      pendingTripValues.current = { ...values };
+      setLimitOpen(true);
+      return;
+    }
+    if (!isOnline) {
+      toast({ title: "Sin conexión", description: "Crear viajes requiere conexión a internet.", variant: "destructive" });
+      return;
+    }
+    submitTrip(values);
   }
 
   return (
@@ -174,7 +185,16 @@ export default function NewTrip() {
           </Form>
         </div>
       </main>
-      <FreeLimitDialog type="trip" open={limitOpen} onOpenChange={setLimitOpen} />
+      <FreeLimitDialog
+        type="trip"
+        open={limitOpen}
+        onOpenChange={setLimitOpen}
+        onGranted={() => {
+          const values = pendingTripValues.current;
+          pendingTripValues.current = null;
+          if (values && !createTrip.isPending) submitTrip(values);
+        }}
+      />
     </div>
   );
 }

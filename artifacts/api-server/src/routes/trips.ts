@@ -11,6 +11,7 @@ import {
   itineraryItemsTable,
   documentsTable,
   baggageItemsTable,
+  usersTable,
 } from "@workspace/db";
 import type { Trip } from "@workspace/db";
 import {
@@ -20,7 +21,7 @@ import {
   GetTripProgressParams,
   GetTripProgressResponse,
 } from "@workspace/api-zod";
-import { hasReachedTripLimit, isActiveTrip, removeUnreferencedUpload, TRIP_LIMIT_ERROR, withPlanLock } from "../lib/free-plan";
+import { hasReachedTripLimit, isActiveTrip, isFreePlanRole, removeUnreferencedUpload, TRIP_LIMIT_ERROR, withPlanLock } from "../lib/free-plan";
 
 const router: IRouter = Router();
 
@@ -81,11 +82,14 @@ router.post("/trips", async (req, res): Promise<void> => {
   }
 
   const userId = req.session.userId!;
-  const created = await withPlanLock(1, userId, async (tx) => {
+  const result = await withPlanLock(1, userId, async (tx) => {
+    const [account] = await tx.select({ role: usersTable.role }).from(usersTable)
+      .where(eq(usersTable.id, userId));
+    if (!account) return { kind: "missing-account" as const };
     const owned = await tx.select({ id: tripsTable.id }).from(tripsTable)
       .where(eq(tripsTable.ownerId, userId));
-    if (hasReachedTripLimit(owned.length)) {
-      return null;
+    if (isFreePlanRole(account.role) && hasReachedTripLimit(owned.length)) {
+      return { kind: "limit-reached" as const };
     }
     const [trip] = await tx.insert(tripsTable).values({
       ...required,
@@ -95,13 +99,17 @@ router.post("/trips", async (req, res): Promise<void> => {
       coverImage: localCover,
       notes: notes ?? null,
     }).returning();
-    return trip;
+    return { kind: "created" as const, trip };
   });
-  if (!created) {
+  if (result.kind === "missing-account") {
+    res.status(401).json({ error: "La cuenta ya no existe" });
+    return;
+  }
+  if (result.kind === "limit-reached") {
     res.status(403).json({ error: TRIP_LIMIT_ERROR });
     return;
   }
-  res.status(201).json(created);
+  res.status(201).json(result.trip);
 });
 
 router.get("/trips/:tripId", async (req, res): Promise<void> => {

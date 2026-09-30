@@ -395,7 +395,7 @@ export default function TripDetail() {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 min-w-0">
               <h1
-                className="font-bold text-sm sm:text-base leading-tight truncate"
+                className="min-w-0 flex-1 font-bold text-sm sm:text-base leading-tight truncate"
                 data-testid="text-trip-name"
               >
                 {trip.name}
@@ -406,6 +406,8 @@ export default function TripDetail() {
                   {readOnly ? "Vista" : "Colaborador"}
                 </span>
               )}
+              {(user?.role === "beta_pro" || user?.role === "pro") && <span data-testid="badge-trip-pro-beta" className="flex-shrink-0 rounded-full border border-emerald-300/40 bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-bold text-emerald-200">PRO Beta ⚡</span>}
+              {user?.role === "user" && <span data-testid="badge-trip-free-plan" className="flex-shrink-0 rounded-full border border-sidebar-border bg-sidebar-accent px-1.5 py-0.5 text-[9px] font-semibold text-sidebar-foreground/70">Gratis</span>}
             </div>
             <p className="text-xs text-sidebar-foreground/60 truncate leading-tight">
               {trip.destination}

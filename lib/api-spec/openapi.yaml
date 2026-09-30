@@ -7,6 +7,8 @@ servers:
   - url: /api
     description: Base API path
 tags:
+  - name: auth
+    description: Authentication and account operations
   - name: health
     description: Health operations
   - name: trips
@@ -27,6 +29,24 @@ tags:
     description: Shared trip expenses
 
 paths:
+  /auth/pro-beta:
+    post:
+      operationId: activateProBeta
+      tags: [auth]
+      summary: Activate PRO Beta for the authenticated user
+      description: Upgrades a persistent user account to beta_pro. This endpoint accepts no request body and is idempotent.
+      responses:
+        "200":
+          description: Account with PRO Beta enabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProBetaAccount"
+        "401":
+          description: Authentication required
+        "403":
+          description: Demo or non-user account cannot activate PRO Beta
+
   /healthz:
     get:
       operationId: healthCheck
@@ -997,6 +1017,18 @@ paths:
 
 components:
   schemas:
+    ProBetaAccount:
+      type: object
+      required: [id, username, role]
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        role:
+          type: string
+          const: beta_pro
+
     HealthStatus:
       type: object
       properties:

@@ -488,13 +488,20 @@ export default function LoginPage() {
                 <div className="ob-plan-top"><span className="ob-plan-label ob-mono">Para quienes viajan más</span><span className="ob-soon">Próximamente</span></div>
                 <h3>Pro</h3>
                 <ul className="mt-4 space-y-3 text-sm leading-relaxed text-[#55706a]">
-                  <li>Viajes ilimitados (almacena y organiza todos tus viajes pasados y futuros)</li>
-                  <li>Gastos y repartos ilimitados por viaje</li>
-                  <li>Asistente inteligente OffBunker Pulse (alertas de destino, enchufes y visados): la vista previa está disponible para todos; la inteligencia completa está en desarrollo.</li>
-                  <li>Checklist de Desconexión antes del vuelo: vista previa disponible para todos.</li>
-                  <li>Más espacio en la nube para copias de seguridad de billetes y documentos: propuesta futura, no disponible actualmente.</li>
+                  {[
+                    "Viajes ilimitados (almacena y organiza todos tus viajes pasados y futuros)",
+                    "Gastos y repartos ilimitados por viaje",
+                    "Asistente inteligente OffBunker Pulse (alertas de destino, enchufe/voltaje, propinas, agua potable, moneda y eSIM)",
+                    '"Checklist de Desconexión" antes del vuelo',
+                    "Más espacio en la nube para copias de seguridad de billetes y documentos",
+                  ].map(benefit => (
+                    <li key={benefit} className="flex items-start gap-2.5">
+                      <Check className="mt-1 h-4 w-4 shrink-0 text-[#236b58]" aria-hidden="true" />
+                      <span>{benefit}</span>
+                    </li>
+                  ))}
                 </ul>
-                <div className="ob-plan-footer">PRO Beta se regala a los primeros usuarios: hoy desbloquea viajes y gastos ilimitados. Las otras ventajas siguen en vista previa o son propuestas futuras.</div>
+                <div className="ob-plan-footer">Funciones, precio y contratación disponibles muy pronto.</div>
               </article>
               <article className="ob-plan">
                 <div className="ob-plan-top"><span className="ob-plan-label ob-mono">Pensado para un viaje</span><span className="ob-soon">Próximamente</span></div>

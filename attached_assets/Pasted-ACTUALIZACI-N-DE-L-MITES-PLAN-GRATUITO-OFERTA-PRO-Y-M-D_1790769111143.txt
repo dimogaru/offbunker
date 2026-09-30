@@ -1,0 +1,45 @@
+ACTUALIZACIÓN DE LÍMITES PLAN GRATUITO, OFERTA PRO Y MÓDULO "OFFBUNKER PULSE"
+
+OBJETIVO:
+1. Ajustar las restricciones del Plan Gratuito (máximo 2 viajes totales y 10 gastos por viaje).
+2. Actualizar el mensaje/propuesta de suscripción PRO en la aplicación y landing page.
+3. Crear el nuevo módulo de alertas de viaje "OffBunker Pulse" integrado con el módulo de Transportes.
+
+====================================================================
+1. LÍMITES ESTRICTOS DEL PLAN GRATUITO
+====================================================================
+- LÍMITE DE VIAJES: El usuario en plan Gratuito solo puede tener un MÁXIMO DE 2 VIAJES TOTALES en su cuenta (independientemente de si están activos, archivados o pasados).
+  * Si intenta crear un 3er viaje, muestra un modal/banner invitando a pasar a PRO:
+    "Has alcanzado el límite de 2 viajes del plan Gratuito. Pasa a PRO para guardar viajes ilimitados."
+- LÍMITE DE MOVIMIENTOS DE GASTOS: Cada viaje en plan Gratuito permite registrar como máximo 10 movimientos de gastos.
+  * Al intentar registrar el gasto número 11 en un viaje, bloquea el registro y muestra la invitación a PRO:
+    "Has alcanzado el límite de 10 gastos en este viaje. Desbloquea gastos ilimitados con OffBunker PRO."
+
+====================================================================
+2. TEXTO Y VENTAJAS ACTUALIZADAS DE OFFBUNKER PRO
+====================================================================
+Actualiza la propuesta de suscripción PRO en modales, la Landing Page y la vista de precios con las siguientes ventajas exactas:
+- Viajes ilimitados (almacena y organiza todos tus viajes pasados y futuros).
+- Gastos y repartos ilimitados por viaje.
+- Asistente inteligente "OffBunker Pulse" (alertas de destino, enchufes y visados).
+- "Checklist de Desconexión" antes del vuelo.
+- Más espacio en la nube para copias de seguridad de billetes y documentos.
+
+====================================================================
+3. NUEVO MÓDULO: OFFBUNKER PULSE (ALERTAS DE DESTINO Y CHECKLIST)
+====================================================================
+Implementa el motor de reglas proactivo dentro del viaje:
+
+A. ALERTAS CONTEXTUALES DE DESTINO (AUTOMÁTICAS):
+   - Al introducir o detectar el país/ciudad en el módulo de Destino/Transportes, genera tarjetas de alerta contextuales en el dashboard del viaje:
+     * Requisitos de Enchufe/Voltaje (ej. Reino Unido -> Tipo G, Japón/EEUU -> Tipo A/B, Europa -> Tipo C/F).
+     * Requisitos de Visado/Aduanas si aplica (ej. Japón/EEUU/UK -> Recordatorio de formulario/visado previo).
+     * Moneda oficial del país de destino.
+
+B. CHECKLIST DE DESCONEXIÓN ("MODO BÚNKER"):
+   - Incluye un widget/botón en la cabecera o módulo de preparativos denominado "Verificación Modo Búnker".
+   - Al pulsar, la app escanea el estado local de la PWA y muestra un checklist visual comprobando que:
+     * [ ] Todos los billetes/vuelos están descargados para acceso offline.
+     * [ ] Todos los alojamientos tienen dirección y código de reserva disponible offline.
+     * [ ] Las tasas de cambio multimoneda se han guardado en caché.
+   - Si todo está correcto, muestra el mensaje: "¡Tu Búnker está listo para el Modo Avión!".

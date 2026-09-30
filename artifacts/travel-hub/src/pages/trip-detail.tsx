@@ -19,6 +19,7 @@ import ItineraryModule from "@/components/modules/itinerary-module";
 import DocumentsModule from "@/components/modules/documents-module";
 import BaggageModule from "@/components/modules/baggage-module";
 import ExpensesModule from "@/components/modules/expenses-module";
+import PulsePanel from "@/components/pulse/pulse-panel";
 import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
@@ -299,7 +300,7 @@ export default function TripDetail() {
   const [editOpen, setEditOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const { user, logout } = useAuth();
-  const isOnline = useOnlineStatus();
+  const { isOnline } = useOnlineStatus();
   const queryClient = useQueryClient();
   const { data: trip, isLoading } = useGetTrip(tripId, {
     query: { enabled: !!tripId, queryKey: getGetTripQueryKey(tripId) },
@@ -491,6 +492,7 @@ export default function TripDetail() {
           <div className="mb-5">
             <TripProgressBar tripId={tripId} />
           </div>
+          <PulsePanel tripId={tripId} ownerId={user?.id != null ? String(user.id) : null} destination={trip.destination} isDemo={user?.role === "demo"} />
 
           <div key={activeModule} className="max-w-3xl animate-in fade-in slide-in-from-bottom-2 duration-300">
             {activeModule === "flights"       && <FlightsModule tripId={tripId} readOnly={readOnly || !isOnline} localDocumentsEnabled={!readOnly && !isOnline} />}

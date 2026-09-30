@@ -475,7 +475,8 @@ export default function LoginPage() {
                 <div className="ob-plan-top"><span className="ob-plan-label ob-mono">Una base para empezar</span><span className="ob-soon">Disponible</span></div>
                 <h3>Gratuito</h3>
                 <ul className="mt-4 space-y-3 text-sm leading-relaxed text-[#55706a]">
-                  <li><strong>2 viajes activos</strong> creados como máximo.</li>
+                  <li><strong>Hasta 2 viajes en total</strong> como propietario, pasados o futuros.</li>
+                  <li><strong>Hasta 10 gastos no eliminados por viaje.</strong></li>
                   <li><strong>Colaboración completa</strong> con hasta 2 acompañantes invitados por viaje: 3 miembros en total.</li>
                   <li><strong>Enlace público de solo lectura por viaje, sin límite de consultas</strong>, para mostrar el resumen sin registro.</li>
                   <li><strong>Hasta 50 MB</strong> de almacenamiento en el servidor para documentos compartidos.</li>
@@ -486,8 +487,15 @@ export default function LoginPage() {
               <article className="ob-plan">
                 <div className="ob-plan-top"><span className="ob-plan-label ob-mono">Para quienes viajan más</span><span className="ob-soon">Próximamente</span></div>
                 <h3>Pro</h3>
-                <p>Propuesta de suscripción: viajes ilimitados, más espacio en la nube, digitalización inteligente y alertas de caducidad.</p>
-                <div className="ob-plan-footer">Funciones, precio y contratación aún no disponibles.</div>
+                <p className="ob-proposal">Propuesta Próximamente, no disponible para contratar. No hay checkout ni ventajas PRO activas.</p>
+                <ul className="mt-4 space-y-3 text-sm leading-relaxed text-[#55706a]">
+                  <li>Viajes ilimitados (almacena y organiza todos tus viajes pasados y futuros)</li>
+                  <li>Gastos y repartos ilimitados por viaje</li>
+                  <li>Asistente inteligente OffBunker Pulse (alertas de destino, enchufes y visados)</li>
+                  <li>Checklist de Desconexión antes del vuelo</li>
+                  <li>Más espacio en la nube para copias de seguridad de billetes y documentos</li>
+                </ul>
+                <div className="ob-plan-footer">Estas cinco ventajas son una propuesta; funciones, precio y contratación aún no están disponibles.</div>
               </article>
               <article className="ob-plan">
                 <div className="ob-plan-top"><span className="ob-plan-label ob-mono">Pensado para un viaje</span><span className="ob-soon">Próximamente</span></div>

@@ -20,7 +20,7 @@ import {
   GetTripProgressParams,
   GetTripProgressResponse,
 } from "@workspace/api-zod";
-import { isActiveTrip, MAX_ACTIVE_TRIPS, removeUnreferencedUpload, TRIP_LIMIT_ERROR, withPlanLock } from "../lib/free-plan";
+import { hasReachedTripLimit, isActiveTrip, removeUnreferencedUpload, TRIP_LIMIT_ERROR, withPlanLock } from "../lib/free-plan";
 
 const router: IRouter = Router();
 
@@ -82,9 +82,9 @@ router.post("/trips", async (req, res): Promise<void> => {
 
   const userId = req.session.userId!;
   const created = await withPlanLock(1, userId, async (tx) => {
-    const owned = await tx.select({ status: tripsTable.status }).from(tripsTable)
+    const owned = await tx.select({ id: tripsTable.id }).from(tripsTable)
       .where(eq(tripsTable.ownerId, userId));
-    if (owned.filter((trip) => isActiveTrip(trip.status)).length >= MAX_ACTIVE_TRIPS) {
+    if (hasReachedTripLimit(owned.length)) {
       return null;
     }
     const [trip] = await tx.insert(tripsTable).values({
@@ -166,9 +166,6 @@ router.patch("/trips/:tripId", async (req, res): Promise<void> => {
   let trip: Trip | undefined;
   if (access.trip.status === "completed" && parsed.data.status && isActiveTrip(parsed.data.status)) {
     trip = await withPlanLock(1, req.session.userId!, async (tx) => {
-      const owned = await tx.select({ status: tripsTable.status }).from(tripsTable)
-        .where(eq(tripsTable.ownerId, req.session.userId!));
-      if (owned.filter((item) => isActiveTrip(item.status)).length >= MAX_ACTIVE_TRIPS) return undefined;
       const [updated] = await tx.update(tripsTable)
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         .set(serializedUpdate as any).where(eq(tripsTable.id, params.data.tripId)).returning();

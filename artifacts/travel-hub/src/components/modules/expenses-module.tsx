@@ -20,6 +20,7 @@ import {
 import type { PendingExpenseRecord } from "@/lib/expenses/offline-store";
 import { calculateExpenseSettlement } from "@/lib/expenses/settlement";
 import { createDemoExpenseLedger, DEMO_EXPENSE_RATES, demoSessionKey } from "@/data/demo-expenses";
+import { FreeLimitDialog } from "@/components/free-limit-dialog";
 
 type Props = { tripId: number; readOnly: boolean; isOwner: boolean; userId: string; isOnline: boolean | { isOnline: boolean }; isDemo?: boolean };
 type Values = { concept: string; amount: string; currency: ExpenseCurrency; payerId: string; splitMode: "equal" | "custom"; selected: string[]; custom: Record<string, string> };
@@ -103,6 +104,8 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
   const [deletingPending, setDeletingPending] = useState<PendingExpenseRecord | null>(null);
   const [removingPending, setRemovingPending] = useState(false);
   const [savingLocal, setSavingLocal] = useState(false);
+  const [limitOpen, setLimitOpen] = useState(false);
+  const savingLock = useRef(false);
   const [demoSession, setDemoSession] = useState<{ expenses: Expense[]; error: string }>(() => {
     if (!isDemo) return { expenses: [], error: "" };
     try {
@@ -207,9 +210,14 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
             const status = errorStatus(e);
             setSyncIssues(previous => ({ ...previous, [record.clientId]: { status, message: errorText(e) } }));
             setSyncingItem(null);
+            // A rejected offline expense is still the user's data. Keep it locally
+            // until they remove it, even when this trip has reached its quota.
+            if (status === 403 && errorText(e).includes("Has alcanzado el límite de 10 gastos")) {
+              setLimitOpen(true);
+            }
             // Invalid/conflicting requests cannot hold back independent expenses.
             // Do not remove or rewrite the rejected item: it can be retried or removed locally.
-            if (status === 400 || status === 409) continue;
+            if (status === 400 || status === 403 || status === 409) continue;
             throw e;
           }
           await removePendingExpense(userId, tripKey, record.clientId);
@@ -242,6 +250,7 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
   }, [isDemo, isOnline, storageLoading, !!ledger, userId, tripKey]);
 
   const outstanding = pending.filter(item => !ledger?.expenses.some(expense => expense.clientId === item.clientId));
+  const expenseCount = (ledger?.expenses.length ?? 0) + new Set(outstanding.map(item => item.clientId)).size;
   const settlement = useMemo(() => {
     if (!ledger) return null;
     try { return { value: calculateExpenseSettlement(ledger.expenses), error: "" }; }
@@ -277,7 +286,11 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
   }, [isOnline, ledger, outstanding.length, unavailableEstimates, pendingEstimates]);
 
   async function saveExpense(values: Values) {
-    if (!ledger || !canEdit || savingLocal) return;
+    if (!ledger || !canEdit || savingLock.current) return;
+    if (!editingExpense && expenseCount >= 10) {
+      setLimitOpen(true);
+      return;
+    }
     setActionError("");
     const eligible = editingExpense
       ? [...activeParticipants, ...ledger.participants.filter(p => !p.active && (p.id === editingExpense.payerId || editingExpense.splits.some(s => s.participantId === p.id)))]
@@ -297,6 +310,7 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
       setAdvancedOpen(true);
       form.setError("custom", { message: "Las partes deben ser positivas y sumar exactamente el importe original." }); return;
     }
+    savingLock.current = true;
     setSavingLocal(true);
     try {
       if (editingExpense) {
@@ -344,7 +358,10 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
       if (isOnline) void flushRef.current();
     } catch (e) {
       setActionError(`No se ${editingExpense ? "actualizó" : "guardó"} el gasto: ${errorText(e)}. Inténtalo de nuevo.`);
-    } finally { setSavingLocal(false); }
+    } finally {
+      savingLock.current = false;
+      setSavingLocal(false);
+    }
   }
 
   async function changeBase(currency: ExpenseCurrency) {
@@ -407,6 +424,10 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
     }
   }
   function startExpense() {
+    if (expenseCount >= 10) {
+      setLimitOpen(true);
+      return;
+    }
     const currentPayer = activeParticipants.find(p => p.id === myParticipantId)?.id ?? "";
     form.reset({ ...initialValues, currency: base ?? "EUR", payerId: currentPayer, selected: activeParticipants.map(p => p.id) });
     setActionError("");
@@ -472,6 +493,7 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
         </div>
         <div className="mt-3">
           <span data-testid="status-expenses-sync" className="text-xs font-medium text-[#476b67]">{isDemo ? "Datos de ejemplo · los nuevos gastos se guardan solo en esta pestaña" : syncing ? "Sincronizando…" : pending.length ? `${pending.length} pendiente${pending.length === 1 ? "" : "s"}` : "Gastos al día"}</span>
+          <span data-testid="text-expense-limit-count" className="ml-3 text-xs text-[#476b67]">{expenseCount}/10 gastos del Plan Gratuito</span>
         </div>
       </div>
 
@@ -491,7 +513,7 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
             <div className="mt-3 space-y-2">{outstanding.map(item => {
               const projected = pendingEstimates.find(v => v.id === item.clientId)?.value;
               const issue = syncIssues[item.clientId];
-              const rejected = issue?.status === 400 || issue?.status === 409;
+              const rejected = issue?.status === 400 || issue?.status === 403 || issue?.status === 409;
               return <div key={item.clientId} data-testid={`pending-expense-${item.clientId}`} className="border-t border-[#e7dfc9] pt-2 text-sm">
                 <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                   <span className="font-medium">{item.body.concept} <span className="font-normal text-muted-foreground">· {person(item.body.payerId)}</span></span>
@@ -567,6 +589,7 @@ export default function ExpensesModule({ tripId, readOnly, isOwner, userId, isOn
       <Dialog open={!!deletingExpense} onOpenChange={open => { if (!open) setDeletingExpense(null); }}><DialogContent className="w-[calc(100vw-1.5rem)] max-w-sm"><DialogHeader><DialogTitle>¿Eliminar este gasto?</DialogTitle><DialogDescription>Se eliminará «{deletingExpense?.concept}» y se recalcularán los balances. No se puede deshacer.</DialogDescription></DialogHeader>{actionError && <p role="alert" className="text-sm text-destructive">{actionError}</p>}<DialogFooter><Button data-testid="button-cancel-delete-expense" variant="outline" onClick={() => setDeletingExpense(null)}>Cancelar</Button><Button data-testid="button-confirm-delete-expense" variant="destructive" disabled={deleteMutation.isPending} onClick={() => void confirmDeleteExpense()}>{deleteMutation.isPending ? "Eliminando…" : "Eliminar gasto"}</Button></DialogFooter></DialogContent></Dialog>
       <Dialog open={!!deletingGuest} onOpenChange={open => { if (!open) setDeletingGuest(null); }}><DialogContent className="w-[calc(100vw-1.5rem)] max-w-sm"><DialogHeader><DialogTitle>¿Eliminar a {deletingGuest?.name}?</DialogTitle><DialogDescription>Solo se puede eliminar a un invitado que no participe en gastos registrados.</DialogDescription></DialogHeader>{actionError && <p role="alert" className="text-sm text-destructive">{actionError}</p>}<DialogFooter><Button data-testid="button-cancel-delete-guest" variant="outline" onClick={() => setDeletingGuest(null)}>Cancelar</Button><Button data-testid="button-confirm-delete-guest" variant="destructive" disabled={removeGuestMutation.isPending} onClick={() => void confirmDeleteGuest()}>{removeGuestMutation.isPending ? "Eliminando…" : "Eliminar invitado"}</Button></DialogFooter></DialogContent></Dialog>
       <Dialog open={!!deletingPending} onOpenChange={open => { if (!open && !removingPending) setDeletingPending(null); }}><DialogContent className="w-[calc(100vw-1.5rem)] max-w-sm"><DialogHeader><DialogTitle>¿Quitar este gasto local?</DialogTitle><DialogDescription>Se borrará «{deletingPending?.body.concept}» de este dispositivo. No se sincronizará y esta acción no se puede deshacer. Los gastos ya confirmados no se verán afectados.</DialogDescription></DialogHeader>{actionError && <p role="alert" className="text-sm text-destructive">{actionError}</p>}<DialogFooter><Button type="button" data-testid="button-cancel-remove-pending" variant="outline" disabled={removingPending} onClick={() => setDeletingPending(null)}>Cancelar</Button><Button type="button" data-testid="button-confirm-remove-pending" variant="destructive" disabled={removingPending || syncing} onClick={() => void confirmDeletePending()}>{removingPending ? "Quitando…" : "Quitar gasto local"}</Button></DialogFooter></DialogContent></Dialog>
+      <FreeLimitDialog type="expense" open={limitOpen} onOpenChange={setLimitOpen} />
       <span className="sr-only" aria-live="polite">{syncing ? "Sincronizando gastos" : syncError ? "Error de sincronización" : pending.length ? "Hay gastos pendientes" : "Gastos sincronizados"}</span>
     </section>
   );

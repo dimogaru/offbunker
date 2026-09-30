@@ -1,9 +1,10 @@
+import { useState } from "react";
 import { useLocation, Link } from "wouter";
 import { ArrowLeft, Plane } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useCreateTrip, getListTripsQueryKey } from "@workspace/api-client-react";
+import { useCreateTrip, useListTrips, getListTripsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import { WifiOff } from "lucide-react";
+import { useAuth } from "@/hooks/use-auth";
+import { FreeLimitDialog } from "@/components/free-limit-dialog";
 
 const schema = z.object({
   name: z.string().min(1, "El nombre del viaje es obligatorio"),
@@ -29,6 +32,12 @@ export default function NewTrip() {
   const { toast } = useToast();
   const isOnline = useOnlineStatus();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { data: trips } = useListTrips();
+  const [limitOpen, setLimitOpen] = useState(false);
+  const ownedTripCount = trips?.filter(trip =>
+    (trip as typeof trip & { ownerId?: number | null }).ownerId === Number(user?.id)
+  ).length ?? 0;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -43,12 +52,21 @@ export default function NewTrip() {
         navigate(`/trips/${trip.id}`);
       },
       onError: (error) => {
+        const status = typeof error === "object" && error !== null && "status" in error ? error.status : null;
+        if (status === 403) {
+          setLimitOpen(true);
+          return;
+        }
         toast({ title: "No se pudo crear el viaje", description: error instanceof Error ? error.message : "Inténtalo de nuevo.", variant: "destructive" });
       },
     },
   });
 
   function onSubmit(values: FormValues) {
+    if (ownedTripCount >= 2) {
+      setLimitOpen(true);
+      return;
+    }
     if (!isOnline) {
       toast({ title: "Sin conexión", description: "Crear viajes requiere conexión a internet.", variant: "destructive" });
       return;
@@ -156,6 +174,7 @@ export default function NewTrip() {
           </Form>
         </div>
       </main>
+      <FreeLimitDialog type="trip" open={limitOpen} onOpenChange={setLimitOpen} />
     </div>
   );
 }

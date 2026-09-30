@@ -34,6 +34,7 @@ import {
 } from "../lib/expense-calculations.js";
 import { classifyExpenseRetry } from "../lib/expense-idempotency.js";
 import { loadExpenseRates, rateForExpense } from "../lib/expense-rates.js";
+import { EXPENSE_LIMIT_ERROR, hasReachedExpenseLimit } from "../lib/free-plan";
 
 const router: IRouter = Router();
 const POSTGRES_INT_MAX = 2_147_483_647;
@@ -388,6 +389,24 @@ router.post("/trips/:tripId/expenses", async (req, res): Promise<void> => {
   try {
     const recorded = await db.transaction(async (tx) => {
       await tx.execute(sql`SELECT id FROM trips WHERE id = ${params.data.tripId} FOR UPDATE`);
+      const [retryExpense] = await tx.select().from(expensesTable).where(and(
+        eq(expensesTable.tripId, params.data.tripId),
+        eq(expensesTable.clientId, payload.clientId),
+      ));
+      if (retryExpense) {
+        const retrySplits = await tx.select().from(expenseSplitsTable)
+          .where(eq(expenseSplitsTable.expenseId, retryExpense.id));
+        const disposition = classifyExpenseRetry({
+          ...retryExpense,
+          splits: retrySplits.map((split) => ({
+            participantId: split.participantId,
+            amountMinor: split.amountMinor,
+          })),
+        }, payload);
+        return disposition === "conflict"
+          ? { kind: "idempotency-conflict" as const }
+          : { kind: "retry" as const, expense: retryExpense, splits: retrySplits };
+      }
       const [trip] = await tx.select({
         expenseBaseCurrency: tripsTable.expenseBaseCurrency,
       }).from(tripsTable).where(eq(tripsTable.id, params.data.tripId));
@@ -406,6 +425,14 @@ router.post("/trips/:tripId/expenses", async (req, res): Promise<void> => {
         if (stillActiveGuests.length !== guestIds.length) {
           return { kind: "guest-removed" as const };
         }
+      }
+      const activeExpenses = await tx.select({ id: expensesTable.id }).from(expensesTable)
+        .where(and(
+          eq(expensesTable.tripId, params.data.tripId),
+          isNull(expensesTable.deletedAt),
+        ));
+      if (hasReachedExpenseLimit(activeExpenses.length)) {
+        return { kind: "limit-reached" as const };
       }
       const [expense] = await tx.insert(expensesTable).values({
         tripId: params.data.tripId,
@@ -432,6 +459,18 @@ router.post("/trips/:tripId/expenses", async (req, res): Promise<void> => {
         .where(eq(tripsTable.id, params.data.tripId));
       return { kind: "recorded" as const, expense, splits: convertedSplits };
     });
+    if (recorded.kind === "idempotency-conflict") {
+      res.status(409).json({ error: "clientId has already been used for a different expense" });
+      return;
+    }
+    if (recorded.kind === "retry") {
+      res.status(200).json(responseForExpense(recorded.expense, recorded.splits));
+      return;
+    }
+    if (recorded.kind === "limit-reached") {
+      res.status(403).json({ error: EXPENSE_LIMIT_ERROR });
+      return;
+    }
     if (recorded.kind === "settings-changed") {
       res.status(409).json({ error: "Trip expense settings changed; retry with current settings" });
       return;

@@ -4,12 +4,22 @@ import { eq, sql } from "drizzle-orm";
 import { db, documentsTable, tripsTable } from "@workspace/db";
 import { uploadsDir } from "./storage-paths";
 
-export const MAX_ACTIVE_TRIPS = 2;
+export const MAX_OWNED_TRIPS = 2;
+export const MAX_ACTIVE_EXPENSES_PER_TRIP = 10;
 export const MAX_COLLABORATORS = 2;
 export const MAX_SHARED_BYTES = 50 * 1024 * 1024;
-export const TRIP_LIMIT_ERROR = "Has alcanzado el límite de 2 viajes en el Plan Gratuito.";
+export const TRIP_LIMIT_ERROR = "Has alcanzado el límite de 2 viajes del plan Gratuito. Pasa a PRO para guardar viajes ilimitados.";
+export const EXPENSE_LIMIT_ERROR = "Has alcanzado el límite de 10 gastos en este viaje. Desbloquea gastos ilimitados con OffBunker PRO.";
 export const SHARE_LIMIT_ERROR = "El Plan Gratuito permite colaborar con un máximo de 2 personas por viaje.";
 export const STORAGE_LIMIT_ERROR = "Límite de almacenamiento compartido alcanzado (50 MB).";
+
+export function hasReachedTripLimit(ownedTripCount: number): boolean {
+  return ownedTripCount >= MAX_OWNED_TRIPS;
+}
+
+export function hasReachedExpenseLimit(activeExpenseCount: number): boolean {
+  return activeExpenseCount >= MAX_ACTIVE_EXPENSES_PER_TRIP;
+}
 
 type PlanTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 

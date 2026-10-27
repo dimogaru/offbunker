@@ -4,18 +4,16 @@ import {
   ArrowRight,
   ArrowUpRight,
   Cloud,
-  FileText,
-  FolderOpen,
   HardDrive,
   KeyRound,
   LockKeyhole,
   Link2,
-  Luggage,
   MapPinned,
   Plane,
   Shield,
   ShieldCheck,
   Smartphone,
+  Ticket,
   UsersRound,
   Check,
   WifiOff,
@@ -27,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { PhoneMockup } from "@/components/landing/phone-mockup";
 import "./login-landing.css";
 
 export default function LoginPage() {
@@ -34,7 +33,7 @@ export default function LoginPage() {
     window.matchMedia("(display-mode: standalone)").matches ||
     (navigator as Navigator & { standalone?: boolean }).standalone === true;
   const { login, register, loginDemo } = useAuth();
-  const isOnline = useOnlineStatus();
+  const { isOnline } = useOnlineStatus();
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [username, setUsername] = useState("");
@@ -46,12 +45,12 @@ export default function LoginPage() {
   useEffect(() => {
     document.title = pwaLogin
       ? "Iniciar sesión | OffBunker"
-      : "OffBunker — Tu Búnker Digital de Viajes y Documentación Segura";
+      : "OffBunker — Documentos de viaje e itinerarios, contigo incluso sin conexión";
     const description = document.querySelector<HTMLMetaElement>('meta[name="description"]');
     if (description) {
       description.content = pwaLogin
         ? "Accede a tu espacio de viajes de OffBunker."
-        : "Organiza itinerarios, equipaje y documentos de viaje en OffBunker. Consulta la información disponible en tu dispositivo incluso sin conexión.";
+        : "Guarda billetes, pasaportes y reservas antes de salir y consulta en modo avión lo que hayas preparado en tu dispositivo. Prueba la demo con datos de ejemplo (requiere conexión).";
     }
   }, [pwaLogin]);
 
@@ -81,7 +80,7 @@ export default function LoginPage() {
   }
 
   async function handleDemo() {
-    if (loading || demoLoading) return;
+    if (!isOnline || loading || demoLoading) return;
     setDemoLoading(true);
     try {
       await loginDemo();
@@ -97,6 +96,105 @@ export default function LoginPage() {
     }
   }
 
+  // Single source of truth for auth markup; rendered in the PWA hero or the landing access section.
+  const loginCard = (
+    <div className="ob-login-stage" id="acceso">
+      <div className="ob-login-card">
+        <div className="ob-login-card-head">
+          <span className="ob-mono">Acceso a tu espacio</span>
+          <span className="ob-card-status ob-mono">{isOnline ? "En línea" : "Sin conexión"}</span>
+        </div>
+        <div className="ob-login-body">
+          <span className="ob-login-symbol"><LockKeyhole size={21} strokeWidth={1.8} aria-hidden="true" /></span>
+          {pwaLogin
+            ? <h1 id="ob-main-title">{creatingAccount ? "Crea tu espacio gratuito." : "Bienvenido de nuevo."}</h1>
+            : <h2>{creatingAccount ? "Crea tu espacio gratuito." : "Bienvenido de nuevo."}</h2>}
+          <p className="ob-login-description">
+            {creatingAccount
+              ? "Solo necesitas un nombre de usuario y una contraseña. Tu Plan Gratuito estará activo al entrar."
+              : isOnline
+              ? "Introduce tus credenciales para continuar"
+              : "Verificación local — solo el último usuario registrado puede acceder"}
+          </p>
+
+          {!isOnline && (
+            <div className="ob-offline-notice" role="status">
+              <WifiOff size={17} aria-hidden="true" />
+              <div>
+                <strong>Sin conexión</strong>
+                <p>Puedes acceder con el último usuario y contraseña que usaste en esta sesión.</p>
+              </div>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="ob-login-form">
+            <div className="ob-form-field">
+              <Label htmlFor="username">Usuario</Label>
+              <Input
+                id="username"
+                type="text"
+                placeholder="nombre de usuario"
+                autoComplete="username"
+                minLength={creatingAccount ? 3 : undefined}
+                maxLength={creatingAccount ? 32 : undefined}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+              />
+            </div>
+            <div className="ob-form-field">
+              <Label htmlFor="password">Contraseña</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder={creatingAccount ? "Mínimo 8 caracteres" : "••••••••"}
+                autoComplete={creatingAccount ? "new-password" : "current-password"}
+                minLength={creatingAccount ? 8 : undefined}
+                maxLength={creatingAccount ? 128 : undefined}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+            <Button type="submit" className="ob-login-submit w-full gap-2" disabled={loading || demoLoading || (creatingAccount && !isOnline)}>
+              {loading ? (
+                creatingAccount ? "Creando cuenta…" : "Iniciando sesión…"
+              ) : (
+                <>
+                  <LogIn size={17} aria-hidden="true" />
+                  {creatingAccount ? "Crear cuenta gratuita" : isOnline ? "Iniciar sesión" : "Acceder sin conexión"}
+                </>
+              )}
+            </Button>
+          </form>
+          <button
+            type="button"
+            className="mt-4 w-full text-center text-sm font-semibold text-[#246c70] underline underline-offset-4 hover:text-[#113f46] disabled:opacity-50"
+            disabled={loading || demoLoading || (!creatingAccount && !isOnline)}
+            onClick={() => {
+              setCreatingAccount(!creatingAccount);
+              setPassword("");
+            }}
+          >
+            {creatingAccount ? "¿Ya tienes cuenta? Iniciar sesión" : "¿Aún no tienes cuenta? Crear cuenta gratuita"}
+          </button>
+          <div className="mt-6 border-t border-[#d4e5db] pt-5">
+            <p className="mb-3 text-center text-xs text-[#587274]">O explora un viaje de ejemplo sin registrarte.</p>
+            <Button type="button" variant="outline" className="h-12 w-full gap-2 border-[#246c70] bg-[#eaf3ec] font-semibold text-[#113f46] hover:bg-[#dcebe2]" onClick={handleDemo} disabled={!isOnline || loading || demoLoading}>
+              <UsersRound className="h-4 w-4" aria-hidden="true" />
+              {demoLoading ? "Preparando tu demo…" : "Probar como Invitado"}
+            </Button>
+            <p className="mt-2 text-center text-xs text-[#69817e]">Sesión temporal con datos de ejemplo. Requiere conexión.</p>
+          </div>
+        </div>
+        <div className="ob-login-card-foot">
+          <KeyRound size={14} aria-hidden="true" />
+          <span>Crea tu cuenta gratuita, entra en tu espacio o prueba OffBunker sin registrarte.</span>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className={`ob-landing${pwaLogin ? " ob-pwa-login" : ""}`}>
       <header className="ob-header">
@@ -106,6 +204,7 @@ export default function LoginPage() {
             <span>OffBunker</span>
           </a>
           {!pwaLogin && (
+          <>
           <nav className="ob-nav" aria-label="Navegación principal">
             <a href="#funciones">Cómo funciona</a>
             <a href="#compartir">Compartir</a>
@@ -113,6 +212,8 @@ export default function LoginPage() {
             <a href="#privacidad">Privacidad</a>
             <a href="#planes">Planes</a>
           </nav>
+          <a className="ob-header-login" href="#acceso" data-testid="link-header-login">Iniciar sesión</a>
+          </>
           )}
         </div>
       </header>
@@ -122,199 +223,64 @@ export default function LoginPage() {
           <div className="ob-container ob-hero-grid">
             {!pwaLogin && (
             <div className="ob-hero-copy">
-              <span className="ob-mono ob-hero-eyebrow">Tu viaje, con un lugar propio</span>
-              <h1 id="ob-main-title">OffBunker — Tu Búnker Digital de Viajes y Documentación Segura</h1>
-              <p className="ob-lead">
-                Reservas, rutas y documentos, sin tener que buscarlos entre correos.
-                Organiza lo importante antes de salir y consulta lo que ya está disponible
-                en tu dispositivo cuando la conexión falle. Invita a tus acompañantes a
-                planificar contigo o comparte un enlace público para consultar el viaje sin registro.
-                También puedes instalar OffBunker en tu móvil desde el navegador.
-              </p>
+              <span className="ob-mono ob-hero-eyebrow">Para cuando el aeropuerto no da señal</span>
+              <h1 id="ob-main-title">Tus documentos de viaje e itinerarios, contigo incluso sin conexión.</h1>
+              <p className="ob-lead">Guarda tus billetes, pasaportes y reservas antes de salir. Consulta lo disponible en tu dispositivo sin roaming ni Wi-Fi del aeropuerto.</p>
               <div className="ob-hero-actions">
-                <a className="ob-primary-link" href="#acceso">
-                  <span>Entrar a mi espacio</span><ArrowRight size={17} aria-hidden="true" />
-                </a>
-                <a className="ob-text-link" href="#funciones">
-                  Descubrir OffBunker <ArrowUpRight size={15} aria-hidden="true" />
-                </a>
-              </div>
-              <div className="ob-hero-footnote">
-                <ShieldCheck size={18} aria-hidden="true" />
-                <span>Un lugar claro para preparar el viaje. Consulta sin red la información que ya se haya guardado en este dispositivo.</span>
+                <button type="button" className="ob-cta" data-testid="button-hero-demo" onClick={handleDemo} disabled={!isOnline || loading || demoLoading} aria-busy={demoLoading}>
+                  <UsersRound size={19} aria-hidden="true" />
+                  <span>{demoLoading ? "Preparando tu demo…" : "Probar como invitado"}</span>
+                  <ArrowRight size={18} aria-hidden="true" />
+                </button>
+                <p className="ob-cta-micro"><LockKeyhole size={14} aria-hidden="true" /><span>Sin registro para probar · Tú eliges qué documentos guardar solo en este dispositivo.</span></p>
+                <p className="ob-cta-qualifier">{isOnline ? "Demo con datos de ejemplo. Requiere conexión para entrar." : "Sin conexión: la demo requiere conexión para entrar."}</p>
+                <a className="ob-text-link" href="#acceso" data-testid="link-hero-login">¿Ya tienes cuenta? Iniciar sesión <ArrowUpRight size={15} aria-hidden="true" /></a>
               </div>
             </div>
             )}
-
-            <div className="ob-login-stage" id="acceso">
-              <div className="ob-login-card">
-                <div className="ob-login-card-head">
-                  <span className="ob-mono">Acceso a tu espacio</span>
-                  <span className="ob-card-status ob-mono">{isOnline ? "En línea" : "Sin conexión"}</span>
-                </div>
-                <div className="ob-login-body">
-                  <span className="ob-login-symbol"><LockKeyhole size={21} strokeWidth={1.8} aria-hidden="true" /></span>
-                  {pwaLogin
-                    ? <h1 id="ob-main-title">{creatingAccount ? "Crea tu espacio gratuito." : "Bienvenido de nuevo."}</h1>
-                    : <h2>{creatingAccount ? "Crea tu espacio gratuito." : "Bienvenido de nuevo."}</h2>}
-                  <p className="ob-login-description">
-                    {creatingAccount
-                      ? "Solo necesitas un nombre de usuario y una contraseña. Tu Plan Gratuito estará activo al entrar."
-                      : isOnline
-                      ? "Introduce tus credenciales para continuar"
-                      : "Verificación local — solo el último usuario registrado puede acceder"}
-                  </p>
-
-                  {!isOnline && (
-                    <div className="ob-offline-notice" role="status">
-                      <WifiOff size={17} aria-hidden="true" />
-                      <div>
-                        <strong>Sin conexión</strong>
-                        <p>Puedes acceder con el último usuario y contraseña que usaste en esta sesión.</p>
-                      </div>
-                    </div>
-                  )}
-
-                  <form onSubmit={handleSubmit} className="ob-login-form">
-                    <div className="ob-form-field">
-                      <Label htmlFor="username">Usuario</Label>
-                      <Input
-                        id="username"
-                        type="text"
-                        placeholder="nombre de usuario"
-                        autoComplete="username"
-                        minLength={creatingAccount ? 3 : undefined}
-                        maxLength={creatingAccount ? 32 : undefined}
-                        value={username}
-                        onChange={(e) => setUsername(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="ob-form-field">
-                      <Label htmlFor="password">Contraseña</Label>
-                      <Input
-                        id="password"
-                        type="password"
-                        placeholder={creatingAccount ? "Mínimo 8 caracteres" : "••••••••"}
-                        autoComplete={creatingAccount ? "new-password" : "current-password"}
-                        minLength={creatingAccount ? 8 : undefined}
-                        maxLength={creatingAccount ? 128 : undefined}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <Button type="submit" className="ob-login-submit w-full gap-2" disabled={loading || demoLoading || (creatingAccount && !isOnline)}>
-                      {loading ? (
-                        creatingAccount ? "Creando cuenta…" : "Iniciando sesión…"
-                      ) : (
-                        <>
-                          <LogIn size={17} aria-hidden="true" />
-                          {creatingAccount ? "Crear cuenta gratuita" : isOnline ? "Iniciar sesión" : "Acceder sin conexión"}
-                        </>
-                      )}
-                    </Button>
-                  </form>
-                  <button
-                    type="button"
-                    className="mt-4 w-full text-center text-sm font-semibold text-[#246c70] underline underline-offset-4 hover:text-[#113f46] disabled:opacity-50"
-                    disabled={loading || demoLoading || (!creatingAccount && !isOnline)}
-                    onClick={() => {
-                      setCreatingAccount(!creatingAccount);
-                      setPassword("");
-                    }}
-                  >
-                    {creatingAccount ? "¿Ya tienes cuenta? Iniciar sesión" : "¿Aún no tienes cuenta? Crear cuenta gratuita"}
-                  </button>
-                  <div className="mt-6 border-t border-[#d4e5db] pt-5">
-                    <p className="mb-3 text-center text-xs text-[#587274]">O explora un viaje de ejemplo sin registrarte.</p>
-                    <Button type="button" variant="outline" className="h-12 w-full gap-2 border-[#246c70] bg-[#eaf3ec] font-semibold text-[#113f46] hover:bg-[#dcebe2]" onClick={handleDemo} disabled={!isOnline || loading || demoLoading}>
-                      <UsersRound className="h-4 w-4" aria-hidden="true" />
-                      {demoLoading ? "Preparando tu demo…" : "Probar como Invitado"}
-                    </Button>
-                    <p className="mt-2 text-center text-xs text-[#69817e]">Sesión temporal con datos de ejemplo. Requiere conexión.</p>
-                  </div>
-                </div>
-                <div className="ob-login-card-foot">
-                  <KeyRound size={14} aria-hidden="true" />
-                  <span>Crea tu cuenta gratuita, entra en tu espacio o prueba OffBunker sin registrarte.</span>
-                </div>
-              </div>
-            </div>
+            {pwaLogin ? (
+              loginCard
+            ) : <PhoneMockup />}
           </div>
         </section>
 
         {!pwaLogin && (
         <>
-        <section className="border-y border-[#bed9cf] bg-[#e2eee6] py-7" aria-labelledby="ob-expenses-title">
-          <div className="ob-container flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
-            <div>
-              <span className="ob-mono text-[#246c70]">Novedad para viajes en grupo</span>
-              <h2 id="ob-expenses-title" className="mt-2 font-['Manrope'] text-xl font-bold leading-snug text-[#113f46] sm:text-2xl">
-                ✨ ¡Nuevo! Gestor de Gastos y Reparto Multimoneda Offline — Incluido gratis por tiempo limitado.
-              </h2>
-              <p className="mt-2 text-sm text-[#47676a]">Disponible para cuentas registradas. La oferta no tiene una fecha de finalización anunciada.</p>
+        <section className="ob-pillars" id="funciones" aria-labelledby="ob-features-title">
+          <div className="ob-container">
+            <h2 className="ob-sr" id="ob-features-title">Cómo te ayuda OffBunker</h2>
+            <div className="ob-pillar-grid">
+              <article className="ob-pillar">
+                <span className="ob-pillar-icon"><Ticket size={22} aria-hidden="true" /></span>
+                <h3>Cero Pánico en Embarques</h3>
+                <p>Tus billetes y reservas, a mano sin conexión si los preparaste antes en el dispositivo.</p>
+              </article>
+              <article className="ob-pillar">
+                <span className="ob-pillar-icon"><HardDrive size={22} aria-hidden="true" /></span>
+                <h3>Búnker Digital Seguro</h3>
+                <p>Los documentos sensibles que marques Personal en móvil o PWA se quedan solo en ese dispositivo y no se sincronizan.</p>
+              </article>
+              <article className="ob-pillar">
+                <span className="ob-pillar-icon"><MapPinned size={22} aria-hidden="true" /></span>
+                <h3>Itinerario Organizado</h3>
+                <p>Todo tu plan de viaje, centralizado en una línea de tiempo fácil de consultar.</p>
+              </article>
             </div>
-            <a href="#acceso" className="ob-primary-link shrink-0">Crear cuenta gratuita</a>
           </div>
         </section>
-        <div className="ob-trust-strip" aria-label="Aspectos destacados">
-          <div className="ob-container ob-trust-inner">
-            <div className="ob-trust-item"><WifiOff size={21} aria-hidden="true" /><span>Consulta sin conexión</span></div>
-            <div className="ob-trust-item"><FolderOpen size={21} aria-hidden="true" /><span>Todo el viaje, ordenado</span></div>
-            <div className="ob-trust-item"><Smartphone size={21} aria-hidden="true" /><span>Documentos personales en tu dispositivo</span></div>
-          </div>
-        </div>
 
-        <section className="ob-features ob-container" id="funciones" aria-labelledby="ob-features-title">
-          <div className="ob-section-intro">
+        <section className="ob-access" aria-labelledby="ob-access-title">
+          <div className="ob-container ob-access-grid">
             <div>
-              <span className="ob-section-tag ob-mono">01 / Lo que ya puedes hacer</span>
-              <h2 className="ob-display ob-section-title" id="ob-features-title">Menos pestañas abiertas.<br />Más viaje por delante.</h2>
+              <span className="ob-section-tag ob-mono">Tu espacio</span>
+              <h2 className="ob-display ob-section-title" id="ob-access-title">Entra o crea tu cuenta gratuita.</h2>
+              <p className="ob-body">Las cuentas registradas guardan sus viajes y pueden preparar documentos para consultarlos sin red en este dispositivo.</p>
+              <div className="ob-access-offer">
+                <span className="ob-mono">Novedad para viajes en grupo</span>
+                <p><strong>Gestor de Gastos y Reparto Multimoneda Offline — incluido gratis por tiempo limitado.</strong> Disponible para cuentas registradas. La oferta no tiene una fecha de finalización anunciada.</p>
+              </div>
             </div>
-            <p className="ob-body">Cada dato en su sitio, para que puedas encontrarlo justo cuando importa.</p>
-          </div>
-          <div className="ob-feature-grid">
-            <article className="ob-feature">
-              <span className="ob-feature-icon"><MapPinned size={22} aria-hidden="true" /></span>
-              <span className="ob-feature-number ob-mono">01</span>
-              <div className="ob-feature-content">
-                <h3>Itinerarios a la vista</h3>
-                <p>Reúne las etapas y la información de tus viajes en un recorrido fácil de consultar.</p>
-              </div>
-            </article>
-            <article className="ob-feature">
-              <span className="ob-feature-icon"><FileText size={22} aria-hidden="true" /></span>
-              <span className="ob-feature-number ob-mono">02</span>
-              <div className="ob-feature-content">
-                <h3>Documentos organizados</h3>
-                <p>Ten tus reservas y archivos asociados al viaje, sin depender de una bandeja de entrada.</p>
-              </div>
-            </article>
-            <article className="ob-feature">
-              <span className="ob-feature-icon"><Luggage size={22} aria-hidden="true" /></span>
-              <span className="ob-feature-number ob-mono">03</span>
-              <div className="ob-feature-content">
-                <h3>Equipaje bajo control</h3>
-                <p>Prepara tus listas y sigue lo que llevas antes de cerrar la maleta.</p>
-              </div>
-            </article>
-            <article className="ob-feature">
-              <span className="ob-feature-icon"><WifiOff size={22} aria-hidden="true" /></span>
-              <span className="ob-feature-number ob-mono">04</span>
-              <div className="ob-feature-content">
-                <h3>Una referencia cuando no hay señal</h3>
-                <p>La experiencia offline te permite consultar información previamente disponible en ese dispositivo. Prepárala antes de perder la conexión.</p>
-              </div>
-            </article>
-            <article className="ob-feature">
-              <span className="ob-feature-icon"><Cloud size={22} aria-hidden="true" /></span>
-              <span className="ob-feature-number ob-mono">05</span>
-              <div className="ob-feature-content">
-                <h3>Documentos compartidos</h3>
-                <p>Los documentos de viaje compartidos cuentan con sincronización; son distintos de los archivos marcados Personal.</p>
-              </div>
-            </article>
+            {loginCard}
           </div>
         </section>
 
